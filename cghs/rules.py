@@ -16,6 +16,40 @@ from typing import List, Tuple
 
 from .locators import VALID_CODES, CGHS_CATEGORY_MAP, PORTAL_OPTION_MAP  # noqa: F401
 
+#: Matches the "Dept Sub Total" LABEL only.  The amount is resolved separately
+#: so that label-first and value-first layouts cannot shadow one another.
+_SUBTOTAL_LABEL = re.compile(r'Dept\s*Sub\s*Total', re.IGNORECASE)
+# NOTE: used with .match(text, pos), which already anchors at pos - a '^'
+# here would mean start-of-STRING and never match.
+_SUBTOTAL_AFTER = re.compile(r'\s*:?\s*([\d,]+\.\d{2})')
+_SUBTOTAL_BEFORE = re.compile(r'([\d,]+\.\d{2})\s*$')
+
+
+def _subtotal_at(text: str, label):
+    """Resolve the amount belonging to one 'Dept Sub Total' label.
+
+    Precedence is label-first, then value-first - identical to the precedence
+    ``extract_dept_subtotal`` already applies inside a department slice.
+
+    The previous single alternating regex was scanned with ``finditer``, which
+    matches at the EARLIEST position: when a row amount sat immediately above
+    the label (the common two-column PDF extraction), the value-first branch
+    matched that ROW amount and consumed the label, so the real subtotal that
+    followed was never seen.  ``extract_dept_subtotal`` and
+    ``extract_consumables_total`` then disagreed on the same text - DRUG100
+    read the subtotal while CNSU100 read the last line item.
+
+    Returns ``(value, layout)`` or ``(None, reason)``.
+    """
+    after = _SUBTOTAL_AFTER.match(text, label.end())
+    if after:
+        return after.group(1), "label_first"
+    before = _SUBTOTAL_BEFORE.search(text, 0, label.start())
+    if before:
+        return before.group(1), "value_first"
+    return None, "no_amount"
+
+
 def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
     total = 0.0
     try:
@@ -45,8 +79,10 @@ def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
 def extract_consumables_total(text: str):
     total = 0.0
     details = []
-    for m in re.finditer(r'Dept\s*Sub\s*Total\s*:?\s*([\d,]+\.\d{2})|([\d,]+\.\d{2})\s*Dept\s*Sub\s*Total', text, re.IGNORECASE|re.DOTALL):
-        amt_str = m.group(1) or m.group(2)
+    for m in _SUBTOTAL_LABEL.finditer(text):
+        amt_str, _layout = _subtotal_at(text, m)
+        if amt_str is None:
+            continue
         try:
             val = float(amt_str.replace(',',''))
         except: continue

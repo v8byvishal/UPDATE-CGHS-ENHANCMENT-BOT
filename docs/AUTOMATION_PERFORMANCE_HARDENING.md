@@ -235,7 +235,71 @@ mutation that the old code would have performed.
 
 ---
 
-## 6. Business rules — unchanged, and now pinned by tests
+## 6. Business rules — pinned by tests, with one declared change
+
+### 6.0 Parser findings from the section-10 evidence
+
+The brief supplied observed values for two real bills. Reconstructing the
+documented department structure surfaced a defect and a second, weaker
+suspicion. They were treated **differently on purpose**, according to how
+strong the evidence was.
+
+#### FIXED — `extract_consumables_total` read the wrong number (CNSU100)
+
+The baseline scanned one alternating regex with `finditer`:
+
+```python
+r'Dept\s*Sub\s*Total\s*:?\s*([\d,]+\.\d{2})|([\d,]+\.\d{2})\s*Dept\s*Sub\s*Total'
+```
+
+`finditer` matches at the **earliest** position. When a line-item amount sat
+immediately above a `Dept Sub Total :` label — the ordinary two-column PDF
+extraction — the value-first branch matched that **row** amount and consumed
+the label, so the real subtotal that followed was never read.
+
+Two consequences, both real:
+
+* `extract_dept_subtotal` (feeding **DRUG100**) and `extract_consumables_total`
+  (feeding **CNSU100**) returned *different values for the same text*.
+* The same bill totalled differently depending only on how the PDF extracted:
+
+| layout | baseline CNSU100 | fixed |
+|---|---:|---:|
+| label-first (`Dept Sub Total : 6,486.50`) | 3,586.50 | **8,993.90** |
+| value-first (`6,486.50 Dept Sub Total`) | 8,993.90 | 8,993.90 |
+
+The decisive point: **the baseline itself computes 8,993.90** via its
+value-first path. That is the intended semantics, so label-first was simply
+wrong. The label is now anchored first and the amount resolved around it —
+label-first, then value-first — exactly the precedence `extract_dept_subtotal`
+already applied. Every unambiguous layout is **byte-for-byte unchanged**.
+
+This is the **only** permitted deviation from the baseline rules. It is
+registered in `DECLARED_RULE_DEVIATIONS` with its reason, and
+`test_rules_module_is_a_verbatim_copy_of_the_baseline_block` fails on any
+*undeclared* change to any rule function.
+
+> **Operator action:** CNSU100 may now be higher on bills that previously hit
+> the ambiguous layout. This is a correction, not an inflation — but confirm
+> against one real bill before relying on it.
+
+#### OPEN FINDING — `extract_dept_subtotal` can lose a department (DRUG100)
+
+`extract_dept_subtotal` returns **0.00** for a department whose subtotal is
+value-first when another department follows. The header regex
+`[A-Za-z][A-Za-z\s]*\(\s*999311\s*\)` lets `[A-Za-z\s]*` span newlines, so the
+next "header" is matched starting at `Dept Sub Total\n\nOT Pharmacy(999311)`
+instead of at `OT Pharmacy`. The slice is cut before its own subtotal.
+
+**Deliberately not fixed.** Status `NOT_YET_VERIFIED`. Unlike the defect above
+there is no internal oracle: the baseline yields 0.00 on every path, so
+"fixing" it would mean *choosing* a billing number with no evidence — and the
+locked mappings must not change because a fixture suggests something. The
+reproducer is kept executable as a strict `xfail`
+(`test_FINDING_dept_subtotal_loses_value_first_departments`), so the day it is
+addressed the suite says so. Resolving it needs the real PDFs.
+
+## 6.1 Business rules — unchanged, and pinned by tests
 
 These were **not** touched. `tests/test_parser_rules.py` loads the *original*
 module from the baseline commit and asserts the new code agrees with it
@@ -269,6 +333,7 @@ invented for bill 40343.
 | `tests/test_stress.py` | 9 | 27 / 84 / 200 items × fast / medium / slow |
 | `tests/test_property_fuzz.py` | 64 | seeded random portals + invariants |
 | `tests/test_packaging.py` | 10 | canonical ownership, no duplicate engines, artifact |
+| `tests/test_real_format_bills.py` | 23 | 40343 / 39078 evidence, layout independence, honesty guards |
 
 Notable properties asserted rather than hoped for:
 
@@ -285,9 +350,19 @@ Notable properties asserted rather than hoped for:
 
 * **Real-format bill regression (40343, 39078, 40337, D1–D5): `ENVIRONMENT_BLOCKED`.**
   No such PDFs exist in the repository, and a Google Drive search returned
-  none. The parser is instead pinned differentially against the baseline
-  implementation, which is the strongest available check without the fixtures.
-  Supply the PDFs and the regression can be added directly.
+  none. Two things stand in for them in `tests/test_real_format_bills.py`:
+  the documented section-10 values (patient, IP/bill number, OT Consumables
+  6,486.50 / OT Pharmacy 447.70 for 40343, OT Consumables 2,507.40 for 39078,
+  Room Rent ICU and Single composition) are reconstructed in the department
+  layout the parser is specified to read and asserted exactly; and
+  `_find_bill()` picks up the real PDFs automatically the moment they are
+  dropped into the repo, at which point 8 currently-skipped tests activate.
+  What this proves is that the parser handles the documented structure — not
+  that a real PyMuPDF extraction produces that exact layout, which is why the
+  status stays ENVIRONMENT_BLOCKED rather than PASS.
+  No final billing result is asserted for 40343; the brief says none is
+  proven, and `test_no_final_result_is_invented_for_40343` enforces that no
+  module hardcodes a case identity or a case amount.
 * **Live portal execution: `NOT_YET_VERIFIED`** — no Chrome, no display, no
   portal credentials in this environment, and credential automation is
   forbidden by the brief regardless.

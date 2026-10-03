@@ -131,9 +131,84 @@ def test_rules_module_is_a_verbatim_copy_of_the_baseline_block():
     original_bodies = bodies(original)
     current_bodies = bodies(current)
     assert original_bodies, "baseline slice did not contain any function"
+
+    modified = []
     for name, body in original_bodies.items():
         assert name in current_bodies, f"rule {name} disappeared"
-        assert current_bodies[name] == body, f"rule {name} was modified"
+        if current_bodies[name] != body:
+            modified.append(name)
+
+    # Any change to a business rule must be DECLARED, with a reason, and backed
+    # by its own differential test.  Undeclared drift still fails hard.
+    assert modified == sorted(DECLARED_RULE_DEVIATIONS), (
+        f"undeclared rule change(s): {sorted(set(modified) - set(DECLARED_RULE_DEVIATIONS))}; "
+        f"declared but unchanged: {sorted(set(DECLARED_RULE_DEVIATIONS) - set(modified))}")
+
+
+#: The ONLY business-rule function allowed to differ from the baseline, and why.
+#: See test_consumables_subtotal_is_layout_independent for the proof.
+DECLARED_RULE_DEVIATIONS = {
+    "extract_consumables_total": (
+        "Baseline scanned one alternating regex with finditer, which matches at "
+        "the earliest position. When a line-item amount sat immediately above a "
+        "'Dept Sub Total :' label, the value-first branch matched that ROW amount "
+        "and consumed the label, so the real subtotal was never read. The result "
+        "depended on PDF text layout: the SAME bill gave 3,586.50 in label-first "
+        "layout and 8,993.90 in value-first layout, and extract_dept_subtotal "
+        "(DRUG100) disagreed with extract_consumables_total (CNSU100) on identical "
+        "text. The label is now anchored first and the amount resolved around it, "
+        "label-first then value-first - the same precedence extract_dept_subtotal "
+        "already applied. Only the previously-ambiguous layout changes."),
+}
+
+
+def test_declared_deviations_each_carry_a_reason():
+    for name, reason in DECLARED_RULE_DEVIATIONS.items():
+        assert hasattr(rules, name), f"{name} is declared but does not exist"
+        assert len(reason) > 120, f"{name} needs a real explanation, not a note"
+
+
+def test_consumables_subtotal_is_layout_independent():
+    """The same bill must total the same whichever way the PDF extracts it.
+
+    This is the oracle for the one declared deviation: the BASELINE itself
+    produces the correct figure via its value-first path, so the value-first
+    result is the intended semantics, and label-first must now agree with it.
+    """
+    rows = ("OT Consumables(999311)\n"
+            "1 CGHS DISPOSABLE KIT OTC01 2 1500.00 3000.00\n"
+            "2 CGHS SURGICAL MESH OTC02 1 3486.50 3486.50\n")
+    ward = ("Ward Consumables(999311)\n"
+            "1 CGHS GLOVES WC01 1 100.00 100.00\n")
+
+    label_first = rows + "Dept Sub Total : 6,486.50\n" + ward + "Dept Sub Total : 2,507.40\n"
+    value_first = rows + "6,486.50 Dept Sub Total\n" + ward + "2,507.40 Dept Sub Total\n"
+
+    expected = 6486.50 + 2507.40
+
+    assert rules.extract_consumables_total(label_first)[0] == pytest.approx(expected)
+    assert rules.extract_consumables_total(value_first)[0] == pytest.approx(expected)
+
+    # the value-first path is unchanged from the baseline - it was always right
+    assert (rules.extract_consumables_total(value_first)[0]
+            == pytest.approx(BASELINE.extract_consumables_total(value_first)[0]))
+
+    # and the baseline really did disagree with itself across the two layouts
+    assert (BASELINE.extract_consumables_total(label_first)[0]
+            != pytest.approx(BASELINE.extract_consumables_total(value_first)[0]))
+
+
+@pytest.mark.parametrize("layout,text,expected", [
+    ("value_first", "OT Consumables(999311)\nX 1 1.00 1.00\n6,486.50 Dept Sub Total\n", 6486.50),
+    ("label_first_no_rows", "OT Consumables(999311)\nDept Sub Total : 6,486.50\n", 6486.50),
+    ("no_amount", "OT Consumables(999311)\nDept Sub Total :\n", 0.0),
+    ("non_consumable_dept", "IP Pharmacy(999311)\nDept Sub Total : 1,250.00\n", 0.0),
+])
+def test_consumables_layouts_unchanged_from_baseline(layout, text, expected):
+    """Every layout EXCEPT the ambiguous one must match the baseline exactly."""
+    assert rules.extract_consumables_total(text)[0] == pytest.approx(expected)
+    assert (rules.extract_consumables_total(text)[0]
+            == pytest.approx(BASELINE.extract_consumables_total(text)[0]))
 
 
 # ---------------------------------------------------------------------------
