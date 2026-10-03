@@ -52,9 +52,9 @@
       "detail": "tests/test_tab_frame_safety.py: 11"
     }
   ],
-  "zip_sha256": "bd0a1513649c57312b1f57187d5c8ff2d33920b818777105ea35ad1b33beeb49",
-  "zip_bytes": 175647,
-  "entry_count": 39,
+  "zip_sha256": "8b59890e6319f3358ad186dd9dc2fcac408a36c797feabb64990c11fa805eaa6",
+  "zip_bytes": 200484,
+  "entry_count": 43,
   "critical_file_hashes": {
     "app.py": {
       "sha256": "eee0dd10f5888b276258acee6db06a2831da0455094be3b84e82544b7d21cc2a",
@@ -77,8 +77,8 @@
       "matches_workspace": true
     },
     "cghs/locators.py": {
-      "sha256": "a58891119ae3b8d00a2f09e2e54c8d5426854f370db083b678ccf58b955b2ce6",
-      "bytes": 8692,
+      "sha256": "bbf43ac83e71f4507a510113a5f245445278f0b8bfc8503208343db7337bfb3a",
+      "bytes": 11380,
       "matches_workspace": true
     },
     "cghs/rules.py": {
@@ -97,8 +97,8 @@
       "matches_workspace": true
     },
     "cghs/dom.py": {
-      "sha256": "eebf6a1041bf80cc774a815ecf869a6b1310c4746ea70004b461267fed6c8397",
-      "bytes": 29012,
+      "sha256": "273feac86ba13113172d5cd77c5c87dde3fd2153719b61deab202570c26b898c",
+      "bytes": 30248,
       "matches_workspace": true
     },
     "cghs/txstate.py": {
@@ -112,8 +112,8 @@
       "matches_workspace": true
     },
     "cghs/controllers.py": {
-      "sha256": "a5f6f8987fc3ee475e6643a6e3b564c095e7c5288cd5db933d2404efaea26cc0",
-      "bytes": 43265,
+      "sha256": "59fa4a92a5b34883e4a3543f4914693b8882f9d5b0b227293978fb94c5b94464",
+      "bytes": 60824,
       "matches_workspace": true
     },
     "cghs/session.py": {
@@ -127,8 +127,8 @@
       "matches_workspace": true
     },
     "docs/AUTOMATION_PERFORMANCE_HARDENING.md": {
-      "sha256": "199d11cf8fab4c00ff927a73cd0ca31509b1bfff555b6943adc70b083114f299",
-      "bytes": 28350,
+      "sha256": "6cdfdf2264a26cc341cbb1f1c10923b96935b72b3a28752eb5df853e6415e703",
+      "bytes": 35521,
       "matches_workspace": true
     }
   },
