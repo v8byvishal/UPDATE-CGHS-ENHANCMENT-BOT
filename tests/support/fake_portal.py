@@ -120,6 +120,12 @@ class PortalConfig:
     url: str = "https://portal.example.gov.in/claims/treatment-plan/40343"
     title: str = "Treatment Plan - Enhancement"
     in_iframe: bool = False
+    #: index of the iframe that actually hosts the controls (None = top level)
+    controls_in_frame: Optional[int] = None
+    #: how many iframes the page exposes when controls_in_frame is set
+    iframe_count: int = 3
+    #: set False to model a tab that is not a Treatment Plan at all
+    treatment_plan_present: bool = True
     extra_tabs: List[Dict[str, Any]] = field(default_factory=list)
 
 
@@ -230,6 +236,8 @@ class FakePortal:
         #: Treatment Plan rows are PER PATIENT, exactly like the real portal:
         #: opening another patient's plan shows that patient's rows.
         self._rows_by_patient: Dict[str, List[Dict[str, str]]] = {}
+        #: controls whose markup has been re-rendered (locator cache must miss)
+        self.renamed_controls: set = set()
         self.mutation_detected = False
         self.mutation_count = 0
         self.plus_clicks: List[Dict[str, Any]] = []
@@ -441,6 +449,16 @@ class FakePortal:
     def rows(self) -> List[Dict[str, str]]:
         return self._rows_by_patient.setdefault(self.config.patient_name, [])
 
+    def seed_rows(self, rows):
+        """Pre-populate the Treatment Plan (models a partly-billed patient)."""
+        table = self._rows_by_patient.setdefault(self.config.patient_name, [])
+        for code, qty in rows:
+            table.append({"code": str(code), "qty": str(qty)})
+
+    def rename_control(self, kind: str):
+        """Re-render one control so its previously cached locator stops matching."""
+        self.renamed_controls.add(kind)
+
     def switch_patient(self, name: str, ip_case: str = "", bill_number: str = ""):
         """Model the OPERATOR opening another patient's Treatment Plan."""
         self.config.patient_name = name
@@ -452,8 +470,13 @@ class FakePortal:
 
     def _tab_cfg(self) -> Dict[str, Any]:
         if self.current_handle == "TAB-MAIN":
+            if self.config.controls_in_frame is None:
+                controls = True
+            else:
+                controls = self.current_frame == self.config.controls_in_frame
             return {"url": self.config.url, "title": self.config.title,
-                    "treatment_plan": True, "controls": True,
+                    "treatment_plan": self.config.treatment_plan_present,
+                    "controls": controls and self.config.treatment_plan_present,
                     "patient": self.config.patient_name, "ip": self.config.ip_case,
                     "bill": self.config.bill_number}
         for tab in self.config.extra_tabs:
@@ -473,9 +496,17 @@ class FakePortal:
         disconnect_after = self.config.faults.browser_disconnect_after
         if disconnect_after is not None and self._find_calls > disconnect_after:
             raise WebDriverException("chrome not reachable (injected)")
+        v = str(value).lower()
+        if "iframe" in v and str(by).lower() in ("tag name", "tag_name"):
+            if self.config.controls_in_frame is None:
+                return []
+            if self.current_frame is not None:
+                return []                      # no nested frames in this model
+            return [FakeElement(self, "iframe", tag="iframe", payload=i)
+                    for i in range(self.config.iframe_count)]
         if not self._tab_cfg().get("controls", False):
             return []
-        return self._resolve(str(by), str(value))
+        return self._resolve(str(by), v)
 
     def _resolve(self, by: str, value: str) -> List[FakeElement]:
         v = value.lower()
@@ -487,7 +518,11 @@ class FakePortal:
             return [self._plus_element()]
         if "treatment plan" in v:
             return [FakeElement(self, "header", text="Treatment Plan", tag="div")]
-        if "procedure name" in v or "procedurename" in v:
+        # NOTE: PROCEDURE_INPUT strategy #2 also mentions 'procedureName', so the
+        # Procedure Name control is only matched by selectors that do NOT also
+        # address the code input.
+        if ("procedure name" in v or "procedurename" in v) \
+                and "@formcontrolname='procedure'" not in v:
             return [FakeElement(self, "procedure_name", value=self.procedure_name_value)]
         if "amount" in v:
             return [FakeElement(self, "amount", value=self.amount_value)]
@@ -509,6 +544,11 @@ class FakePortal:
         if "tbody" in v or "treatment-grid" in v:
             return self._row_elements(duplicate=self.config.faults.overlapping_row_locators)
         if ("procedure" in v) or ("@formcontrolname='procedure'" in v):
+            if "procedure" in self.renamed_controls:
+                # The control was re-rendered: only the LAST registered
+                # strategy still matches, so a cached strategy must miss.
+                if "contains(@id" not in v:
+                    return []
             return [self._procedure_element()]
         if "number" in v or "days" in v or "unit" in v or "noofdays" in v:
             return [self._quantity_element()]
@@ -665,9 +705,9 @@ class FakePortal:
                 data["token_index"] = idx
             out["options"] = data
         if "rows" in fields:
-            if self.config.faults.virtualized_table:
-                out["rows"] = {"count": 0, "hash": "", "items": []}
-            else:
+            # A virtualized grid hides OFF-SCREEN rows from the DOM, but the
+            # compact probe reads the rendered model, so it still sees them.
+            if True:
                 items = [{"i": i, "code": r["code"], "qty": r["qty"]}
                          for i, r in enumerate(self.rows)]
                 out["rows"] = {
@@ -709,7 +749,8 @@ class _SwitchTo:
 
     def frame(self, element):
         self.portal.counters["frame_switches"] += 1
-        self.portal.current_frame = 0
+        index = getattr(element, "payload", None)
+        self.portal.current_frame = 0 if index is None else index
 
     def window(self, handle):
         self.portal.counters["window_switches"] += 1

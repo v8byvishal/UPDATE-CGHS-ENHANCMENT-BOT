@@ -38,12 +38,24 @@ class TabEvidence:
 
     @property
     def eligible(self) -> bool:
-        """A usable Treatment Plan tab.
+        """A usable Treatment Plan tab, with its controls at the top level.
 
-        An empty table is fine (virtualized grids start empty); the required
-        evidence is the Treatment Plan signature plus the editable controls.
+        An empty table is fine (virtualized grids start empty); the evidence
+        required here is the Treatment Plan signature plus editable controls.
         """
         return bool(self.treatment_plan and self.controls)
+
+    @property
+    def plan_candidate(self) -> bool:
+        """A Treatment Plan tab whose controls may live inside an iframe.
+
+        The portal renders some Treatment Plans in a nested browsing context,
+        where no control is visible at the top level.  Such a tab is still a
+        legitimate candidate - the frame binding step is what proves the
+        controls exist - so rejecting it here would make the tool unusable on
+        those pages.  Ambiguity rules are unchanged: two candidates still STOP.
+        """
+        return bool(self.treatment_plan)
 
     def identity_key(self) -> str:
         return "|".join([
@@ -165,7 +177,7 @@ class PatientTabResolver:
             handle = self.operator_choice
             self._switch(handle)
             ev = self._collect(handle)
-            if not ev.eligible:
+            if not ev.plan_candidate:
                 raise NoPatientTab(f"operator-chosen tab {handle} is not a Treatment Plan tab")
             self.handle, self.evidence = handle, ev
             self.logger.info(f"[TAB] operator-chosen handle {handle} verified")
@@ -178,7 +190,7 @@ class PatientTabResolver:
             current = None
         if current:
             ev = self._collect(current)
-            if ev.eligible and self._identity_ok(ev, expected_identity):
+            if ev.plan_candidate and self._identity_ok(ev, expected_identity):
                 others = self._scan_others(current, expected_identity)
                 if others:
                     candidates = [ev] + others
@@ -218,7 +230,7 @@ class PatientTabResolver:
             self.invalidate("handle no longer valid")
             return False
         ev = self._collect(self.handle or "")
-        if ev.eligible and self._identity_ok(ev, expected_identity):
+        if ev.plan_candidate and self._identity_ok(ev, expected_identity):
             self.evidence = ev
             return True
         self.invalidate("cached tab failed re-validation")
@@ -247,7 +259,7 @@ class PatientTabResolver:
             except WebDriverException:
                 continue
             ev = self._collect(handle)
-            if ev.eligible and self._identity_ok(ev, expected_identity):
+            if ev.plan_candidate and self._identity_ok(ev, expected_identity):
                 others.append(ev)
         try:
             self._switch(current)
@@ -267,6 +279,6 @@ class PatientTabResolver:
             except WebDriverException:
                 continue
             ev = self._collect(handle)
-            if ev.eligible and self._identity_ok(ev, expected_identity):
+            if ev.plan_candidate and self._identity_ok(ev, expected_identity):
                 out.append(ev)
         return out
