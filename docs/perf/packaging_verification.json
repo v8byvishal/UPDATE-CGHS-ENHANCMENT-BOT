@@ -52,9 +52,9 @@
       "detail": "tests/test_tab_frame_safety.py: 11"
     }
   ],
-  "zip_sha256": "fb2e522545acdf1a80e61d03c846b566e52734981b7b1a1271b8bab3863baad2",
-  "zip_bytes": 154738,
-  "entry_count": 36,
+  "zip_sha256": "453abceacb8354b83d8b21ef8572df4c2c14ddf1f23440bfe46c653ad8fb9542",
+  "zip_bytes": 153209,
+  "entry_count": 35,
   "critical_file_hashes": {
     "app.py": {
       "sha256": "eee0dd10f5888b276258acee6db06a2831da0455094be3b84e82544b7d21cc2a",

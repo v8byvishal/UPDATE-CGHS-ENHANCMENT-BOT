@@ -74,6 +74,9 @@ FORBIDDEN_PARTS = (
     "struct.pyc", "base_library.zip", "warn-", "xref-",
     "Analysis-00.toc", "EXE-00.toc", "PKG-00.toc", "PYZ-00",
     "transaction_journal.jsonl",
+    # the verification report DESCRIBES this archive, so a copy inside it
+    # would necessarily be from the previous build - keep it out
+    "packaging_verification.json",
 )
 
 
