@@ -50,7 +50,8 @@ from .dom import (
     ProbeUnsupported,
     row_matches_code,
 )
-from .locators import portal_input_value, portal_row_aliases
+from .locators import (portal_input_value, portal_row_aliases,
+                       resolve_expected_speciality)
 from .txstate import Diagnostic, DispatchProof, DuplicateDispatchBlocked, PlusTransaction
 
 PLACEHOLDERS = {"", "select", "select speciality", "--select--", "none", "null"}
@@ -135,6 +136,92 @@ class _Controller:
     def _set_value_native(self, el, value: str):
         self.driver.execute_script(_SET_VALUE_JS, el, str(value))
 
+    def _committed_value(self, el) -> str:
+        """Read the COMMITTED React-Select label, never the search text.
+
+        React-Select clears its combobox input on commit and renders the
+        chosen label in a sibling singleValue node, so ``input.value`` answers
+        "what was typed", not "what was selected".
+        """
+        try:
+            self.counters.execute_script_calls += 1
+            value = self.driver.execute_script(
+                "var n = arguments[0];"
+                "for (var i = 0; i < 6 && n; i++) {"
+                "  if (n.querySelector) {"
+                "    var sv = n.querySelector('[class*=\"singleValue\"], [class*=\"single-value\"]');"
+                "    if (sv) { return (sv.innerText || sv.textContent || '').trim(); }"
+                "  }"
+                "  n = n.parentElement;"
+                "} return '';", el)
+            return str(value or "")
+        except (WebDriverException, AttributeError):
+            return ""
+
+    def _is_combobox(self, el) -> bool:
+        try:
+            self.counters.element_reads += 1
+            if (el.get_attribute("role") or "") == "combobox":
+                return True
+            owns = (el.get_attribute("aria-controls")
+                    or el.get_attribute("aria-owns") or "")
+            return "listbox" in str(owns)
+        except (WebDriverException, AttributeError):
+            return False
+
+    def _scoped_options(self, locator_key: str,
+                        combobox: Optional[bool] = None) -> List[Any]:
+        """Options belonging to THIS control's own listbox.
+
+        React-Select publishes its listbox id through aria-controls/aria-owns.
+        More than one combobox can be open at a time, so an unscoped option
+        query can return a *different* control's options - which is how a
+        reason picker can end up matching a procedure option.  Scope first,
+        and only fall back to the global query when the control publishes no
+        listbox id.
+
+        ``combobox=False`` says the caller already knows this is a classic
+        control.  Only React-Select renders its menu in a detached portal
+        where several listboxes can coexist, so on a classic control the
+        scoping lookup is pure overhead and is skipped.
+        """
+        if combobox is False:
+            return self._global_options()
+        cache = self.__dict__.setdefault("_listbox_ids", {})
+        if locator_key in cache:
+            listbox_id = cache[locator_key]
+        else:
+            listbox_id = ""
+            try:
+                el, _ = self.resolver.locate(locator_key)
+                self.counters.element_reads += 1
+                listbox_id = (el.get_attribute("aria-controls")
+                              or el.get_attribute("aria-owns") or "").strip()
+            except (NoSuchElementException, StaleElementReferenceException,
+                    WebDriverException):
+                listbox_id = ""
+            cache[locator_key] = listbox_id
+        if listbox_id:
+            try:
+                self.counters.find_elements_calls += 1
+                scoped = self.driver.find_elements(
+                    By.CSS_SELECTOR, f"#{listbox_id} [role='option']")
+                if scoped:
+                    return scoped
+            except WebDriverException as exc:
+                if is_browser_disconnect(exc):
+                    raise
+        return self._global_options()
+
+    def _global_options(self) -> List[Any]:
+        options = self.resolver.locate_all("DROPDOWN_OPTIONS")
+        if options:
+            return options
+        self.counters.find_elements_calls += 1
+        return self.driver.find_elements(
+            By.XPATH,
+            "//mat-option | //ng-option | //*[contains(@class, 'option') or contains(@role, 'option')]")
+
     def _element_state(self, el) -> Dict[str, Any]:
         """Selenium fallback for a single control's state."""
         self.counters.element_reads += 3
@@ -143,6 +230,8 @@ class _Controller:
             "present": True,
             "visible": el.is_displayed(),
             "value": el.get_attribute("value") or el.text or "",
+            "selected": self._committed_value(el),
+            "combobox": self._is_combobox(el),
             "disabled": (el.get_attribute("disabled") is not None
                          or el.get_attribute("aria-disabled") == "true"
                          or "disabled" in cls
@@ -165,8 +254,8 @@ class _Controller:
         try:
             el, _ = self.resolver.locate(locator_key)
         except NoSuchElementException:
-            return {"present": False, "visible": False, "value": "", "disabled": False,
-                    "readonly": False, "tag": ""}
+            return {"present": False, "visible": False, "value": "", "selected": "",
+                    "combobox": False, "disabled": False, "readonly": False, "tag": ""}
         return self._element_state(el)
 
 
@@ -258,13 +347,28 @@ class TableReader(_Controller):
 # ---------------------------------------------------------------------------
 
 class ProcedureSelector(_Controller):
+    """Drive the portal's procedure combobox to a PROVEN selected state.
+
+    The acceptance state is ``PROCEDURE_SELECTED`` - React has committed an
+    option - and never ``PROCEDURE_TEXT_TYPED``.  On a React-Select control
+    those two are not merely different, they are *inverted* when you read the
+    input: the search text is present exactly while nothing is selected, and
+    is cleared the instant something is.  Every check below therefore reads
+    the committed value, never the input text.
+    """
+
     def execute(self, code: str, timeout: float = 6.0) -> bool:
         portal_target = portal_input_value(code)
         self.logger.info(f"[STATE: TYPE_PROCEDURE] {code} -> portal input {portal_target!r}")
 
-        self.sync.wait_until(
-            lambda: self.control_state("procedure", "PROCEDURE_INPUT").get("visible"),
-            timeout=4.0, desc="procedure field ready")
+        seen: Dict[str, Any] = {}
+
+        def field_ready():
+            state = self.control_state("procedure", "PROCEDURE_INPUT")
+            seen["state"] = state
+            return state.get("visible")
+
+        self.sync.wait_until(field_ready, timeout=4.0, desc="procedure field ready")
 
         el, _ = self.resolver.locate("PROCEDURE_INPUT")
         self._scroll(el)
@@ -278,13 +382,230 @@ class ProcedureSelector(_Controller):
             self._click(el)
             self._clear_and_type(el, portal_target)
 
+        # The option list is a REQUIRED CONDITION, never a sleep.
         matched = self._await_exact_option(code, portal_target, timeout)
-        self._scroll(matched)
-        self._click(matched)
-        self.sync.dismiss_overlays()
 
-        # ---- REACQUIRE before verification: the panel re-renders the input --
-        return self._verify_selection(code, portal_target)
+        if self._commit_selection(code, portal_target, matched,
+                                  state=seen.get("state")):
+            return True
+
+        raise ValueError(
+            f"Procedure selection for [{code}] could not be committed - NO PLUS")
+
+    # -- selection commit ------------------------------------------------
+    def _commit_selection(self, code: str, portal_target: str, matched,
+                          state: Optional[Dict[str, Any]] = None) -> bool:
+        """Trigger the SAME state transition the operator's Enter triggers.
+
+        Order is deliberate and each step is verified:
+          1. keyboard commit - move React's focused option onto the exact
+             match (verified via aria-activedescendant), then Keys.ENTER.
+             This is what the operator does by hand.
+          2. real option click - a Selenium click dispatches mousedown, which
+             is the event React-Select's Option actually listens for.
+        A JavaScript ``element.click()`` is NEVER used to commit: it fires only
+        a click event, so React never transitions and the typed text is left
+        behind looking like success.
+        """
+        # "is this a React-Select control" is structural and cannot change
+        # mid-selection, so the readiness probe already answered it - no
+        # second round trip.
+        if state is None:
+            state = self.control_state("procedure", "PROCEDURE_INPUT")
+        is_react_select = bool(state.get("combobox"))
+
+        if is_react_select:
+            # React-Select: Enter on the correctly focused option is what the
+            # operator does by hand, and it is the only commit path that does
+            # not depend on the menu surviving a re-render.
+            order = ("ENTER", "CLICK")
+        else:
+            # Classic control: the proven baseline path is the option click.
+            # Enter stays as the recovery, exactly as before.  On such a
+            # control the typed text IS the committed value, so trying Enter
+            # first would let merely-typed text masquerade as a selection.
+            order = ("CLICK", "ENTER")
+
+        for how in order:
+            if how == "ENTER":
+                ok = self._keyboard_commit(code, portal_target, matched)
+            else:
+                ok = self._option_click_commit(code, portal_target, matched)
+            if ok:
+                self.logger.info(f"[STATE: PROCEDURE_SELECTED] {code} via {how}")
+                return True
+            self.logger.info(f"[PROCEDURE] {how} did not commit {code}")
+        return False
+
+    def _keyboard_commit(self, code: str, portal_target: str, matched) -> bool:
+        try:
+            index = self._focus_exact_option(code, portal_target, matched)
+        except (NoSuchElementException, StaleElementReferenceException):
+            return False
+        if index is None:
+            return False
+        try:
+            el, _ = self.resolver.locate("PROCEDURE_INPUT")
+            el.send_keys(Keys.ENTER)
+        except StaleElementReferenceException:
+            self.counters.stale_recoveries += 1
+            self.resolver.invalidate("PROCEDURE_INPUT")
+            try:
+                el, _ = self.resolver.locate("PROCEDURE_INPUT")
+                el.send_keys(Keys.ENTER)
+            except (NoSuchElementException, StaleElementReferenceException,
+                    WebDriverException):
+                return False
+        except WebDriverException as exc:
+            if is_browser_disconnect(exc):
+                raise
+            return False
+        self.sync.dismiss_overlays()
+        return self._selection_committed(code, portal_target)
+
+    def _focus_exact_option(self, code: str, portal_target: str, matched):
+        """Walk React's focused option onto the EXACT match.
+
+        React-Select commits whatever option is focused, and the first filtered
+        option is not necessarily the exact one (GP001 vs GP001A vs GP0010), so
+        pressing Enter blindly can select the wrong procedure.
+        """
+        options = self._live_options()
+        if not options:
+            return None
+        target_index = None
+        for i, opt in enumerate(options):
+            try:
+                self.counters.element_reads += 1
+                text = (opt.text or "").strip()
+            except StaleElementReferenceException:
+                continue
+            if self._is_exact_option(text, code, portal_target):
+                target_index = i
+                break
+        if target_index is None:
+            return None
+
+        for _ in range(len(options) + 1):
+            current = self._focused_index(options)
+            if current is None:
+                return None
+            if current == target_index:
+                return target_index
+            step = Keys.ARROW_DOWN if current < target_index else Keys.ARROW_UP
+            try:
+                el, _ = self.resolver.locate("PROCEDURE_INPUT")
+                el.send_keys(step)
+            except (StaleElementReferenceException, NoSuchElementException):
+                self.counters.stale_recoveries += 1
+                self.resolver.invalidate("PROCEDURE_INPUT")
+                return None
+            options = self._live_options()
+            if not options:
+                return None
+        return None
+
+    def _focused_index(self, options) -> Optional[int]:
+        """Which option React currently has focused, per aria-activedescendant."""
+        try:
+            el, _ = self.resolver.locate("PROCEDURE_INPUT")
+            self.counters.element_reads += 1
+            active = el.get_attribute("aria-activedescendant") or ""
+        except (StaleElementReferenceException, NoSuchElementException,
+                WebDriverException):
+            return None
+        if active:
+            for i, opt in enumerate(options):
+                try:
+                    if (opt.get_attribute("id") or "") == active:
+                        return i
+                except StaleElementReferenceException:
+                    continue
+            return None
+        # Portals that do not publish aria-activedescendant mark the focused
+        # option with aria-selected instead.
+        for i, opt in enumerate(options):
+            try:
+                if (opt.get_attribute("aria-selected") or "") == "true":
+                    return i
+            except StaleElementReferenceException:
+                continue
+        return 0 if options else None
+
+    def _option_click_commit(self, code: str, portal_target: str,
+                             matched=None) -> bool:
+        """Click the exact option with a REAL mouse event (mousedown).
+
+        ``matched`` is the element ``_await_exact_option`` already resolved;
+        re-scanning the menu for it would be a wasted round trip.  It is
+        dropped and the menu re-read only if it has gone stale.
+        """
+        target = matched
+        for _ in range(2):
+            try:
+                if target is None:
+                    target = self._find_exact_option(code, portal_target,
+                                                     self._live_options(True))
+                    if target is None:
+                        return False
+                self._scroll(target)
+                target.click()                  # native: fires mousedown
+            except StaleElementReferenceException:
+                self.counters.stale_recoveries += 1
+                target = None                   # menu re-rendered; re-read it
+                continue
+            except WebDriverException as exc:
+                if is_browser_disconnect(exc):
+                    raise
+                return False
+            self.sync.dismiss_overlays()
+            if self._selection_committed(code, portal_target):
+                return True
+        return False
+
+    # -- option helpers ---------------------------------------------------
+    def _live_options(self, combobox: Optional[bool] = None) -> List[Any]:
+        return self._scoped_options("PROCEDURE_INPUT", combobox=combobox)
+
+    @staticmethod
+    def _is_exact_option(text: str, code: str, portal_target: str) -> bool:
+        if not text:
+            return False
+        return (exact_code_in_text(text, code)
+                or text.strip().upper() == portal_target.upper())
+
+    def _find_exact_option(self, code: str, portal_target: str, options):
+        for opt in options:
+            try:
+                self.counters.element_reads += 1
+                text = (opt.text or "").strip()
+            except StaleElementReferenceException:
+                continue
+            if self._is_exact_option(text, code, portal_target):
+                return opt
+        return None
+
+    def _selection_committed(self, code: str, portal_target: str) -> bool:
+        """PROVE React holds the value.  Committed state only - never typed text."""
+        def committed():
+            state = self.control_state("procedure", "PROCEDURE_INPUT")
+            selected = state.get("selected") or ""
+            if selected:
+                return self._is_exact_option(selected, code, portal_target)
+            # Not a React-Select control (no singleValue node): a classic input
+            # legitimately keeps the committed value in `value`.
+            if state.get("combobox"):
+                return False
+            value = state.get("value") or ""
+            return bool(value) and (exact_code_in_text(value, code)
+                                    or portal_target.upper() in value.upper())
+
+        try:
+            self.sync.wait_until(committed, timeout=2.0,
+                                 desc="procedure selection committed")
+            return True
+        except TimeoutError:
+            return False
 
     def _await_exact_option(self, code: str, portal_target: str, timeout: float):
         """Wait for the dropdown, then pick the EXACT option - never the first."""
@@ -328,57 +649,79 @@ class ProcedureSelector(_Controller):
         return exact
 
     def _verify_selection(self, code: str, portal_target: str) -> bool:
-        def verified():
-            state = self.control_state("procedure", "PROCEDURE_INPUT")
-            value = state.get("value") or ""
-            return exact_code_in_text(value, code) or portal_target.upper() in value.upper()
+        """Back-compatible name for the ONE committed-state predicate.
 
-        try:
-            self.sync.wait_until(verified, timeout=2.0, desc="procedure value committed")
-            self.logger.info(f"[STATE: PROCEDURE_VERIFIED] {code}")
-            return True
-        except TimeoutError:
-            pass
-
-        # Recovery: ENTER on a FRESHLY reacquired element (never a stale one).
-        self.counters.stale_recoveries += 1
-        self.resolver.invalidate("PROCEDURE_INPUT")
-        try:
-            fresh, _ = self.resolver.locate("PROCEDURE_INPUT")
-            fresh.send_keys(Keys.ENTER)
-        except (NoSuchElementException, StaleElementReferenceException, WebDriverException) as exc:
-            raise NoSuchElementException(
-                f"Procedure [{code}] could not be verified and the field could not be "
-                f"reacquired: {exc}")
-        try:
-            self.sync.wait_until(verified, timeout=1.5, desc="procedure value committed (retry)")
-        except TimeoutError:
-            raise ValueError(f"Procedure selection for [{code}] could not be verified - NO PLUS")
-        self.logger.info(f"[STATE: PROCEDURE_VERIFIED] {code} (after reacquire)")
-        return True
+        Kept so callers and tests that reference the historical entry point
+        keep working, but it no longer has a body of its own: a second copy of
+        this logic is exactly how "still selected" and "selection verified"
+        drift apart.
+        """
+        return self._selection_committed(code, portal_target)
 
 
 # ---------------------------------------------------------------------------
 # Speciality
 # ---------------------------------------------------------------------------
 
+class SpecialityReviewRequired(Exception):
+    """The portal did not derive a speciality and this project cannot prove one.
+
+    Raised instead of guessing.  The caller must stop before Plus.
+    """
+
+
 class SpecialitySynchronizer(_Controller):
     def execute(self, timeout: float = 5.0) -> str:
         self.logger.trace("[STATE: WAIT_SPECIALITY]")
 
-        def value():
-            state = self.control_state("speciality", "SPECIALITY_INPUT")
-            raw = (state.get("value") or "").strip()
-            if state.get("tag") == "select" and is_placeholder(raw):
-                raw = self._selected_option_text()
-            return None if is_placeholder(raw) else raw
-
         try:
-            resolved = self.sync.wait_until(value, timeout=timeout, desc="speciality synchronised")
+            resolved = self.sync.wait_until(self._value, timeout=timeout,
+                                            desc="speciality synchronised")
         except TimeoutError:
             raise TimeoutError("Speciality failed to auto-update.")
         self.logger.info(f"[STATE: VERIFY_SPECIALITY] {resolved}")
         return resolved
+
+    def _value(self):
+        state = self.control_state("speciality", "SPECIALITY_INPUT")
+        raw = (state.get("selected") or "").strip()
+        if not raw and not state.get("combobox"):
+            raw = (state.get("value") or "").strip()
+        if state.get("tag") == "select" and is_placeholder(raw):
+            raw = self._selected_option_text()
+        return None if is_placeholder(raw) else raw
+
+    def verify_expected(self, code: str, timeout: float = 5.0) -> Tuple[str, str]:
+        """Wait for the portal-derived speciality and judge it.
+
+        Returns ``(value, verdict)`` where verdict is one of:
+          ``AUTO_VERIFIED``  the portal derived the speciality this project
+                             expects for the code;
+          ``AUTO_UNVERIFIED`` the portal derived something, but no canonical
+                             mapping exists for the code, so correctness
+                             cannot be proven here;
+          ``MISSING``        nothing was derived;
+          ``WRONG``          the portal derived a value that contradicts the
+                             canonical mapping.
+        The caller decides what to do; this method never guesses.
+        """
+        expected = resolve_expected_speciality(code)
+        try:
+            actual = self.sync.wait_until(self._value, timeout=timeout,
+                                          desc="speciality auto-populated")
+        except TimeoutError:
+            return "", "MISSING"
+        if expected is None:
+            self.logger.info(
+                f"[STATE: VERIFY_SPECIALITY] {actual!r} accepted for [{code}] - "
+                f"no canonical mapping exists to contradict it")
+            return actual, "AUTO_UNVERIFIED"
+        if expected.strip().upper() in (actual or "").strip().upper():
+            self.logger.info(f"[STATE: SPECIALITY_AUTO_VERIFIED] {code} -> {actual!r}")
+            return actual, "AUTO_VERIFIED"
+        self.logger.info(
+            f"[STATE: SPECIALITY_WRONG] {code} expected {expected!r}, portal shows {actual!r}")
+        return actual, "WRONG"
 
     def _selected_option_text(self) -> str:
         try:
@@ -390,7 +733,9 @@ class SpecialitySynchronizer(_Controller):
 
     def current_value(self) -> str:
         state = self.control_state("speciality", "SPECIALITY_INPUT")
-        raw = (state.get("value") or "").strip()
+        raw = (state.get("selected") or "").strip()
+        if not raw and not state.get("combobox"):
+            raw = (state.get("value") or "").strip()
         if state.get("tag") == "select" and is_placeholder(raw):
             raw = self._selected_option_text()
         return raw
@@ -547,7 +892,7 @@ class EnhancementReasonController(_Controller):
 
         if state.get("tag") == "select":
             return self._select_native()
-        return self._select_overlay(timeout)
+        return self._select_overlay(timeout, combobox=bool(state.get("combobox")))
 
     def _select_native(self) -> ReasonOutcome:
         from selenium.webdriver.support.ui import Select
@@ -561,7 +906,8 @@ class EnhancementReasonController(_Controller):
                 continue
         raise NoSuchElementException("Reason control present but 'Others' is not selectable - NO PLUS")
 
-    def _select_overlay(self, timeout: float) -> ReasonOutcome:
+    def _select_overlay(self, timeout: float,
+                        combobox: Optional[bool] = None) -> ReasonOutcome:
         el, _ = self.resolver.locate("REASON_DROPDOWN")
         self._scroll(el)
         self._click(el)
@@ -579,12 +925,7 @@ class EnhancementReasonController(_Controller):
             raise NoSuchElementException("Reason options never opened - NO PLUS")
 
         target = None
-        options = self.resolver.locate_all("DROPDOWN_OPTIONS")
-        if not options:
-            self.counters.find_elements_calls += 1
-            options = self.driver.find_elements(
-                By.XPATH,
-                "//mat-option | //ng-option | //*[contains(@class, 'option') or contains(@role, 'option')]")
+        options = self._scoped_options("REASON_DROPDOWN", combobox=combobox)
         for opt in options:
             try:
                 self.counters.element_reads += 1
@@ -598,11 +939,36 @@ class EnhancementReasonController(_Controller):
             raise NoSuchElementException("'Others' reason option not found - NO PLUS")
 
         self._scroll(target)
-        self._click(target)
+        # A REAL mouse event: React-Select's Option commits on mousedown, and a
+        # JavaScript click() would fire only a click event - leaving the text
+        # behind and nothing selected.
+        try:
+            target.click()
+        except StaleElementReferenceException:
+            self.counters.stale_recoveries += 1
+            target = None
+            for opt in self._scoped_options("REASON_DROPDOWN", combobox=combobox):
+                try:
+                    if any(t in (opt.text or "").strip().upper() for t in self.TARGETS):
+                        target = opt
+                        break
+                except StaleElementReferenceException:
+                    continue
+            if target is None:
+                raise NoSuchElementException(
+                    "'Others' reason option vanished during selection - NO PLUS")
+            target.click()
         self.sync.dismiss_overlays()
 
         def verified():
             state = self.control_state("reason", "REASON_DROPDOWN")
+            committed = (state.get("selected") or "").upper()
+            if committed:
+                return committed if any(t in committed for t in self.TARGETS) else None
+            if state.get("combobox"):
+                # React-Select with nothing committed: the input text is the
+                # search string, never proof of selection.
+                return None
             value = (state.get("value") or "").upper()
             if any(t in value for t in self.TARGETS):
                 return value
@@ -646,18 +1012,29 @@ class StageContext:
     quantity_present: bool = False
     plus_present: bool = False
     probed: bool = False
+    #: committed React-Select values (empty string => nothing committed)
+    procedure_selected: str = ""
+    speciality_selected: str = ""
+    reason_selected: str = ""
+    procedure_combobox: bool = False
+    speciality_combobox: bool = False
+    reason_combobox: bool = False
 
     def procedure_matches(self, code: str) -> bool:
-        """True only when the portal input still holds this exact code.
+        """True only when React still HOLDS this exact code as its value.
 
-        Uses the SAME predicate ``ProcedureSelector._verify_selection`` applies
-        after a successful selection, so "still selected" and "selection
-        verified" can never disagree.  ``exact_code_in_text`` is word-boundary
-        matching, so GP0011 never satisfies GP001.
+        Reads the committed value, matching ``_selection_committed``, so
+        "still selected" and "selection verified" can never disagree.  On a
+        React-Select control the search text is explicitly NOT accepted as
+        evidence: it is present precisely while nothing is selected.
+        ``exact_code_in_text`` is word-boundary matching, so GP0011 never
+        satisfies GP001.
         """
         if not self.probed:
             return False
-        value = self.procedure_value or ""
+        value = self.procedure_selected or ""
+        if not value and not self.procedure_combobox:
+            value = self.procedure_value or ""
         if not value:
             return False
         target = (portal_input_value(code) or "").upper()
@@ -666,7 +1043,10 @@ class StageContext:
     def speciality_ready(self) -> bool:
         if not self.probed:
             return False
-        return not is_placeholder(self.speciality_value)
+        value = self.speciality_selected or ""
+        if not value and not self.speciality_combobox:
+            value = self.speciality_value or ""
+        return not is_placeholder(value)
 
     def reason_ready(self) -> bool:
         """The reason stage needs no work when it is absent or already 'Other*'."""
@@ -674,8 +1054,10 @@ class StageContext:
             return False
         if not self.reason_present:
             return True                      # verified portal flows without a reason
-        value = (self.reason_value or "").strip().upper()
-        return value.startswith("OTHER")
+        value = (self.reason_selected or "").strip()
+        if not value and not self.reason_combobox:
+            value = (self.reason_value or "").strip()
+        return value.upper().startswith("OTHER")
 
 
 class StageContextProbe(_Controller):
@@ -709,6 +1091,12 @@ class StageContextProbe(_Controller):
             procedure_value=(proc.get("value") or "").strip(),
             speciality_value=(spec.get("value") or "").strip(),
             reason_value=(reason.get("value") or "").strip(),
+            procedure_selected=(proc.get("selected") or "").strip(),
+            speciality_selected=(spec.get("selected") or "").strip(),
+            reason_selected=(reason.get("selected") or "").strip(),
+            procedure_combobox=bool(proc.get("combobox")),
+            speciality_combobox=bool(spec.get("combobox")),
+            reason_combobox=bool(reason.get("combobox")),
             reason_present=bool(reason.get("present")),
             quantity_locked=bool(qty.get("disabled") or qty.get("readonly")),
             quantity_present=bool(qty.get("present")),

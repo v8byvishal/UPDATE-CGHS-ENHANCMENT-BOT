@@ -11,6 +11,8 @@ testable) without PyQt5 / Chrome / PyMuPDF being present.
 BUSINESS RULES ARE UNCHANGED.  Any behavioural change in this file is a defect.
 """
 
+from typing import Dict, Optional
+
 from selenium.webdriver.common.by import By
 
 NETWORK_DELAY = {
@@ -59,6 +61,9 @@ LOCATORS = {
         (By.XPATH, "//*[self::h1 or self::h2 or self::h3 or self::h4 or self::div or self::span][contains(translate(text(), 'TREATMENT PLAN', 'treatment plan'), 'treatment plan')]")
     ],
     "PROCEDURE_INPUT": [
+        # --- operator-verified live portal DOM (React-Select instance 5) ---
+        (By.CSS_SELECTOR, "#react-select-5-input"),
+        (By.CSS_SELECTOR, "input[role='combobox'][aria-controls*='react-select-5']"),
         (By.XPATH, "//label[contains(translate(., 'PROCEDURE', 'procedure'), 'procedure')]/following::input[1]"),
         (By.XPATH, "//*[@formcontrolname='procedure']//input | //*[@formcontrolname='procedureName']//input"),
         (By.XPATH, "//ng-select[contains(@formcontrolname, 'procedure')]//input"),
@@ -66,12 +71,18 @@ LOCATORS = {
         (By.XPATH, "//input[contains(@id, 'Procedure') or contains(@id, 'procedure')]")
     ],
     "DROPDOWN_OPTIONS": [
+        # --- React-Select renders options as role=option inside the listbox ---
+        (By.CSS_SELECTOR, "div[id^='react-select-'][id*='-option-']"),
+        (By.CSS_SELECTOR, "[role='listbox'] [role='option']"),
         (By.XPATH, "//ng-dropdown-panel//div[contains(@class, 'ng-option')]"),
         (By.XPATH, "//div[contains(@class, 'cdk-overlay-container')]//mat-option"),
         (By.XPATH, "//div[contains(@class, 'dropdown-menu') or contains(@class, 'select-choices')]//li"),
         (By.XPATH, "//*[contains(@class, 'option') or contains(@role, 'option')]")
     ],
     "SPECIALITY_INPUT": [
+        # --- operator-verified live portal DOM (React-Select instance 4) ---
+        (By.CSS_SELECTOR, "#react-select-4-input"),
+        (By.CSS_SELECTOR, "input[role='combobox'][aria-controls*='react-select-4']"),
         (By.XPATH, "//label[contains(translate(., 'SPECIALITY', 'speciality'), 'speciality')]/following::*[self::input or self::select or self::span or self::div][1]"),
         (By.XPATH, "//*[@formcontrolname='speciality'] | //*[@formcontrolname='specialityName']"),
         (By.XPATH, "//input[contains(@id, 'Speciality') or contains(@id, 'speciality')]")
@@ -86,12 +97,17 @@ LOCATORS = {
         (By.XPATH, '//label[contains(translate(., "SPECIALITY","speciality"),"speciality")]/following::div[contains(@class,"ng-select")]//span[@title="Clear" or contains(@class,"clear")]'),
     ],
     "QUANTITY_INPUT": [
+        # --- operator-verified live portal DOM ---
+        (By.CSS_SELECTOR, "#noofdays"),
         (By.XPATH, "//label[contains(translate(., 'DAYS', 'days') or translate(., 'UNITS', 'units'), 'days')]/following::input[1]"),
         (By.XPATH, "//input[@type='number']"),
         (By.XPATH, "//*[@formcontrolname='noOfDays'] | //*[@formcontrolname='units'] | //*[@formcontrolname='unit']"),
         (By.XPATH, "//input[contains(@id, 'NoOfDays') or contains(@id, 'Unit') or contains(@id, 'Days')]")
     ],
     "REASON_DROPDOWN": [
+        # --- operator-verified live portal DOM (React-Select instance 7) ---
+        (By.CSS_SELECTOR, "#react-select-7-input"),
+        (By.CSS_SELECTOR, "input[role='combobox'][aria-controls*='react-select-7']"),
         (By.XPATH, "//label[contains(translate(., 'REASON', 'reason'), 'reason')]/following::*[contains(@class, 'ng-select') or contains(@class, 'mat-select') or self::select or self::input][1]"),
         (By.XPATH, "//*[@formcontrolname='enhancementReason'] | //*[@formcontrolname='reason']"),
         (By.XPATH, "//*[contains(@id, 'EnhancementReason') or contains(@id, 'Reason')]")
@@ -154,3 +170,44 @@ def portal_row_aliases(code):
 #: Locator keys whose resolution is safe to cache for the lifetime of a verified
 #: session (the control itself is re-located, only the *strategy* is cached).
 CACHEABLE_LOCATOR_KEYS = frozenset(LOCATORS.keys())
+
+
+# ---------------------------------------------------------------------------
+# Procedure code -> portal Speciality
+# ---------------------------------------------------------------------------
+#
+# SOURCE OF TRUTH, in the order mandated by the task brief:
+#   1. locked project rule          - none exists for speciality
+#   2. authoritative CGHS registry  - not present in this repository
+#   3. verified portal evidence     - the four prefixes below, and ONLY these,
+#                                     were supplied by the operator from the
+#                                     live portal
+#   4. approved local rule          - none
+#   5. otherwise                    - REVIEW_REQUIRED
+#
+# This table is deliberately INCOMPLETE.  It is not a guessed prefix map and
+# must never be extended to make a test pass: an unknown prefix is required to
+# surface as REVIEW_REQUIRED so a human decides.  The portal itself derives the
+# speciality from the procedure, so this table is used to VERIFY what the
+# portal produced - not to replace it.
+OPERATOR_VERIFIED_SPECIALITY: Dict[str, str] = {
+    "LB": "Laboratory",
+    "RI": "Radiology",
+    "CN": "Consultation",
+    "BL": "Blood",
+}
+
+
+def resolve_expected_speciality(code: str) -> Optional[str]:
+    """Return the speciality the portal is expected to derive, or None.
+
+    None means "this project cannot prove the correct speciality" and the
+    caller MUST stop with REVIEW_REQUIRED rather than guess.
+    """
+    token = (code or "").strip().upper()
+    if not token:
+        return None
+    for prefix, speciality in OPERATOR_VERIFIED_SPECIALITY.items():
+        if token.startswith(prefix):
+            return speciality
+    return None

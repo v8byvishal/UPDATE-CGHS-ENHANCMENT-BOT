@@ -1,0 +1,22 @@
+REACT-SELECT DEFECT REPRODUCTION  (pre-fix, canonical engine at 8402c1e)
+========================================================================
+
+HALF 1 - FALSE PASS: text typed, React never committed
+[15:44:25] [INFO] [BILL ISOLATION] new bill B; dispatch ledger + locator cache + verified context cleared
+  react committed          : False
+  probe reads input.value  : 'GP001'
+[15:44:25] [INFO] [STATE: PROCEDURE_VERIFIED] GP001
+  _verify_selection() says : True
+  VERDICT: engine reports PROCEDURE_VERIFIED while nothing is selected.
+
+HALF 2 - FALSE FAIL: React genuinely committed
+[15:44:25] [INFO] [BILL ISOLATION] new bill B; dispatch ledger + locator cache + verified context cleared
+[15:44:25] [INFO] [STATE: TYPE_PROCEDURE] GP001 -> portal input 'GP001'
+  execute() RAISED         : ValueError: Procedure selection for [GP001] could not be verified - NO PLUS
+  react committed          : True -> 'GP001'
+  probe reads input.value  : ''
+  VERDICT: a correct selection is rejected, because React-Select
+           clears the search input the moment it commits.
+
+ROOT CAUSE: verification reads the combobox <input> (search text),
+            never the committed React value (singleValue container).

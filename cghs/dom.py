@@ -116,13 +116,42 @@ try {
     if (e.value !== undefined && e.value !== null && String(e.value) !== "") { return String(e.value); }
     return String(e.innerText || e.textContent || "").trim();
   }
+  function committedOf(e){
+    /* React-Select keeps ONLY the search text in the combobox input and
+       clears it the instant an option is committed; the chosen label is
+       rendered in a sibling singleValue node.  Reading the input therefore
+       reports what was TYPED, never what was SELECTED.  Walk up a few levels
+       looking for the committed label.  Empty string => nothing committed. */
+    if (!e) { return ""; }
+    var node = e;
+    for (var up = 0; up < 6 && node; up++) {
+      try {
+        if (node.querySelector) {
+          var sv = node.querySelector('[class*="singleValue"], [class*="single-value"], [class*="multiValue"]');
+          if (sv) { return String(sv.innerText || sv.textContent || "").trim(); }
+        }
+      } catch (err) {}
+      node = node.parentElement;
+    }
+    return "";
+  }
+  function isCombo(e){
+    if (!e) { return false; }
+    try {
+      if (String(e.getAttribute("role") || "") === "combobox") { return true; }
+      var ac = e.getAttribute("aria-controls") || e.getAttribute("aria-owns") || "";
+      return String(ac).indexOf("listbox") >= 0;
+    } catch (err) { return false; }
+  }
   function ctl(e){
-    if (!e) { return {present: false, visible: false, value: "", disabled: false, readonly: false, tag: ""}; }
+    if (!e) { return {present: false, visible: false, value: "", selected: "", combobox: false, disabled: false, readonly: false, tag: ""}; }
     var cls = String(e.className || "").toLowerCase();
     return {
       present: true,
       visible: vis(e),
       value: valueOf(e),
+      selected: committedOf(e),
+      combobox: isCombo(e),
       disabled: !!(e.disabled || e.getAttribute("aria-disabled") === "true" || cls.indexOf("disabled") >= 0),
       readonly: !!(e.readOnly || e.getAttribute("readonly") !== null),
       tag: String(e.tagName || "").toLowerCase()

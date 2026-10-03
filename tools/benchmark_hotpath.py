@@ -226,7 +226,36 @@ def main() -> int:
     parser.add_argument("--locked", action="store_true",
                         help="run the locked-quantity matrix (GP001 x 1/10/30/84/200)")
     parser.add_argument("--locked-code", default="GP001")
+    parser.add_argument("--react", action="store_true",
+                        help="locked-quantity matrix on the React-Select DOM")
     args = parser.parse_args()
+
+    if args.react:
+        data = react_locked_matrix(args.locked_code)
+        print(f"\nREACT-SELECT LOCKED QUANTITY - {data['code']}")
+        head = (f"{'units':>6} {'ms':>9} {'ms/u':>7} {'plus':>5} {'rows':>5} {'ver':>5} "
+                f"{'proc':>5} {'spec':>5} {'rsn':>4} {'reuse':>6} {'DOM':>7} "
+                f"{'js':>3} {'sleep':>6} {'qty?':>5}")
+        print(head); print("-" * len(head))
+        for r in data["runs"]:
+            print(f"{r['units']:>6} {r['wall_clock_ms']:>9.1f} {r['ms_per_unit']:>7.2f} "
+                  f"{r['plus_dispatches']:>5} {r['rows_created']:>5} {r['verified_units']:>5} "
+                  f"{r['procedure_selections']:>5} {r['speciality_selections']:>5} "
+                  f"{r['reason_selections']:>4} {r['stage_context_reuses']:>6} "
+                  f"{r['dom_calls']:>7} {r['js_clicks']:>3} {r['fixed_sleep_ms']:>6.0f} "
+                  f"{str(r['quantity_field_written']):>5}")
+        if args.out:
+            out_dir = pathlib.Path(args.out); out_dir.mkdir(parents=True, exist_ok=True)
+            path = out_dir / "benchmark_react_select.json"
+            path.write_text(json.dumps({
+                "generated_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "python": sys.version.split()[0],
+                "note": ("Deterministic React-Select DOM double. Counts are READ BACK "
+                         "from the double's own state after each run, never asserted "
+                         "in advance. Real portal latency is not modelled."),
+                **data}, indent=2), encoding="utf-8")
+            print(f"\nwrote {path}", file=sys.stderr)
+        return 0
 
     if args.locked:
         data = locked_matrix(args.locked_code)
@@ -422,6 +451,74 @@ def locked_matrix(code: str = "GP001", sizes=(1, 10, 30, 84, 200),
             "verified_units": h["verified_units"],
         })
     return out
+
+
+
+
+# ---------------------------------------------------------------------------
+# React-Select locked-quantity benchmark (task section 14)
+# ---------------------------------------------------------------------------
+
+def run_react_locked(code: str, qty: int) -> Dict[str, Any]:
+    """Measure the real React-Select hot path for a locked quantity.
+
+    Every figure below is DERIVED FROM THE PORTAL DOUBLE'S OWN STATE after the
+    run; none of it is asserted in advance.
+    """
+    from tests.support.react_select_dom import build_react_portal
+    from cghs.session import PortalSession
+    from cghs.telemetry import EnterpriseLogger
+    from cghs.orchestrator import TreatmentPlanOrchestrator
+
+    dom = build_react_portal()
+    session = PortalSession(dom, EnterpriseLogger(None))
+    session.set_bill("BENCH")
+    session.ensure_context()
+    orch = TreatmentPlanOrchestrator(session)
+
+    started = time.perf_counter()
+    result = orch.process_item({"code": code, "qty": qty})
+    elapsed = (time.perf_counter() - started) * 1000.0
+
+    c = session.counters
+    verified = sum(1 for tx in result.transactions if tx.is_success)
+    return {
+        "code": code, "units": qty,
+        "success": bool(result.success), "state": result.state,
+        "wall_clock_ms": round(elapsed, 1),
+        "ms_per_unit": round(elapsed / qty, 3),
+        # observed portal state
+        "plus_dispatches": dom.plus_clicks,
+        "rows_created": len(dom.rows),
+        "verified_units": verified,
+        "quantity_field_written": dom.quantity["value"] != "",
+        # observed stage drives
+        "procedure_selections": c.procedure_selections,
+        "speciality_selections": c.speciality_syncs,
+        "reason_selections": c.reason_selections,
+        "stage_context_reuses": c.stage_context_reuses,
+        # observed DOM cost
+        "dom_calls": dom.dom_calls(),
+        "execute_script_calls": dom.counters["execute_script"],
+        "find_elements_calls": dom.counters["find_elements"],
+        "element_reads": dom.counters["element_reads"],
+        "js_clicks": dom.counters["js_clicks"],
+        "real_mousedowns": dom.counters["mousedown"],
+        "row_verifications": c.row_verifications if hasattr(c, "row_verifications") else None,
+        "stale_recoveries": c.stale_recoveries,
+        "cache_hits": c.locator_cache_hits,
+        "cache_misses": c.locator_cache_misses,
+        "fixed_sleep_ms": round(c.fixed_sleep_ms, 1),
+    }
+
+
+def react_locked_matrix(code: str = "GP001",
+                        sizes=(1, 10, 30, 84, 200)) -> Dict[str, Any]:
+    rows = []
+    for n in sizes:
+        print(f"[bench-react] {code} x{n}", file=sys.stderr)
+        rows.append(run_react_locked(code, n))
+    return {"code": code, "runs": rows}
 
 
 if __name__ == "__main__":
