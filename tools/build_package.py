@@ -37,6 +37,7 @@ ZIP_NAME = "CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip"
 CRITICAL_FILES = [
     "app.py",
     "CGHS_Enhancement_Bot.spec",
+    "BUILD_WINDOWS.cmd",
     "cghs/__init__.py",
     "cghs/locators.py",
     "cghs/rules.py",
@@ -54,6 +55,7 @@ CRITICAL_FILES = [
 INCLUDE_GLOBS = [
     "app.py",
     "CGHS_Enhancement_Bot.spec",
+    "BUILD_WINDOWS.cmd",
     "requirements.txt",
     ".gitignore",
     "pytest.ini",

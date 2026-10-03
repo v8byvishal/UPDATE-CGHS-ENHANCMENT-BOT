@@ -44,6 +44,7 @@ from .controllers import (
     RowSnapshot,
     SpecialityClearController,
     SpecialitySynchronizer,
+    StageContextProbe,
     TableReader,
     is_placeholder,
 )
@@ -82,6 +83,10 @@ class ItemResult:
                    for tx in self.transactions)
 
 
+#: sentinel meaning "the reason stage was NOT proven valid and must be driven"
+_REASON_MUST_RUN = object()
+
+
 class TreatmentPlanOrchestrator:
     """Session-scoped.  Created ONCE per batch, reused for every item."""
 
@@ -101,6 +106,7 @@ class TreatmentPlanOrchestrator:
         self.proc_name_ctrl = ProcedureNameController(session)
         self.amount_ctrl = AmountController(session)
         self.reason_ctrl = EnhancementReasonController(session)
+        self.stage_probe = StageContextProbe(session)
         # The absence-proof settle window must cover the portal's own commit
         # latency, otherwise 'no row yet' would be misread as 'never clicked'.
         self.plus_ctrl = PlusButtonController(
@@ -230,10 +236,12 @@ class TreatmentPlanOrchestrator:
 
         tele.stage = "PROCEDURE"
         self.proc_sel.execute(code)
+        self.session.counters.procedure_selections += 1
 
         tele.stage = "SPECIALITY"
         try:
             self.spec_sync.execute(timeout=3.0)
+            self.session.counters.speciality_syncs += 1
         except TimeoutError as exc:
             self.logger.warn(f"[SPECIALITY-RECOVERY] initial sync failed for {code}: {exc}")
             if not self._recover_speciality(code):
@@ -283,28 +291,82 @@ class TreatmentPlanOrchestrator:
             self.last_code = code
             return result
 
+        stage_ctx = None
         for unit_idx in range(already + 1, required_qty + 1):
             if self.session.is_cancelled():
                 self.logger.warn(f"[CANCELLED] {code} stopping before unit {unit_idx}")
                 break
             tele.stage = f"LOCKED_UNIT_{unit_idx}"
+            self.session.counters.locked_unit_transactions += 1
+
             if unit_idx > already + 1:
-                # Re-select the procedure for each additional unit (proven flow).
-                self.proc_sel.execute(code)
-                try:
-                    self.spec_sync.execute(timeout=3.0)
-                except TimeoutError:
-                    if not self._recover_speciality(code):
-                        result.detail = f"speciality lock before unit {unit_idx}"
-                        break
-                current = self.table.snapshot()
+                # ONE compact probe decides what (if anything) must be re-driven.
+                # No fixed sleep, no cooldown, no unconditional re-selection:
+                # the portal's OWN reported state is the only input.
+                stage_ctx = self.stage_probe.read()
+                if not self._restore_stages(stage_ctx, code, unit_idx, result):
+                    break
+                # the previous unit's commit was already verified, so the row
+                # count it produced is known - no second full snapshot here.
             tx = self._run_plus_transaction(code, unit_idx, required_qty,
-                                            expected_portal_qty=1, before=current, tele=tele)
+                                            expected_portal_qty=1, before=current,
+                                            tele=tele, stage_ctx=stage_ctx)
             transactions.append(tx)
             if not tx.is_success:
                 break
             current = self.table.snapshot()
         return self._finish(result, transactions, code, required_qty=required_qty)
+
+    # ------------------------------------------------------------------
+    def _restore_stages(self, ctx, code: str, unit_idx: int,
+                        result: ItemResult) -> bool:
+        """Re-drive ONLY the stages the portal actually dropped.
+
+        ``ctx.probed`` is False when the compact probe is unavailable; every
+        reuse predicate is then False and the full proven flow runs, so a
+        portal that cannot be probed loses speed, never safety.
+        """
+        counters = self.session.counters
+        reused = []
+
+        needs_procedure = not ctx.procedure_matches(code)
+        needs_speciality = not ctx.speciality_ready()
+
+        # The portal DERIVES the speciality from the selected procedure.  If the
+        # speciality was dropped, syncing it alone cannot repopulate it - the
+        # procedure has to be re-selected first.  The baseline flow always
+        # paired the two, which is why it never hit this; reusing the procedure
+        # while the speciality is empty would deadlock the sync.
+        if needs_speciality and not needs_procedure:
+            self.logger.trace(
+                f"[STAGE-REUSE] unit {unit_idx} speciality dropped - "
+                f"re-selecting procedure to repopulate it")
+            needs_procedure = True
+
+        if needs_procedure:
+            self.proc_sel.execute(code)
+            counters.procedure_selections += 1
+        else:
+            reused.append("procedure")
+
+        if not needs_speciality:
+            reused.append("speciality")
+        else:
+            try:
+                self.spec_sync.execute(timeout=3.0)
+                counters.speciality_syncs += 1
+            except TimeoutError:
+                if not self._recover_speciality(code):
+                    result.detail = f"speciality lock before unit {unit_idx}"
+                    return False
+                counters.speciality_syncs += 1
+
+        if reused:
+            counters.stage_context_reuses += len(reused)
+            self.logger.trace(
+                f"[STAGE-REUSE] unit {unit_idx} reused {'+'.join(reused)} "
+                f"(portal still holds them)")
+        return True
 
     # ------------------------------------------------------------------
     def _finish(self, result: ItemResult, transactions: List[PlusTransaction],
@@ -332,7 +394,7 @@ class TreatmentPlanOrchestrator:
     # ------------------------------------------------------------------
     def _run_plus_transaction(self, code: str, unit_idx: int, required_qty: int,
                               expected_portal_qty: int, before: RowSnapshot,
-                              tele: ItemTelemetry) -> PlusTransaction:
+                              tele: ItemTelemetry, stage_ctx=None) -> PlusTransaction:
         tx = PlusTransaction(
             identity=self._identity(code, unit_idx),
             ledger=self.session.ledger,
@@ -344,7 +406,8 @@ class TreatmentPlanOrchestrator:
         started = time.time()
 
         try:
-            self._drive_transaction(tx, code, required_qty, expected_portal_qty, before)
+            self._drive_transaction(tx, code, required_qty, expected_portal_qty, before,
+                                    stage_ctx=stage_ctx)
         except (PortalContextLost, WebDriverException) as exc:
             self._fail_on_exception(tx, exc, Diagnostic.BROWSER_DISCONNECTED
                                     if isinstance(exc, WebDriverException)
@@ -383,7 +446,8 @@ class TreatmentPlanOrchestrator:
 
     # ------------------------------------------------------------------
     def _drive_transaction(self, tx: PlusTransaction, code: str, required_qty: int,
-                           expected_portal_qty: int, before: RowSnapshot):
+                           expected_portal_qty: int, before: RowSnapshot,
+                           stage_ctx=None):
         tx_id = tx.identity.transaction_id
         self.logger.info(f"[TX-START] {tx_id} expect_qty={expected_portal_qty} "
                          f"rows_before={before.count}")
@@ -397,8 +461,18 @@ class TreatmentPlanOrchestrator:
         # NOTE on ordering: NoSuchElementException/StaleElementReferenceException
         # are WebDriverException subclasses.  They are caught FIRST so that a
         # missing control is never misreported as a dead browser.
+        if stage_ctx is not None and stage_ctx.reason_ready():
+            # The probe proved the portal still holds a valid reason - selecting
+            # it again would be a DOM round trip that changes nothing.
+            self.session.counters.stage_context_reuses += 1
+            self.logger.trace(f"[STAGE-REUSE] {tx_id} reason already satisfied")
+            reason_outcome = None
+        else:
+            reason_outcome = _REASON_MUST_RUN
         try:
-            self.reason_ctrl.execute()
+            if reason_outcome is _REASON_MUST_RUN:
+                self.reason_ctrl.execute()
+                self.session.counters.reason_selections += 1
         except (NoSuchElementException, StaleElementReferenceException, ValueError) as exc:
             # A stale speciality can suppress the reason option list, so ONE
             # recovery attempt is allowed - but the operator-visible cause of

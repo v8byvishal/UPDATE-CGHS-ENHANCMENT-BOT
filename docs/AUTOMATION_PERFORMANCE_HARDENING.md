@@ -402,6 +402,137 @@ any engine class is ever defined in two places.
 
 ---
 
+## 10. Locked quantity — one selection, N verified units
+
+### 10.1 The requirement
+
+A code whose portal quantity field is **locked** (read-only) cannot be billed by
+typing `30` into the quantity box. The portal only accepts one unit per Add, so
+a required quantity of 30 means **30 physical Plus dispatches, each verified**.
+
+The baseline did that correctly but expensively: for every one of the 30 units it
+re-selected the procedure, re-synchronised the speciality, re-picked the reason
+and re-scanned the whole table. 30 units cost 30 procedure selections, 30
+speciality syncs, 30 reason selections and 30 full-table scans.
+
+### 10.2 What changed
+
+`TreatmentPlanOrchestrator._process_locked_quantity` now drives the first unit
+through the full proven flow and then, before each subsequent unit, issues **one**
+`StageContextProbe.read()` — a single `execute_script` that returns the live
+`procedure`, `speciality`, `reason`, `quantity` and `plus` state in one
+round-trip. Each stage is re-driven **only if the probe proves it is no longer
+ready**:
+
+| stage | reuse predicate (`cghs/controllers.py: StageContext`) |
+|---|---|
+| procedure | `exact_code_in_text(value, code) or portal_target in value` — the *same* predicate `ProcedureSelector._verify_selection` uses, so "still selected" and "selection verified" can never disagree |
+| speciality | value present and not a placeholder |
+| reason | control absent, or value already starts with `OTHER` |
+
+Three properties make this safe rather than merely fast:
+
+1. **Reuse is observed, never assumed.** No probe evidence ⇒ no reuse.
+2. **`probed=False` forces every predicate to `False`.** A portal that does not
+   support the compact probe (`ProbeUnsupported`) re-drives the full proven flow
+   for every unit. Such a portal loses the speed-up and keeps every gate.
+3. **Speciality loss forces a procedure re-select.** The portal *derives* the
+   speciality from the procedure, so syncing a dropped speciality on its own
+   deadlocks. `_restore_stages` therefore sets `needs_procedure = True` whenever
+   the speciality must be restored.
+
+Per-unit verification is unchanged: every unit still gets its own transaction id,
+its own ledger authorisation, its own `MutationWatch`, and its own targeted
+commit verification. The invariant **one physical Plus per transaction id** is
+asserted per unit, not per item.
+
+### 10.3 Measured — `GP001`, quantity locked
+
+Hardened engine, deterministic portal double:
+
+| units | total ms | ms/unit | DOM calls | DOM/unit | proc sel | spec sync | reason sel | Plus | verified | fixed sleep ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 31.3 | 31.28 | 61 | 61.0 | 1 | 1 | 1 | 1 | 1 | 0 |
+| 10 | 126.9 | 12.69 | 160 | 16.0 | 1 | 1 | 1 | 10 | 10 | 0 |
+| 30 | 334.0 | 11.13 | 380 | 12.7 | 1 | 1 | 1 | 30 | 30 | 0 |
+| 84 | 909.1 | 10.82 | 974 | 11.6 | 1 | 1 | 1 | 84 | 84 | 0 |
+| 200 | 2211.1 | 11.05 | 2250 | 11.2 | 1 | 1 | 1 | 200 | 200 | 0 |
+
+Against the original implementation, **equal work enforced** (the comparison is
+discarded unless both runs dispatch exactly `units` times, leave exactly `units`
+rows and both report success):
+
+| units | old ms | new ms | speed-up | old DOM | new DOM | DOM | Plus | equal work |
+|---:|---:|---:|---:|---:|---:|---:|---:|:--:|
+| 1 | 1797.1 | 31.3 | **57.4×** | 202 | 61 | **−69.8%** | 1 | TRUE |
+| 10 | 2977.5 | 126.9 | **23.5×** | 2110 | 160 | **−92.4%** | 10 | TRUE |
+| 30 | 5620.2 | 334.0 | **16.8×** | 13890 | 380 | **−97.3%** | 30 | TRUE |
+
+The headline case — **`GP001`, required quantity 30** — is
+**5620 ms → 334 ms
+(16.8×) and 13890 → 380
+DOM calls (−97.3%)**, while still producing
+**30 Plus dispatches, 30 portal rows and 30 individually verified units**.
+Procedure selections, speciality syncs and reason selections fall from 30 each to
+**1 each**.
+
+Per-unit cost is **flat**: 12.7 ms/unit at 10 units and
+11.1 ms/unit at 200. The baseline's DOM cost per unit
+*grows* (202 → 211 →
+463 calls/unit at 1/10/30 units) because it rescans the
+full table once per unit — O(n²) in the quantity. The hardened reader is
+probe-first and targeted, so the curve is O(n).
+
+Reproduce with:
+
+```
+python3 tools/benchmark_hotpath.py --locked --out docs/perf
+```
+
+Raw results: `docs/perf/benchmark_locked_quantity.json`.
+
+### 10.4 Honesty caveats
+
+* The portal double answers instantly. **The wall-clock multiples are flattered
+  by the baseline's fixed sleeps.** The latency-independent and therefore
+  defensible findings are the DOM-call reduction, the 30→1 stage-drive
+  reduction, and the flat per-unit curve.
+* **I cannot determine whether the real portal clears the procedure, speciality
+  or reason after an Add.** The baseline re-selects unconditionally, which is
+  defensive, not evidence. The engine is therefore probe-driven and is correct
+  under *both* behaviours; the fake models all five combinations
+  (`reset_procedure_after_add`, `reset_speciality_after_add`,
+  `reset_reason_after_add`) and each is covered by a test. Real-portal
+  confirmation is **NOT_YET_VERIFIED**.
+* Amount-based codes (`DRUG100`, `CNSU100`) are returned **before** the locked
+  branch is reached and can never be split into units;
+  `test_amount_based_codes_are_never_split_into_units` pins this.
+
+### 10.5 A fidelity bug found in the test double
+
+While benchmarking, the baseline appeared to deliver only **half** the required
+quantity (15 of 30). The cause was the double, not the portal: `FakeElement`
+minted a fresh element id on every construction, so the same logical row
+returned through two locator strategies looked like two different nodes. Real
+Selenium returns the *same* element id for the same DOM node, which is what
+`SmartDOMResolver._identity()` dedupes on. Two fixes were applied to
+`tests/support/fake_portal.py`:
+
+* row elements now carry a **stable** `eid` (`row-0`, `row-1`, …);
+* the double renders exactly **one** row layout, because the two registered
+  `TABLE_ROWS` strategies target structurally different markup
+  (`//table//tbody//tr` vs `//div[treatment-grid]//div[row]`) and cannot both
+  match a real DOM. The `overlapping_row_locators` fault remains, as the
+  explicit opt-in that models nested markup and exercises the dedupe path.
+
+The underlying production fix is real and already shipped (root cause #5,
+`locate_all` deduplication). The conditional risk is worth stating plainly: **on
+any DOM where both row strategies match, the original `locate_all` — which
+`extend`s across every strategy with no dedupe — double-counts every row, and
+the locked-quantity guard then stops at half the required quantity.** The
+hardened resolver dedupes by element identity and is immune. Whether such a DOM
+exists on the live portal is **NOT_YET_VERIFIED**.
+
 ## 9. Final report (task section 17)
 
 | # | Item | Value |

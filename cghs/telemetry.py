@@ -86,6 +86,16 @@ class PerfCounters:
     adaptive_sleep_ms: float = 0.0
     explicit_wait_ms: float = 0.0
     retries: int = 0
+    # --- locked-quantity stage reuse (task 3/5/6) ---------------------
+    #: how many times each hot-path stage was actually DRIVEN.  For a locked
+    #: quantity of N these must stay far below N once the portal is proven to
+    #: keep the stage selected between units.
+    procedure_selections: int = 0
+    speciality_syncs: int = 0
+    reason_selections: int = 0
+    #: a compact probe proved the cached stage was still valid -> work skipped
+    stage_context_reuses: int = 0
+    locked_unit_transactions: int = 0
     plus_dispatches: int = 0
     duplicate_plus_attempts_blocked: int = 0
     reconciliations: int = 0
@@ -223,6 +233,11 @@ class BatchPerformanceSummary:
     fixed_sleep_ms: float = 0.0
     adaptive_sleep_ms: float = 0.0
     retries: int = 0
+    procedure_selections: int = 0
+    speciality_syncs: int = 0
+    reason_selections: int = 0
+    stage_context_reuses: int = 0
+    locked_unit_transactions: int = 0
     duplicate_plus_attempts_blocked: int = 0
     plus_dispatches: int = 0
     locator_cache_hits: int = 0
@@ -261,6 +276,11 @@ class BatchPerformanceSummary:
             fixed_sleep_ms=round(counters.fixed_sleep_ms, 3),
             adaptive_sleep_ms=round(counters.adaptive_sleep_ms, 3),
             retries=counters.retries,
+            procedure_selections=counters.procedure_selections,
+            speciality_syncs=counters.speciality_syncs,
+            reason_selections=counters.reason_selections,
+            stage_context_reuses=counters.stage_context_reuses,
+            locked_unit_transactions=counters.locked_unit_transactions,
             duplicate_plus_attempts_blocked=counters.duplicate_plus_attempts_blocked,
             plus_dispatches=counters.plus_dispatches,
             locator_cache_hits=counters.locator_cache_hits,

@@ -628,6 +628,95 @@ class EnhancementReasonController(_Controller):
 # Mutation observer
 # ---------------------------------------------------------------------------
 
+@dataclass
+class StageContext:
+    """One compact read of every hot-path stage.
+
+    ``probed`` is the honesty flag.  When the compact probe is unavailable the
+    context is returned with ``probed=False`` and **every** reuse predicate is
+    False, so the caller re-drives the proven full flow.  Stage reuse happens
+    only on positive evidence that the portal still holds the value - never on
+    an assumption about what the portal does after an Add.
+    """
+    procedure_value: str = ""
+    speciality_value: str = ""
+    reason_value: str = ""
+    reason_present: bool = False
+    quantity_locked: bool = False
+    quantity_present: bool = False
+    plus_present: bool = False
+    probed: bool = False
+
+    def procedure_matches(self, code: str) -> bool:
+        """True only when the portal input still holds this exact code.
+
+        Uses the SAME predicate ``ProcedureSelector._verify_selection`` applies
+        after a successful selection, so "still selected" and "selection
+        verified" can never disagree.  ``exact_code_in_text`` is word-boundary
+        matching, so GP0011 never satisfies GP001.
+        """
+        if not self.probed:
+            return False
+        value = self.procedure_value or ""
+        if not value:
+            return False
+        target = (portal_input_value(code) or "").upper()
+        return exact_code_in_text(value, code) or (bool(target) and target in value.upper())
+
+    def speciality_ready(self) -> bool:
+        if not self.probed:
+            return False
+        return not is_placeholder(self.speciality_value)
+
+    def reason_ready(self) -> bool:
+        """The reason stage needs no work when it is absent or already 'Other*'."""
+        if not self.probed:
+            return False
+        if not self.reason_present:
+            return True                      # verified portal flows without a reason
+        value = (self.reason_value or "").strip().upper()
+        return value.startswith("OTHER")
+
+
+class StageContextProbe(_Controller):
+    """Reads PROCEDURE + SPECIALITY + REASON + QUANTITY + PLUS in ONE round trip.
+
+    This is what makes the locked-quantity fast path legitimate: instead of
+    assuming the portal keeps (or clears) a stage after an Add, the engine
+    *observes* the current stage values once per unit and re-drives only what
+    actually drifted.  Correct under both portal behaviours.
+    """
+
+    #: probe field names (the PROBE_JS protocol), NOT locator keys
+    FIELDS = ("procedure", "speciality", "reason", "quantity", "plus")
+
+    def read(self) -> StageContext:
+        try:
+            raw = self._probe(list(self.FIELDS))
+        except ProbeUnsupported:
+            self.logger.trace("[STAGE-PROBE] unavailable - full flow will be re-driven")
+            return StageContext(probed=False)
+        except WebDriverException as exc:
+            raise PortalContextLost(str(exc)) from exc
+
+        proc = raw.get("procedure") or {}
+        spec = raw.get("speciality") or {}
+        reason = raw.get("reason") or {}
+        qty = raw.get("quantity") or {}
+        plus = raw.get("plus") or {}
+
+        return StageContext(
+            procedure_value=(proc.get("value") or "").strip(),
+            speciality_value=(spec.get("value") or "").strip(),
+            reason_value=(reason.get("value") or "").strip(),
+            reason_present=bool(reason.get("present")),
+            quantity_locked=bool(qty.get("disabled") or qty.get("readonly")),
+            quantity_present=bool(qty.get("present")),
+            plus_present=bool(plus.get("present")),
+            probed=True,
+        )
+
+
 class MutationWatch(_Controller):
     def install(self) -> bool:
         try:

@@ -95,7 +95,7 @@ class Faults:
     browser_disconnect_after: Optional[int] = None
     #: the compact probe is not supported (forces the Selenium fallback path)
     probe_unsupported: bool = False
-    #: both TABLE_ROWS strategies match the same nodes
+    #: both TABLE_ROWS strategies match the same nodes (nested markup)
     overlapping_row_locators: bool = False
     #: table renders zero rows even though the page is valid (virtualized grid)
     virtualized_table: bool = False
@@ -109,7 +109,16 @@ class Faults:
 class PortalConfig:
     latency: Latency = field(default_factory=Latency)
     faults: Faults = field(default_factory=Faults)
+    #: which row markup the portal renders: "table" (//tbody//tr) or "grid"
+    #: (//div[treatment-grid]//div[row]).  Exactly one layout exists at a time.
+    table_layout: str = "table"
     locked_codes: set = field(default_factory=set)
+    #: Which stages the portal CLEARS after a successful Add.  The real portal's
+    #: behaviour here is not observable from this sandbox, so BOTH behaviours
+    #: are modelled and the engine is required to be correct under each.
+    reset_procedure_after_add: bool = False
+    reset_speciality_after_add: bool = False
+    reset_reason_after_add: bool = False
     speciality_for: Dict[str, str] = field(default_factory=dict)
     default_speciality: str = "GENERAL MEDICINE"
     #: extra near-matching options the dropdown should offer
@@ -136,10 +145,15 @@ class PortalConfig:
 class FakeElement:
     def __init__(self, portal: "FakePortal", kind: str, *, text: str = "",
                  value: str = "", tag: str = "input", attrs: Optional[Dict[str, Any]] = None,
-                 cells: Optional[List[str]] = None, payload: Any = None):
+                 cells: Optional[List[str]] = None, payload: Any = None,
+                 eid: Optional[str] = None):
         self.portal = portal
         self.kind = kind
-        self.id = f"{kind}-{next(_ids)}"
+        # A STABLE id models real Selenium: the same DOM node returned through
+        # two different locator strategies carries the same element id, which
+        # is what SmartDOMResolver._identity() dedupes on.  Without this the
+        # double reports each row once per matching strategy.
+        self.id = eid if eid is not None else f"{kind}-{next(_ids)}"
         self._text = text
         self._value = value
         self.tag_name = tag
@@ -378,6 +392,16 @@ class FakePortal:
                                  "at": time.monotonic()})
         self.plus_clicks_by_code[code] = self.plus_clicks_by_code.get(code, 0) + 1
 
+        # Portal-side form reset after Add (configurable - see PortalConfig).
+        if self.config.reset_procedure_after_add:
+            self.procedure_value = ""
+            self.procedure_typed = ""
+            self.procedure_code = ""
+        if self.config.reset_speciality_after_add:
+            self.speciality_value = ""
+        if self.config.reset_reason_after_add:
+            self.reason_value = ""
+
         qty = "1" if self.quantity_locked else (self.quantity_value or "1")
         row_code = faults.commit_wrong_code.get(code, self.procedure_code or code)
         row_qty = str(int(qty) + 1) if code in faults.commit_wrong_qty else qty
@@ -542,7 +566,17 @@ class FakePortal:
         if ("option" in v) or ("mat-option" in v) or ("ng-option" in v):
             return self._option_elements()
         if "tbody" in v or "treatment-grid" in v:
-            return self._row_elements(duplicate=self.config.faults.overlapping_row_locators)
+            if self.config.faults.overlapping_row_locators:
+                # A DOM that nests a <table> inside a treatment-grid div: both
+                # registered strategies match the SAME nodes.
+                return self._row_elements(duplicate=True)
+            # Faithful default: a real portal renders exactly ONE row layout,
+            # so only one of the two registered strategies can match.  The
+            # TABLE_ROWS strategies target structurally different markup
+            # (//table//tbody//tr vs //div[treatment-grid]//div[row]).
+            if ("tbody" in v) != (self.config.table_layout == "table"):
+                return []
+            return self._row_elements()
         if ("procedure" in v) or ("@formcontrolname='procedure'" in v):
             if "procedure" in self.renamed_controls:
                 # The control was re-rendered: only the LAST registered
@@ -586,9 +620,10 @@ class FakePortal:
         if self.config.faults.virtualized_table:
             return []
         out = []
-        for row in self.rows:
+        for index, row in enumerate(self.rows):
             cells = ["", row["code"], "desc", row["qty"], "0.00"]
-            out.append(FakeElement(self, "row", text=" ".join(cells), tag="tr", cells=cells))
+            out.append(FakeElement(self, "row", text=" ".join(cells), tag="tr",
+                                   cells=cells, eid=f"row-{index}"))
         if duplicate:
             out = out + out          # the same nodes matched by a 2nd strategy
         return out
