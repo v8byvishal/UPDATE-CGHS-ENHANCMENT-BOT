@@ -329,7 +329,7 @@ invented for bill 40343.
 | `tests/test_plus_state_machine.py` | 35 | correctness + the full enumerated failure list |
 | `tests/test_performance_caching.py` | 17 | session reuse, caches, DOM budgets, zero fixed sleep |
 | `tests/test_tab_frame_safety.py` | 11 | tab/frame/patient-identity safety |
-| `tests/test_parser_rules.py` | 60 | differential against the baseline rules |
+| `tests/test_parser_rules.py` | 66 | differential against the baseline rules + declared-deviation gate |
 | `tests/test_stress.py` | 9 | 27 / 84 / 200 items × fast / medium / slow |
 | `tests/test_property_fuzz.py` | 64 | seeded random portals + invariants |
 | `tests/test_packaging.py` | 10 | canonical ownership, no duplicate engines, artifact |
@@ -399,3 +399,39 @@ docs/
 `app.py` went from 3 247 lines to 1 329, with CRLF endings preserved. It
 defines **no** automation class; `tests/test_packaging.py` fails the build if
 any engine class is ever defined in two places.
+
+---
+
+## 9. Final report (task section 17)
+
+| # | Item | Value |
+|---|---|---|
+| 1 | Baseline commit | `c3ccdf32e2170891fad9b150c850053461c85a25` |
+| 2 | New commit | see `git log -1` on `arena/01a10125-update-cghs-enhancment-bot` |
+| 3 | Root-cause bugs found | 14 automation (§3) + 1 fixed parser defect + 1 open parser finding (§6.0) |
+| 4 | Files changed | 51 vs baseline (+12.3k / −74.2k lines) |
+| 5 | Performance changes | §4.2 — one attach/discovery/tab scan per batch, cached frame + locator strategy, compact probes, targeted verification, event-driven waits |
+| 6 | Before/after measured | §4.3 — 370× wall clock and 99.1 % fewer DOM calls at 27 items; flat per-item cost to 200 items |
+| 7 | Test matrix | §7 — **235 tests**: 226 passed, 8 skipped (ENVIRONMENT_BLOCKED), 1 strict xfail (declared open finding). Green in the workspace **and** from the extracted ZIP. |
+| 8 | Known blockers | real bill PDFs, live portal, Windows/EXE runtime |
+| 9 | Artifact path | `CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip` (repo root) |
+| 10 | Artifact SHA-256 | recorded in `docs/perf/packaging_verification.json` for the build being shipped |
+| 11 | Live portal verification | `NOT_YET_VERIFIED` |
+| 12 | Windows runtime verification | `NOT_YET_VERIFIED` |
+
+### Gate status
+
+| Gate | Status | Basis |
+|---|---|---|
+| A — source / canonical ownership | `PASS` | AST proof no engine class or module-level function is defined twice; `app.py` defines none |
+| B — correctness | `PASS` | unknown ⇒ `RECONCILIATION_REQUIRED`; exactly-one-Plus invariant held under 64 fuzz cases |
+| C — performance | `PASS` | measured, equal-work enforced, reproducible via `tools/benchmark_hotpath.py` |
+| D — tests | `PASS` | 235 tests, exit 0 in the workspace and from the extracted archive; 8 skipped are reported `ENVIRONMENT_BLOCKED`, 1 strict `xfail` is a declared open finding |
+| E — packaging | `PASS` | ZIP reopened, extracted, hashed per file, test suite re-collected from the extract |
+
+### Status vocabulary audit
+
+Nothing unknown is reported as `PASS`. The three unverifiable areas are named
+explicitly and carry `ENVIRONMENT_BLOCKED` or `NOT_YET_VERIFIED`; the open
+parser finding carries `NOT_YET_VERIFIED` and an executable reproducer rather
+than a silent code change.

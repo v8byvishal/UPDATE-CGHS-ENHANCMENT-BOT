@@ -52,9 +52,9 @@
       "detail": "tests/test_tab_frame_safety.py: 11"
     }
   ],
-  "zip_sha256": "453abceacb8354b83d8b21ef8572df4c2c14ddf1f23440bfe46c653ad8fb9542",
-  "zip_bytes": 153209,
-  "entry_count": 35,
+  "zip_sha256": "0c56e7745c926df0994fc77ed52cce2c7feb8b476f79c67139c43eb06a538405",
+  "zip_bytes": 162053,
+  "entry_count": 36,
   "critical_file_hashes": {
     "app.py": {
       "sha256": "eee0dd10f5888b276258acee6db06a2831da0455094be3b84e82544b7d21cc2a",
@@ -77,8 +77,8 @@
       "matches_workspace": true
     },
     "cghs/rules.py": {
-      "sha256": "ca53ea05d9d3a908a935a18b6ada924eae230390978f3c649072e585d7487660",
-      "bytes": 15624,
+      "sha256": "bf2cb4d13e75a09c4dd2918dbcc69a179236e4b0664952a698865e91af1b0f86",
+      "bytes": 17136,
       "matches_workspace": true
     },
     "cghs/parsing.py": {
@@ -122,8 +122,8 @@
       "matches_workspace": true
     },
     "docs/AUTOMATION_PERFORMANCE_HARDENING.md": {
-      "sha256": "74ebe2b9fb453980b06f77b56727a05dd8d6268b8004e589009f53d4c1009d6c",
-      "bytes": 15323,
+      "sha256": "35ed430138c93fcd976afc10b3563bf6add0b91f358a3eb372007e6c52c5069e",
+      "bytes": 21593,
       "matches_workspace": true
     }
   },
