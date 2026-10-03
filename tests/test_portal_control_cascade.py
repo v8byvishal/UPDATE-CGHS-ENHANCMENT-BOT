@@ -382,3 +382,51 @@ def test_locked_quantity_remains_duplicate_safe_through_a_remount():
     assert len(ids) == len(set(ids)) == 30
     for tx in result.transactions:
         assert tx.ledger.dispatch_count(tx.identity.transaction_id) == 1
+
+
+# ---------------------------------------------------------------------------
+# section 9 - frame validation needs more than "it has some inputs"
+# ---------------------------------------------------------------------------
+
+def test_frame_validation_rejects_a_frame_with_only_generic_inputs():
+    """A login box in an iframe must NOT be accepted as the Treatment Plan.
+
+    The baseline validated a browsing context with `bool(ctx["inputs"])`, so
+    any frame containing any input passed - and binding to the wrong frame
+    then surfaces later as an inexplicable control failure.
+    """
+    dom, session = _live_portal()
+    frames = session.frames
+    real_probe = dom._probe
+
+    def generic_only(spec):
+        state = real_probe(spec)
+        if "ctx" in (spec or {}).get("fields", []):
+            # plenty of inputs, no Treatment Plan signature whatsoever
+            state["ctx"] = {"inputs": 9, "procedure": False, "speciality": False,
+                            "quantity": False, "reason": False, "plus": False,
+                            "marker": False}
+        return state
+
+    dom._probe = generic_only
+    assert frames._cheap_validate() is False
+
+    dom._probe = real_probe
+    assert frames._cheap_validate() is True
+
+
+def test_frame_validation_needs_more_than_one_signature():
+    dom, session = _live_portal()
+    frames = session.frames
+    real_probe = dom._probe
+
+    def one_signature(spec):
+        state = real_probe(spec)
+        if "ctx" in (spec or {}).get("fields", []):
+            state["ctx"] = {"inputs": 4, "procedure": False, "speciality": False,
+                            "quantity": False, "reason": False, "plus": False,
+                            "marker": True}        # only the heading
+        return state
+
+    dom._probe = one_signature
+    assert frames._cheap_validate() is False

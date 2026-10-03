@@ -964,7 +964,23 @@ class ReactSelectDOM:
         if "ctx" in fields:
             inputs = sum(1 for n in self.nodes.values()
                          if not n.get("detached") and n["tag"] in ("input", "select"))
-            out["ctx"] = {"inputs": inputs, "procedure": True, "marker": True}
+            out["ctx"] = {
+                "inputs": inputs,
+                # mirror PROBE_JS: each signature is "is there a VISIBLE
+                # control of this kind", recomputed live so a remounted /
+                # hidden procedure control is reported honestly.
+                "procedure": any(
+                    e.is_displayed() for e in
+                    self.find_elements("css selector", "#react-select-5-input")
+                    + self.find_elements("css selector",
+                                         "#react-select-%d-input"
+                                         % self.config.procedure_remount_instance)),
+                "speciality": self._parts("speciality")["input"].get("visible", True),
+                "quantity": self.quantity.get("visible", True),
+                "reason": self._parts("reason")["input"].get("visible", True),
+                "plus": self.plus.get("visible", False),
+                "marker": True,
+            }
         if "plan" in fields:
             out["plan"] = {"present": True, "visible": True, "text": "Treatment Plan"}
         if "procedure" in fields:

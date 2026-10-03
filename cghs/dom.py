@@ -194,6 +194,10 @@ try {
     out.ctx = {
       inputs: document.querySelectorAll("input, select").length,
       procedure: !!firstVisible(Q.PROCEDURE_INPUT || []),
+      speciality: !!firstVisible(Q.SPECIALITY_INPUT || []),
+      quantity: !!firstVisible(Q.QUANTITY_INPUT || []),
+      reason: !!firstVisible(Q.REASON_DROPDOWN || []),
+      plus: !!firstVisible(Q.PLUS_BUTTON || []),
       marker: !!xp1("//*[contains(translate(., 'TREATMENT PLAN', 'treatment plan'), 'treatment plan')]")
     };
   }
@@ -758,19 +762,52 @@ class FrameContextCache:
         self.counters.frame_cache_misses += 1
         return self._discover()
 
+    #: Treatment Plan signatures the probe reports.  A frame must show at
+    #: least MIN_SIGNATURES of them: "it contains some inputs" is far too
+    #: weak for a recovery path - any search box or login form in any iframe
+    #: satisfies it, and binding to the wrong frame then looks like a
+    #: mysterious control failure.
+    PLAN_SIGNATURES = ("marker", "procedure", "speciality", "quantity",
+                       "reason", "plus")
+    MIN_SIGNATURES = 2
+
     def _cheap_validate(self) -> bool:
         try:
             state = self.driver.probe(["ctx"])
         except ProbeUnsupported:
-            try:
-                self.counters.find_elements_calls += 1
-                return len(self.driver.driver.find_elements(By.XPATH, "//input | //select")) > 0
-            except WebDriverException:
-                return False
+            return self._validate_without_probe()
         except WebDriverException:
             return False
         ctx = state.get("ctx") or {}
-        return bool(ctx.get("inputs"))
+        if not ctx.get("inputs"):
+            return False
+        hits = [name for name in self.PLAN_SIGNATURES if ctx.get(name)]
+        if len(hits) >= self.MIN_SIGNATURES:
+            return True
+        self.logger.trace(
+            f"[FRAME-VALIDATE] rejected: only {len(hits)} Treatment Plan "
+            f"signature(s) {hits} - need {self.MIN_SIGNATURES}")
+        return False
+
+    def _validate_without_probe(self) -> bool:
+        """Selenium fallback: still demand a plan signature, not just inputs."""
+        try:
+            self.counters.find_elements_calls += 1
+            if not self.driver.driver.find_elements(By.XPATH, "//input | //select"):
+                return False
+        except WebDriverException:
+            return False
+        for key in ("PROCEDURE_INPUT", "QUANTITY_INPUT", "PLUS_BUTTON"):
+            for strategy, val in LOCATORS.get(key, ()):
+                try:
+                    self.counters.find_elements_calls += 1
+                    if self.driver.driver.find_elements(strategy, val):
+                        return True
+                except WebDriverException as exc:
+                    if is_browser_disconnect(exc):
+                        return False
+                    continue
+        return False
 
     def _discover(self) -> bool:
         """Full iframe discovery - the slow path, counted and logged."""

@@ -665,6 +665,113 @@ and `test_REGRESSION_a_real_commit_is_recognised_even_though_the_input_is_empty`
   `CommitVerifier` gates would observe no row and raise
   `RECONCILIATION_REQUIRED` rather than report success - it fails safe.
 
+## 12. The unit-19 cascade: a dead control reported as a dead context
+
+### 12.1 What the operator saw
+
+A 34-code batch. Nine codes succeeded. `GP001` locked quantity 30 began and
+units 1-18 committed. At unit 19:
+
+```
+element not interactable
+[FRAME-CACHE] invalidated
+[BROWSER] GP001 ... element not interactable
+FAILED_BEFORE_DISPATCH   TX-PORTAL-CONTEXT-LOST
+```
+
+...then the same four lines for every one of the 24 remaining codes - each
+preceded by `[CONTEXT] verified Treatment Plan`. The engine declared the
+context lost and then immediately proved it was fine, **25 times**.
+
+That contradiction is the whole bug. **The frame was never invalid.**
+
+### 12.2 Three defects, none of them code-specific
+
+**1. Classification.** `ElementNotInteractableException` is a subclass of
+`WebDriverException`. `process_item` caught `NoSuchElement` and
+`StaleElement` ahead of `WebDriverException` - but not this one - so a
+perfectly present control that merely could not be typed into fell into the
+clause that calls `invalidate_context()` and reports
+`TX-PORTAL-CONTEXT-LOST`. An **element** fault was reported as a **context**
+fault, and the wrongly dumped tab/frame/locator caches guaranteed every later
+item repeated the same doomed lookup.
+
+**2. Resolver.** `SmartDOMResolver.locate()` ended with, in effect, *"return
+the first match, hidden or not, and cache the strategy that produced it."*
+React does not remove a remounted control - it leaves the old input in the
+document, hidden - so `#react-select-5-input` still matched. The last resort
+handed back that hidden clone **and poisoned the strategy cache with it**, so
+every retry re-found it. `_click()` swallowed the resulting exception and
+fell back to a JS click; `send_keys` then raised for real.
+
+**3. No shared-control concept.** `BatchRunner` ran all 24 remaining codes
+against the identical broken control, converting one portal fault into 25
+"code failures" and burying the real cause.
+
+### 12.3 Proof, not inference
+
+`docs/evidence/cascade_repro_prefix.txt` reproduces it against the engine as
+committed: **25x `TX-PORTAL-CONTEXT-LOST`, 25x frame-cache invalidation, 25x
+`CONTEXT verified Treatment Plan`**, with units 1-18 committed first.
+
+The portal model contains only operator-reported conditions: React remounts
+the procedure control after N Adds leaving a hidden clone behind; the portal
+clears the procedure after every Add (which is *why* the engine re-selects it
+each unit, and why the fault first appears at unit 19); and `find_elements`
+returns hidden elements, as real Selenium does.
+
+### 12.4 The fix
+
+| area | change |
+|---|---|
+| classification | `ElementNotInteractableException` caught **before** `WebDriverException` as `TX-PROCEDURE-CONTROL-UNAVAILABLE`. Tab, frame and locator caches are left **untouched**. |
+| resolver | For `INTERACTIVE_CONTROLS` the last resort refuses a non-interactable element instead of returning and caching it. **ABSENT** (`NoSuchElement`) and **PRESENT-BUT-HIDDEN** (`ElementNotInteractable`) stay distinguishable, so optional controls still behave. |
+| locators | Instance-independent strategies anchored on each control's **own** react-select container, so `react-select-5` → `react-select-9` is found without hardcoding either id. The `[1]` on the container means it can never reach speciality or reason. |
+| reacquisition | `_acquire_interactable()` + a targeted retry on stale/non-interactable **while typing**. The element is dropped; the session is not. |
+| cascade | One controlled recovery, then a decision. Re-finding the Treatment Plan is **not** accepted as proof the procedure control works. |
+| frame validation | `_cheap_validate()` demanded only `ctx["inputs"] > 0`; any iframe with any input passed. It now requires **2 of 6** Treatment Plan signatures (heading, procedure, speciality, quantity, reason, Plus), all from the same single probe. |
+
+### 12.5 Measured - the reproduced 30-code batch
+
+| | status | done | failed | pending | shared faults | frame rediscoveries | DOM calls | fixed sleep |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| **pre-fix** | PARTIAL | 7 | **23** | 0 | n/a | **25** | - | 0 ms |
+| control never returns | `STOPPED_SHARED_PORTAL_CONTEXT_FAILURE` | 7 | **1** | **22** | 1 | 1 | 1205 | 0 ms |
+| control remounts OK | `COMPLETED` | 30 | 0 | 0 | 0 | 1 | 4064 | 0 ms |
+
+23 code-failures become **1 real failure plus 22 preserved as `pending`** -
+not attempted, and not blamed. `TX-PORTAL-CONTEXT-LOST` and frame-cache
+invalidations both drop from 25 to **0**. When the remount leaves a usable
+control, all 30 codes complete with **1** frame discovery.
+
+No fixed sleep was added anywhere: the recovery is condition-driven.
+Raw data: `docs/perf/cascade_recovery.json`.
+
+### 12.6 Tests
+
+`tests/test_portal_control_cascade.py` - 20 tests covering section 10 A-H
+plus the section 9 frame-validation hardening. **16 fail against the pre-fix
+engine**; all 20 pass after.
+
+### 12.7 Honesty caveats
+
+* **Not reproduced on the live portal.** This sandbox is headless Linux with
+  no CDP target, so the §1 live capture (URL, tab handle, frame chain, active
+  element, candidate rects) **could not be performed**. The reproduction is a
+  deterministic model that emits the operator's log sequence line for line;
+  the specific trigger at unit 19 on the real DOM remains
+  **NOT_YET_VERIFIED**.
+* What *is* proven independently of the trigger: once any
+  `ElementNotInteractableException` reaches `process_item`, the pre-fix code
+  **must** dump the frame cache, **must** report `TX-PORTAL-CONTEXT-LOST`,
+  and **must** attempt every remaining item. That is visible in the control
+  flow, not just in the model.
+* `MIN_SIGNATURES = 2` is a judgement call. One signature was too weak
+  (a stray "Treatment Plan" heading); requiring all six would reject
+  legitimate pages where the Plus control is not yet rendered.
+* The PT004/PT005 post-Plus reconciliation finding is a **different** defect
+  and has deliberately not been touched.
+
 ## 9. Final report (task section 17)
 
 | # | Item | Value |
