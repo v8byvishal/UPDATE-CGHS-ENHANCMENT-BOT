@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from selenium.common.exceptions import (
+    ElementNotInteractableException,
     NoSuchElementException,
     StaleElementReferenceException,
     WebDriverException,
@@ -76,6 +77,10 @@ class ItemResult:
     detail: str = ""
     transactions: List[PlusTransaction] = field(default_factory=list)
     telemetry: Optional[ItemTelemetry] = None
+    #: True when the cause is a SHARED portal control, not this code.  The
+    #: next item would hit exactly the same wall, so the batch must recover
+    #: once and then stop - not retry it N more times.
+    shared_control_failure: bool = False
 
     @property
     def plus_dispatches(self) -> int:
@@ -138,6 +143,42 @@ class TreatmentPlanOrchestrator:
     # ------------------------------------------------------------------
     # public API
     # ------------------------------------------------------------------
+    def recover_shared_controls(self) -> bool:
+        """ONE controlled recovery after a shared-control failure (section 5).
+
+        Order matters: re-validate the context we actually doubt, then prove
+        the control itself is drivable.  Finding the Treatment Plan again is
+        NOT proof that its procedure input works - that false equivalence is
+        what let the cascade run for 25 items.
+
+        Returns True only when a real, interactable procedure control exists.
+        """
+        try:
+            self.session.resolver.invalidate("PROCEDURE_INPUT")
+            self.session.ensure_context()
+        except (PortalContextLost, PatientNotSwitched, WebDriverException) as exc:
+            self.logger.error(f"[RECOVERY] context could not be re-established: {exc}")
+            return False
+        try:
+            self.proc_sel._acquire_interactable("PROCEDURE_INPUT")
+        except ElementNotInteractableException as exc:
+            self.logger.error(
+                f"[RECOVERY] Treatment Plan is valid but its procedure control "
+                f"is still not interactable: {exc}")
+            return False
+        except (NoSuchElementException, StaleElementReferenceException) as exc:
+            self.logger.error(f"[RECOVERY] procedure control not found: {exc}")
+            return False
+        except WebDriverException as exc:
+            if is_browser_disconnect(exc):
+                self.logger.error(f"[RECOVERY] browser is gone: {exc}")
+                return False
+            self.logger.error(f"[RECOVERY] procedure control unusable: {exc}")
+            return False
+        self.logger.info("[RECOVERY] procedure control re-acquired and interactable")
+        return True
+
+    # ------------------------------------------------------------------
     def process_item(self, item: Dict[str, Any]) -> ItemResult:
         code = (item.get("code") or "").strip()
         qty = int(item.get("qty", 1) or 1)
@@ -168,6 +209,20 @@ class TreatmentPlanOrchestrator:
             result.diagnostic = Diagnostic.CONTEXT_LOST.value
             result.detail = str(exc)
             self.logger.error(f"[CONTEXT-LOST] {code}: {exc}")
+        except ElementNotInteractableException as exc:
+            # Caught BEFORE WebDriverException on purpose.  ElementNotInteractable
+            # is a WebDriverException subclass, so the baseline let it fall
+            # through to the clause below, which invalidated the frame cache and
+            # reported TX-PORTAL-CONTEXT-LOST.  The frame was never lost - the
+            # very next item re-verified it - and the wrongly dumped caches made
+            # every following item repeat the same doomed lookup.
+            # A control we cannot type into is a CONTROL fault. The context is
+            # left intact and the batch is told this is a SHARED failure.
+            result.state = TxState.FAILED_BEFORE_DISPATCH.value
+            result.diagnostic = Diagnostic.CONTROL_UNAVAILABLE.value
+            result.detail = str(exc)
+            result.shared_control_failure = True
+            self.logger.error(f"[CONTROL-UNAVAILABLE] {code}: {exc}")
         except (NoSuchElementException, StaleElementReferenceException,
                 TimeoutError, ValueError) as exc:
             # Caught BEFORE WebDriverException on purpose: these are subclasses
@@ -408,6 +463,10 @@ class TreatmentPlanOrchestrator:
         try:
             self._drive_transaction(tx, code, required_qty, expected_portal_qty, before,
                                     stage_ctx=stage_ctx)
+        except ElementNotInteractableException:
+            # A control fault must reach process_item intact so the batch can
+            # treat it as ONE shared failure instead of N item failures.
+            raise
         except (PortalContextLost, WebDriverException) as exc:
             self._fail_on_exception(tx, exc, Diagnostic.BROWSER_DISCONNECTED
                                     if isinstance(exc, WebDriverException)
@@ -660,7 +719,9 @@ class BatchRunner:
                 break
             except (AmbiguousPatientTab, NoPatientTab) as exc:
                 raise
-            for item in items:
+            pending: List[str] = []
+            shared_failure = ""
+            for pos, item in enumerate(items):
                 if self.session.is_cancelled():
                     stopped_reason = "cancelled by operator"
                     break
@@ -672,8 +733,38 @@ class BatchRunner:
                 else:
                     failed.append(result.code)
 
+                if not result.shared_control_failure:
+                    continue
+
+                # ---- SHARED portal control failed (section 6) -------------
+                # Every remaining code would hit the SAME control.  Recover
+                # once, prove the control is usable, and only then carry on.
+                # Never grind through the rest of the queue one doomed item
+                # at a time.
+                self.session.counters.shared_control_failures += 1
+                self.logger.warn(
+                    f"[SHARED-CONTROL] {result.code} failed on a control every "
+                    f"remaining code needs - one controlled recovery, then a "
+                    f"decision (NOT {len(items) - pos - 1} more attempts)")
+                if self.orchestrator.recover_shared_controls():
+                    self.logger.info("[SHARED-CONTROL] recovered - batch continues")
+                    continue
+                shared_failure = (f"shared portal control unavailable after "
+                                  f"recovery (first seen on {result.code}): "
+                                  f"{result.detail}")
+                pending = [(i.get("code") or "").upper() for i in items[pos + 1:]]
+                self.logger.error(f"[STOP] {shared_failure}")
+                if pending:
+                    self.logger.error(
+                        f"[STOP] {len(pending)} item(s) left PENDING, not attempted "
+                        f"and not failed: {', '.join(pending)}")
+                stopped_reason = shared_failure
+                break
+
             status = "COMPLETED"
-            if review:
+            if shared_failure:
+                status = "STOPPED_SHARED_PORTAL_CONTEXT_FAILURE"
+            elif review:
                 status = "RECONCILIATION_REQUIRED"
             elif failed:
                 status = "PARTIAL"
@@ -683,10 +774,15 @@ class BatchRunner:
                 "name": name, "status": status, "completed": completed,
                 "failed": failed, "reconciliation_required": review,
                 "items_total": len(items),
+                # Items never attempted because a SHARED control died.  They
+                # are NOT failures of their own codes and must not be reported
+                # as such - they are still owed to the operator.
+                "pending": pending,
+                "shared_context_failure": shared_failure,
             })
             self.logger.info(
                 f"[PATIENT DONE] {name} status={status} completed={completed} "
-                f"failed={failed} review={review}")
+                f"failed={failed} review={review} pending={len(pending)}")
             if stopped_reason:
                 break
 

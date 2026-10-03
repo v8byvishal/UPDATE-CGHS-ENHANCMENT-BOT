@@ -100,6 +100,8 @@ class PerfCounters:
     duplicate_plus_attempts_blocked: int = 0
     reconciliations: int = 0
     stale_recoveries: int = 0
+    procedure_reacquisitions: int = 0
+    shared_control_failures: int = 0
 
     # ---- derived -----------------------------------------------------
     @property

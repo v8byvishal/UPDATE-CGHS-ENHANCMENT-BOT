@@ -64,6 +64,14 @@ LOCATORS = {
         # --- operator-verified live portal DOM (React-Select instance 5) ---
         (By.CSS_SELECTOR, "#react-select-5-input"),
         (By.CSS_SELECTOR, "input[role='combobox'][aria-controls*='react-select-5']"),
+        # Instance-independent: the procedure control's OWN react-select
+        # container, then every input inside it.  React renumbers the instance
+        # (react-select-5 -> react-select-9) when it remounts and leaves the
+        # old input in the document, hidden.  Returning ALL of that container's
+        # inputs lets the resolver pick the interactable one; the [1] on the
+        # container stops it ever reaching the speciality or reason control.
+        (By.XPATH, "//label[contains(translate(., 'PROCEDURE', 'procedure'), 'procedure')]"
+                   "/following::div[contains(@class, '-container')][1]//input"),
         (By.XPATH, "//label[contains(translate(., 'PROCEDURE', 'procedure'), 'procedure')]/following::input[1]"),
         (By.XPATH, "//*[@formcontrolname='procedure']//input | //*[@formcontrolname='procedureName']//input"),
         (By.XPATH, "//ng-select[contains(@formcontrolname, 'procedure')]//input"),
@@ -83,6 +91,8 @@ LOCATORS = {
         # --- operator-verified live portal DOM (React-Select instance 4) ---
         (By.CSS_SELECTOR, "#react-select-4-input"),
         (By.CSS_SELECTOR, "input[role='combobox'][aria-controls*='react-select-4']"),
+        (By.XPATH, "//label[contains(translate(., 'SPECIALITY', 'speciality'), 'speciality')]"
+                   "/following::div[contains(@class, '-container')][1]//input"),
         (By.XPATH, "//label[contains(translate(., 'SPECIALITY', 'speciality'), 'speciality')]/following::*[self::input or self::select or self::span or self::div][1]"),
         (By.XPATH, "//*[@formcontrolname='speciality'] | //*[@formcontrolname='specialityName']"),
         (By.XPATH, "//input[contains(@id, 'Speciality') or contains(@id, 'speciality')]")
@@ -108,6 +118,8 @@ LOCATORS = {
         # --- operator-verified live portal DOM (React-Select instance 7) ---
         (By.CSS_SELECTOR, "#react-select-7-input"),
         (By.CSS_SELECTOR, "input[role='combobox'][aria-controls*='react-select-7']"),
+        (By.XPATH, "//label[contains(translate(., 'REASON', 'reason'), 'reason')]"
+                   "/following::div[contains(@class, '-container')][1]//input"),
         (By.XPATH, "//label[contains(translate(., 'REASON', 'reason'), 'reason')]/following::*[contains(@class, 'ng-select') or contains(@class, 'mat-select') or self::select or self::input][1]"),
         (By.XPATH, "//*[@formcontrolname='enhancementReason'] | //*[@formcontrolname='reason']"),
         (By.XPATH, "//*[contains(@id, 'EnhancementReason') or contains(@id, 'Reason')]")

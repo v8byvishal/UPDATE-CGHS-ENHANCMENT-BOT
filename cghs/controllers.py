@@ -169,6 +169,49 @@ class _Controller:
         except (WebDriverException, AttributeError):
             return False
 
+    def _acquire_interactable(self, locator_key: str):
+        """Resolve a control and PROVE it can be driven before returning it.
+
+        Section 7: displayed, enabled, non-zero box, in the current document.
+        A control that merely *exists* is not good enough - the live portal
+        keeps hidden React clones of remounted controls, and typing into one
+        raises ElementNotInteractable after the click has already happened.
+        """
+        # locate() already enforces section 7's displayed+enabled conditions
+        # for these keys (SmartDOMResolver._usable), and now refuses to return
+        # a hidden one at all - so this costs no extra DOM round trip.
+        el, _ = self.resolver.locate(locator_key)
+        why = self._not_interactable_reason(el)
+        if why is None:
+            return el
+        # One targeted reacquisition: drop the cached strategy, re-resolve.
+        self.counters.procedure_reacquisitions += 1
+        self.logger.info(f"[CONTROL-REACQUIRE] {locator_key} not interactable "
+                         f"({why}) - re-resolving")
+        self.resolver.invalidate(locator_key)
+        el, _ = self.resolver.locate(locator_key)
+        why = self._not_interactable_reason(el)
+        if why is None:
+            return el
+        raise ElementNotInteractableException(
+            f"{locator_key} is present but not interactable ({why}); "
+            f"the Treatment Plan context itself is unaffected")
+
+    def _not_interactable_reason(self, el) -> Optional[str]:
+        """None when the element is genuinely drivable, else the reason."""
+        try:
+            rect = getattr(el, "rect", None)
+            if isinstance(rect, dict):
+                if (rect.get("width") or 0) <= 0 or (rect.get("height") or 0) <= 0:
+                    return "zero-area bounding box"
+        except StaleElementReferenceException:
+            return "stale"
+        except WebDriverException as exc:
+            if is_browser_disconnect(exc):
+                raise
+            return f"unreadable ({type(exc).__name__})"
+        return None
+
     def _scoped_options(self, locator_key: str,
                         combobox: Optional[bool] = None) -> List[Any]:
         """Options belonging to THIS control's own listbox.
@@ -370,15 +413,26 @@ class ProcedureSelector(_Controller):
 
         self.sync.wait_until(field_ready, timeout=4.0, desc="procedure field ready")
 
-        el, _ = self.resolver.locate("PROCEDURE_INPUT")
+        el = self._acquire_interactable("PROCEDURE_INPUT")
         self._scroll(el)
         self._click(el)
         try:
             self._clear_and_type(el, portal_target)
-        except StaleElementReferenceException:
-            self.counters.stale_recoveries += 1
+        except (StaleElementReferenceException,
+                ElementNotInteractableException) as exc:
+            # React replaced or hid the input between acquiring it and typing
+            # into it.  That invalidates THIS ELEMENT, nothing else: the frame,
+            # the tab and the browser are all still fine.  Drop the element and
+            # the cached strategy that produced it, then re-acquire the control
+            # that is live RIGHT NOW.
+            if isinstance(exc, StaleElementReferenceException):
+                self.counters.stale_recoveries += 1
+            self.counters.procedure_reacquisitions += 1
+            self.logger.info(
+                f"[PROCEDURE-REACQUIRE] {type(exc).__name__} while typing - "
+                f"re-resolving the live control (frame NOT invalidated)")
             self.resolver.invalidate("PROCEDURE_INPUT")
-            el, _ = self.resolver.locate("PROCEDURE_INPUT")
+            el = self._acquire_interactable("PROCEDURE_INPUT")
             self._click(el)
             self._clear_and_type(el, portal_target)
 

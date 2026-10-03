@@ -1,0 +1,34 @@
+PRE-FIX CASCADE REPRODUCTION  (engine as committed at 4c928b1)
+generated: 2026-10-03T17:01:20Z
+
+PORTAL MODEL (all three conditions are operator-reported, none invented):
+  * React remounts the procedure control after 18 Adds:
+      - old #react-select-5-input stays IN the document but hidden (clone)
+      - new #react-select-9-input mounted alongside, visible + interactable
+  * the portal clears the procedure after every Add (why the engine re-selects)
+  * find_elements returns hidden elements, exactly as real Selenium does
+
+=== GP001 locked qty 30, single item ===
+[17:01:07] [INFO] [ITEM] CN002 qty=1 state=COMPLETED diag=TX-COMMIT-VERIFIED 4ms dom=77
+[17:01:07] [INFO] [ITEM] CC001 qty=1 state=COMPLETED diag=TX-COMMIT-VERIFIED 6ms dom=92
+[17:01:07] [INFO] [ITEM] CC002 qty=1 state=COMPLETED diag=TX-COMMIT-VERIFIED 6ms dom=92
+[17:01:07] [INFO] [ITEM] CC008 qty=1 state=COMPLETED diag=TX-COMMIT-VERIFIED 8ms dom=92
+
+=== 34-code batch ===
+)
+
+================================================================
+completed      : 7
+failed         : 27
+review         : 0
+items_total    : 34
+stopped_reason : ''
+failed codes   : ['CNSU100', 'DRUG100', 'GP001', 'LB001', 'LB012', 'LB055', 'LB068', 'RI001', 'RI002', 'RI005', 'CN003', 'CN004', 'PT004', 'PT005', 'GP002', 'GP003', 'LB002', 'LB003', 'RI003', 'CC003', 'CC004', 'CI002', 'CI003', 'BL001', 'BL002', 'LB004', 'RI004']
+
+=== CASCADE COUNTERS ===
+TX-PORTAL-CONTEXT-LOST occurrences : 25
+[FRAME-CACHE] invalidated          : 25
+CONTEXT verified Treatment Plan    : 25
+
+THE CONTRADICTION (SS2): the context is re-verified immediately after being
+declared lost, 25 times over. The frame was never invalid.

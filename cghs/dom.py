@@ -26,6 +26,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from selenium.common.exceptions import (
+    ElementNotInteractableException,
     NoSuchElementException,
     StaleElementReferenceException,
     WebDriverException,
@@ -70,6 +71,16 @@ class ProbeUnsupported(Exception):
 
 class PortalContextLost(Exception):
     """Frame / tab / driver context is no longer valid."""
+
+
+#: Locator keys naming a control the engine TYPES INTO or CLICKS.  For these,
+#: "found but not interactable" is a failure, never an acceptable answer: the
+#: live portal keeps hidden React clones of remounted controls in the
+#: document, and handing one back poisons every later attempt.
+INTERACTIVE_CONTROLS = frozenset({
+    "PROCEDURE_INPUT", "SPECIALITY_INPUT", "REASON_DROPDOWN",
+    "QUANTITY_INPUT", "PLUS_BUTTON",
+})
 
 
 # ---------------------------------------------------------------------------
@@ -518,6 +529,21 @@ class SmartDOMResolver:
                 if parent is None:
                     self._strategy_cache[locator_key] = found
                 return el, found
+        # ---- last resort --------------------------------------------
+        # Both passes above already demand is_displayed(), so anything that
+        # reaches here is either absent or present-but-hidden.  Returning the
+        # first match regardless is fine for a read-only key (a hidden row
+        # still carries its text) but catastrophic for a control we are about
+        # to type into: React leaves remounted inputs in the document, hidden,
+        # and every selector still matches them.  The baseline returned that
+        # hidden clone AND cached the strategy that produced it, so the
+        # poisoned choice survived every later attempt.
+        #
+        # ABSENT and HIDDEN must stay distinguishable: an optional control
+        # that simply does not exist is NoSuchElement (callers treat that as
+        # "not applicable"), while a control that exists but cannot be driven
+        # is ElementNotInteractable.
+        matched_any = False
         for strategy, val in strategies:
             try:
                 els = (self.driver.find_elements(strategy, val) if ctx is self.driver
@@ -527,9 +553,17 @@ class SmartDOMResolver:
                     raise
                 continue
             if els:
+                matched_any = True
+                if locator_key in INTERACTIVE_CONTROLS:
+                    continue        # never drive a control we cannot see
                 if parent is None:
                     self._strategy_cache[locator_key] = (strategy, val)
                 return els[0], (strategy, val)
+        if matched_any and locator_key in INTERACTIVE_CONTROLS:
+            raise ElementNotInteractableException(
+                f"'{locator_key}' matched only non-interactable elements "
+                f"(hidden or zero-area): the control is in the document but "
+                f"cannot be driven. The browsing context is unaffected.")
         raise NoSuchElementException(
             f"SmartDOMResolver could not locate '{locator_key}' using any strategy.")
 

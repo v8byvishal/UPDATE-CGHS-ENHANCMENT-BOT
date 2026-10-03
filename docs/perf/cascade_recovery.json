@@ -1,0 +1,44 @@
+{
+  "generated_at_utc": "2026-10-03T17:17:05Z",
+  "note": "Counters read back from the double after each run; nothing asserted in advance.",
+  "runs": [
+    {
+      "scenario": "control never returns",
+      "status": "STOPPED_SHARED_PORTAL_CONTEXT_FAILURE",
+      "completed": 7,
+      "failed": 1,
+      "pending": 22,
+      "shared_context_failures": 1,
+      "procedure_reacquisitions": 0,
+      "frame_rediscoveries": 1,
+      "full_tab_scans": 1,
+      "locator_cache_hits": 62,
+      "locator_cache_misses": 11,
+      "plus_dispatches": 18,
+      "rows_created": 18,
+      "dom_calls": 1205,
+      "fixed_sleep_ms": 0.0,
+      "wall_clock_ms": 166.0,
+      "ms_per_attempted_item": 20.75
+    },
+    {
+      "scenario": "control remounts OK",
+      "status": "COMPLETED",
+      "completed": 30,
+      "failed": 0,
+      "pending": 0,
+      "shared_context_failures": 0,
+      "procedure_reacquisitions": 0,
+      "frame_rediscoveries": 1,
+      "full_tab_scans": 1,
+      "locator_cache_hits": 206,
+      "locator_cache_misses": 32,
+      "plus_dispatches": 59,
+      "rows_created": 59,
+      "dom_calls": 4064,
+      "fixed_sleep_ms": 0.0,
+      "wall_clock_ms": 2860.6,
+      "ms_per_attempted_item": 95.35
+    }
+  ]
+}

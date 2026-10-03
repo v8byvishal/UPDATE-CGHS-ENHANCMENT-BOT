@@ -135,6 +135,25 @@ class ReactSelectConfig:
     #: debounced/async option loading.  Any option reference captured before
     #: that render is stale - the live condition behind the JS-click fallback.
     menu_rerender_after_read: bool = False
+    #: After this many Plus dispatches React REMOUNTS the procedure control:
+    #: the old #react-select-5-input stays in the document but hidden (a
+    #: "hidden clone"), and a NEW visible input with a DIFFERENT id is
+    #: mounted in the same container.  This is the live condition behind the
+    #: unit-19 `element not interactable` cascade.  0 disables it.
+    procedure_remount_after_units: int = 0
+    #: instance number the remounted procedure input is given
+    procedure_remount_instance: int = 9
+    #: True  -> the remount leaves a visible, interactable replacement
+    #: False -> the control is simply gone/hidden and never comes back,
+    #:          which must become one shared-context failure, not 25.
+    procedure_remount_recovers: bool = True
+    #: a hidden duplicate procedure input present from the very start
+    hidden_duplicate_procedure_input: bool = False
+    #: Stages the portal CLEARS after every Add.  The live CGHS portal clears
+    #: the procedure (which is why the engine re-selects it for every locked
+    #: unit); without this the double never re-touches the input and cannot
+    #: reproduce a failure that only appears on unit 19.
+    resets_after_add: Tuple[str, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +222,18 @@ class RSElement:
     def send_keys(self, *keys):
         self.dom.counters["send_keys"] += 1
         node = self._live()
+        # Real Selenium refuses to type into a control the user could not
+        # type into.  THIS is the exception the operator saw at unit 19.
+        if not node.get("visible", True):
+            raise ElementNotInteractableException(
+                f"element not interactable: node {self.id} is not displayed")
+        if node.get("disabled", False):
+            raise ElementNotInteractableException(
+                f"element not interactable: node {self.id} is disabled")
+        rect = node.get("rect", (1, 1))
+        if rect[0] <= 0 or rect[1] <= 0:
+            raise ElementNotInteractableException(
+                f"element not interactable: node {self.id} has a zero-area rect")
         self.dom.handle_keys(node, "".join(str(k) for k in keys))
 
     def clear(self):
@@ -271,6 +302,22 @@ class ReactSelectDOM:
                    "pattern": "[0-9]{0,3}"})
         if self.config.quantity_locked:
             self.quantity["attrs"]["readonly"] = "true"
+        self._procedure_remounted = False
+        if self.config.hidden_duplicate_procedure_input:
+            # a detached-looking leftover React clone, hidden, matching the
+            # same selectors and appearing EARLIER in document order
+            proc_parts = self.containers["procedure"]["_parts"]
+            live = proc_parts["input"]
+            wrap = live["parent"]
+            clone = self._mk(
+                "input", parent=wrap, visible=False,
+                attrs={"id": "react-select-5-input", "role": "combobox",
+                       "aria-controls": "react-select-5-listbox",
+                       "aria-owns": "react-select-5-listbox", "type": "text"})
+            clone["rect"] = (0, 0)
+            wrap["children"].remove(clone)
+            wrap["children"].insert(0, clone)    # FIRST in document order
+            self.hidden_clone = clone
         # add / plus - operator evidence: img.m9FzljqXbDJyFhzambbf
         self.plus = self._mk("img", parent=self.root, cls="m9FzljqXbDJyFhzambbf",
                              attrs={"id": "addbtn", "alt": "add"},
@@ -604,6 +651,59 @@ class ReactSelectDOM:
                           "speciality": (self.selected["speciality"].code
                                          if self.selected["speciality"] else "")})
         self._render_rows()
+        for field_name in self.config.resets_after_add:
+            self._clear_field(field_name)
+        self._maybe_remount_procedure()
+
+    def _clear_field(self, field_name: str):
+        """The portal drops a committed value after Add."""
+        parts = self._parts(field_name)
+        self.selected[field_name] = None
+        if parts.get("single_value") is not None:
+            self._detach(parts["single_value"])
+            parts["single_value"] = None
+        parts["placeholder"]["visible"] = True
+        if field_name == "procedure":
+            self.plus["visible"] = False
+        self.stage_events.append(f"{field_name}:cleared-after-add")
+
+    # -- the live unit-19 condition -------------------------------------
+    def _maybe_remount_procedure(self):
+        """React remounts the procedure control after N Adds.
+
+        Models what the operator hit at GP001 unit 19.  The OLD input is NOT
+        removed from the document - React leaves it mounted but hidden - so
+        every ``#react-select-5-input`` selector still matches it.  A new,
+        genuinely interactable input is mounted alongside it with a DIFFERENT
+        id.  A resolver that returns the first match, or that trusts a cached
+        strategy, will keep handing back the hidden clone forever.
+        """
+        n = self.config.procedure_remount_after_units
+        if not n or self.plus_clicks != n or self._procedure_remounted:
+            return
+        self._procedure_remounted = True
+        parts = self._parts("procedure")
+        old_input = parts["input"]
+        # hide, do NOT detach: this is the hidden clone
+        old_input["visible"] = False
+        old_input["rect"] = (0, 0)
+        self.stage_events.append("procedure:remount")
+        if not self.config.procedure_remount_recovers:
+            parts["input"] = old_input       # nothing interactable remains
+            return
+        inst = self.config.procedure_remount_instance
+        new_input = self._mk(
+            "input", parent=old_input["parent"],
+            attrs={"id": f"react-select-{inst}-input",
+                   "role": "combobox",
+                   "aria-autocomplete": "list",
+                   "aria-expanded": "false",
+                   "aria-controls": f"react-select-{inst}-listbox",
+                   "aria-owns": f"react-select-{inst}-listbox",
+                   "autocomplete": "off",
+                   "type": "text"})
+        parts["input"] = new_input
+        parts["instance"] = inst
 
     def _render_rows(self):
         for child in list(self.tbody["children"]):
@@ -633,12 +733,20 @@ class ReactSelectDOM:
             out = [n for n in matches if self._css_match(n, value)]
         else:
             out = [n for n in matches if self._xpath_match(n, value)]
-        out = [n for n in out if self._node_visible(n)]
+        out = [n for n in out if self._in_document(n)]
         return [RSElement(self, n) for n in out]
 
-    def _node_visible(self, node) -> bool:
-        if not node.get("visible", True):
-            return False
+    def _in_document(self, node) -> bool:
+        """Is the node IN THE DOCUMENT - not: is it visible.
+
+        Selenium's find_elements returns hidden elements; it is the caller's
+        job to check is_displayed().  Filtering hidden nodes here would hide
+        exactly the defect under test (a hidden React clone that every
+        selector still matches).
+
+        React-Select genuinely UNMOUNTS its options when the menu closes, so
+        those really are absent from the document.
+        """
         field_name = self._field_of(node)
         if field_name and node.get("attrs", {}).get("role") == "option":
             return self._menu_visible(field_name)
@@ -693,6 +801,42 @@ class ReactSelectDOM:
                     return cand
         return None
 
+    def _label_container_input_ids(self, xp: str):
+        m = re.search(r"translate\(\s*\.\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)\s*,\s*'([^']+)'", xp)
+        if not m:
+            return set()
+        needle = m.group(3).lower()
+        order = []
+
+        def walk(node):
+            if node.get("detached"):
+                return
+            order.append(node)
+            for ch in list(node.get("children", [])):
+                walk(ch)
+
+        walk(self.root)
+        for i, node in enumerate(order):
+            if node["tag"] != "label":
+                continue
+            if needle not in str(node.get("text", "")).lower():
+                continue
+            for cand in order[i + 1:]:
+                if cand["tag"] == "div" and "-container" in str(cand.get("class", "")):
+                    ids = set()
+
+                    def collect(n):
+                        if n.get("detached"):
+                            return
+                        if n["tag"] == "input":
+                            ids.add(n["nid"])
+                        for ch in list(n.get("children", [])):
+                            collect(ch)
+
+                    collect(cand)
+                    return ids
+        return set()
+
     def _xpath_match(self, node, xp: str) -> bool:
         """Good enough for the locator shapes this project actually uses."""
         low_all = xp.lower()
@@ -702,6 +846,12 @@ class ReactSelectDOM:
             return node["tag"] == "tr"
         if "treatment-grid" in low_all:
             return False
+        if "-container" in xp and "following::div" in xp and "translate(" in xp:
+            # //label[...'procedure']/following::div[contains(@class,'-container')][1]//input
+            # -> EVERY input inside that control's own container, so the
+            #    caller can pick the interactable one.  Scoped to [1] so it
+            #    can never reach the speciality or reason control.
+            return node["nid"] in self._label_container_input_ids(xp)
         if "following::" in xp and "translate(" in xp:
             target = self._following_input_after_label(xp)
             return target is not None and target["nid"] == node["nid"]

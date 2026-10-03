@@ -115,6 +115,11 @@ class Diagnostic(str, Enum):
     CANCELLED_POST_DISPATCH = "TX-CANCELLED-POST-DISPATCH"
     BROWSER_DISCONNECTED = "TX-BROWSER-DISCONNECTED"
     CONTEXT_LOST = "TX-PORTAL-CONTEXT-LOST"
+    #: The browsing context is FINE and the Treatment Plan frame is valid -
+    #: one specific control cannot be driven (hidden React clone, remounted
+    #: input, overlay, zero-area rect).  Kept distinct from CONTEXT_LOST so a
+    #: control fault can never masquerade as a dead frame and nuke the caches.
+    CONTROL_UNAVAILABLE = "TX-PROCEDURE-CONTROL-UNAVAILABLE"
     AMBIGUOUS_PATIENT_TAB = "TX-AMBIGUOUS-PATIENT-TAB"
 
 
