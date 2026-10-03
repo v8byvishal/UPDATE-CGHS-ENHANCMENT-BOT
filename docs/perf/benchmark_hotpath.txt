@@ -1,0 +1,18 @@
+[bench] 10 items, fast profile ...
+[bench] 27 items, fast profile ...
+[bench] 10 items, medium profile ...
+
+[bench] hardened-only scaling ...
+
+wrote docs/perf/benchmark_hotpath.json
+ items  profile |  baseline ms  hardened ms  speedup |  base DOM  hard DOM  DOM -%
+----------------------------------------------------------------------------------
+    10     fast |     116307.4        311.7  373.14x |     43922       637   98.5%
+    27     fast |     311531.7        843.0  369.55x |    194236      1725   99.1%
+    10   medium |     117547.0       3076.6   38.21x |     43982       747   98.3%
+
+Hardened scaling (fast profile)
+ items  elapsed ms   ms/item  DOM/item  frame disc  tab scans  fixed sleep ms
+    27       849.3     31.45     63.89           1          1             0.0
+    84      2672.0     31.81     63.96           1          1             0.0
+   200      6568.2     32.84     63.98           1          1             0.0

@@ -1,0 +1,133 @@
+{
+  "zip": "CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip",
+  "checks": [
+    {
+      "check": "archive integrity (CRC)",
+      "status": "PASS",
+      "detail": "all entries OK"
+    },
+    {
+      "check": "all critical files present",
+      "status": "PASS",
+      "detail": "missing=[]"
+    },
+    {
+      "check": "no build intermediates / caches / journals",
+      "status": "PASS",
+      "detail": "leaked=[]"
+    },
+    {
+      "check": "extracted bytes match the workspace",
+      "status": "PASS",
+      "detail": "mismatched=[]"
+    },
+    {
+      "check": "archived app.py has no ASSUMED-COMMITTED literal",
+      "status": "PASS",
+      "detail": "baseline success-on-unknown marker"
+    },
+    {
+      "check": "archived app.py delegates to the cghs package",
+      "status": "PASS",
+      "detail": "canonical import present"
+    },
+    {
+      "check": "archived app.py holds no duplicate engine",
+      "status": "PASS",
+      "detail": "duplicated=[]"
+    },
+    {
+      "check": "archived app.py is the slim UI file",
+      "status": "PASS",
+      "detail": "1329 lines (baseline was 3247)"
+    },
+    {
+      "check": "extracted cghs package imports cleanly",
+      "status": "PASS",
+      "detail": "3.0.0"
+    },
+    {
+      "check": "extracted test suite collects",
+      "status": "PASS",
+      "detail": "tests/test_tab_frame_safety.py: 11"
+    }
+  ],
+  "zip_sha256": "fb2e522545acdf1a80e61d03c846b566e52734981b7b1a1271b8bab3863baad2",
+  "zip_bytes": 154738,
+  "entry_count": 36,
+  "critical_file_hashes": {
+    "app.py": {
+      "sha256": "eee0dd10f5888b276258acee6db06a2831da0455094be3b84e82544b7d21cc2a",
+      "bytes": 62785,
+      "matches_workspace": true
+    },
+    "CGHS_Enhancement_Bot.spec": {
+      "sha256": "8852a6ae1fc4f77651777ef9be5ad9fdd8f8233145acfe1ba1f89e3e3d1ed9be",
+      "bytes": 1281,
+      "matches_workspace": true
+    },
+    "cghs/__init__.py": {
+      "sha256": "768092a2720a794ac1cfed3f86a6be7c85366c4416e251af0c536902218b4864",
+      "bytes": 1111,
+      "matches_workspace": true
+    },
+    "cghs/locators.py": {
+      "sha256": "a58891119ae3b8d00a2f09e2e54c8d5426854f370db083b678ccf58b955b2ce6",
+      "bytes": 8692,
+      "matches_workspace": true
+    },
+    "cghs/rules.py": {
+      "sha256": "ca53ea05d9d3a908a935a18b6ada924eae230390978f3c649072e585d7487660",
+      "bytes": 15624,
+      "matches_workspace": true
+    },
+    "cghs/parsing.py": {
+      "sha256": "be55301ce2f439ff67d4a3443dfd6dee00256f2c7fc4345cd1f2a35e84505494",
+      "bytes": 23967,
+      "matches_workspace": true
+    },
+    "cghs/telemetry.py": {
+      "sha256": "ebd5556978fbef4c4b8d70cf2f62b33a9561865bba0594b6d488cbefe94dded6",
+      "bytes": 9785,
+      "matches_workspace": true
+    },
+    "cghs/dom.py": {
+      "sha256": "eebf6a1041bf80cc774a815ecf869a6b1310c4746ea70004b461267fed6c8397",
+      "bytes": 29012,
+      "matches_workspace": true
+    },
+    "cghs/txstate.py": {
+      "sha256": "01562a22ab1cabd45ba83679f08fe14b909756bf4c38677b5d7297c6b1836687",
+      "bytes": 16201,
+      "matches_workspace": true
+    },
+    "cghs/tabs.py": {
+      "sha256": "8db5281da12a0e54d83a45d2c8e2157285335290e3d504af7f73eb0de21cd8ca",
+      "bytes": 11192,
+      "matches_workspace": true
+    },
+    "cghs/controllers.py": {
+      "sha256": "97ec8e9b84d5013b32879bcb83ae2902f497e10daaeb08c80b46e82f2a4d410b",
+      "bytes": 39670,
+      "matches_workspace": true
+    },
+    "cghs/session.py": {
+      "sha256": "2f0760dc14c3dda0141e7f73b4d0d645952875c7996192b922878e5f59cf3b08",
+      "bytes": 11455,
+      "matches_workspace": true
+    },
+    "cghs/orchestrator.py": {
+      "sha256": "8fc7bfc0e9618ac143898b00c105a4cee4ffdf21fd708db449b2cf370ebe1e23",
+      "bytes": 30056,
+      "matches_workspace": true
+    },
+    "docs/AUTOMATION_PERFORMANCE_HARDENING.md": {
+      "sha256": "74ebe2b9fb453980b06f77b56727a05dd8d6268b8004e589009f53d4c1009d6c",
+      "bytes": 15323,
+      "matches_workspace": true
+    }
+  },
+  "extracted_package_version": "3.0.0",
+  "extracted_test_collection": "tests/test_tab_frame_safety.py: 11",
+  "result": "PASS"
+}

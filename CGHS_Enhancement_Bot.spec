@@ -1,11 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 datas = []
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('selenium')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+# The automation core lives in the 'cghs' package. PyInstaller cannot see
+# submodules that are imported lazily (cghs.parsing defers 'fitz'), so they
+# are collected explicitly - otherwise the frozen EXE raises ModuleNotFound
+# at runtime instead of failing at build time.
+hiddenimports += collect_submodules('cghs')
 
 
 a = Analysis(

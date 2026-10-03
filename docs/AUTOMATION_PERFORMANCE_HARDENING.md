@@ -1,0 +1,326 @@
+# CGHS Billing Suite — Automation Speed + Safety Hardening
+
+**Branch:** `arena/01a10125-update-cghs-enhancment-bot`
+**Baseline commit:** `c3ccdf32e2170891fad9b150c850053461c85a25`
+**Target runtime:** Windows, PyInstaller one-file, PyQt5, Chrome attached over CDP `127.0.0.1:9222`
+
+This document records what was wrong, what changed, what was measured, and —
+just as importantly — what could **not** be verified in this environment.
+
+Status vocabulary used throughout: `PASS`, `FAIL`, `ENVIRONMENT_BLOCKED`,
+`NOT_YET_VERIFIED`, `RECONCILIATION_REQUIRED`.
+
+---
+
+## 1. The headline correctness defect
+
+The baseline treated an **unknown** portal outcome as a **successful** one.
+
+```python
+# baseline app.py, lines 1843-1856
+self.logger.warning(f"[TX-UNKNOWN-ASSUMED-COMMITTED] {tx_id} assuming committed")
+self._mark_state(code, unit_idx, "COMMITTED")
+...
+return True                      # <- counted as success, bill marked complete
+```
+
+If the Plus click dispatched but the row could not be read back within the
+polling window — a slow portal, a virtualised grid, a re-render, a dropped
+CDP frame — the automation **declared success anyway**. Two different real
+failures hide behind that line:
+
+1. the row *was* written and the operator is told "done" without proof; or
+2. the row was *not* written and the patient's bill is silently short.
+
+Both end in a wrong bill, and neither is visible in the log as a problem.
+
+### What it does now
+
+Unknown is now a **terminal, operator-gated state**, never a success:
+
+| Situation | Baseline | Now |
+|---|---|---|
+| Row verified exactly (code + qty + identity) | `COMMITTED` → success | `COMMITTED` → success |
+| Commit window elapsed, nothing readable | `COMMITTED` → **success** | `RECONCILIATION_REQUIRED`, frozen |
+| Click raised a transport error after dispatch | retried | `RECONCILIATION_REQUIRED`, frozen |
+| Click rejected *before* dispatch (provable) | retried | retry granted **once**, proof required |
+| Row appeared with the wrong quantity | partially tolerated | `ROW_QTY_MISMATCH` → frozen |
+| Row appeared for a different code | tolerated | `ROW_CODE_MISMATCH` → frozen |
+
+A frozen transaction:
+
+* never increments a success counter,
+* never permits a second physical Plus,
+* is written to the transaction journal with its diagnostic code,
+* surfaces in the batch summary as `items_reconciliation_required`,
+* and stops the patient's remaining queue rather than piling writes onto an
+  unknown portal state.
+
+The only retry that still exists is the one the state machine can **prove** is
+safe: the click was rejected by the browser before the event reached the page
+(`ElementClickInterceptedException` and friends), the dispatch token was never
+consumed, and a bounded settle window confirms the table did not change.
+
+---
+
+## 2. The Plus state machine
+
+Every Plus is now a transaction with an explicit state:
+
+```
+PREPARED ──► DUPLICATE_PROVEN                    (row already present: 0 clicks)
+   │
+   ├──► FAILED_BEFORE_DISPATCH                   (0 clicks, safe to retry)
+   │
+   └──► DISPATCH_INTENT ──► DISPATCHED ──► WAITING_FOR_COMMIT ──► COMMITTED
+             │                   │                    │
+             │                   └────────────────────┴──► RECONCILIATION_REQUIRED
+             └──► FAILED_AFTER_DISPATCH / CANCELLED
+```
+
+Three distinct facts that the baseline conflated are now separate:
+
+| Fact | Meaning |
+|---|---|
+| **dispatch intent** | we are about to click; a one-shot token is issued |
+| **click returned** | Selenium's `click()` came back without raising |
+| **commit verified** | the portal table contains the exact expected row |
+
+`DISPATCH_INTENT` is recorded **before** the click, so a process death between
+intent and return still leaves evidence that a mutation may exist. The
+`DispatchLedger` holds one token per transaction id; `begin_dispatch()`
+consumes it, and a second attempt raises `DuplicateDispatchBlocked` and
+increments `duplicate_plus_attempts_blocked`.
+
+**Invariant, enforced by test and by fuzzing:** *no transaction id ever
+produces two physical Plus mutations.*
+
+---
+
+## 3. Root-cause fixes
+
+Line numbers refer to the baseline `app.py`.
+
+| # | Defect | Root cause | Fix |
+|---|---|---|---|
+| 1 | Unknown counted as success | 1843‑1856 | terminal `RECONCILIATION_REQUIRED` |
+| 2 | `DISPATCHED` set before clicking | 1473‑1515 | split `begin_dispatch()` / `confirm_browser_click()` |
+| 3 | Blocked duplicate returned success | 1786‑1800 | `DUPLICATE_PROVEN` + counter, zero clicks |
+| 4 | Outer reconcile flipped failures to success | 2126‑2137 | exact `row_matches_code` + quantity-delta proof |
+| 5 | `locate_all` returned duplicates | 988‑999 | element-identity dedupe |
+| 6 | Fuzzy code matching | ~1155 | word-boundary match: `C001` ≠ `CC001`, `LB012` ≠ `LB0121` |
+| 7 | Build intermediates committed, incl. a `struct.pyc` that shadowed the stdlib | repo root | removed + `.gitignore` |
+| 8 | Absence asserted before the async commit window | verifier | bounded settle window; any mutation ⇒ UNKNOWN ⇒ freeze |
+| 9 | Reason failure mislabelled `SPECIALITY_LOCKED` | reason path | `REASON_MISSING` after one permitted re-sync |
+| 10 | Browser disconnect laundered into "control not found" | resolver/waiter | disconnects re-raised, never swallowed |
+| 11 | No proof the open plan belongs to the queued patient | tab layer | `PatientNotSwitched` STOP before any write |
+| 12 | All click failures treated alike | click path | rejection-class may prove absence; transport-class ⇒ freeze |
+| 13 | `except` subclass ordered after superclass | handlers | ordering corrected; specific first |
+| 14 | iframe-hosted Treatment Plans rejected at tab level | tab layer | `TabEvidence.plan_candidate` |
+
+Fixes 11 and 14 were found **by the new tests**, not by reading the code.
+
+---
+
+## 4. Performance
+
+### 4.1 Where the time went
+
+Profiling the baseline against a deterministic portal double produced this
+cost inventory:
+
+* `wait_for_idle()` — a **15 second** default budget — ran at the head of the
+  Procedure, Quantity, Procedure-Name, Amount and Reason controls, **and again
+  inside every 0.08 s iteration** of `RowCodeQtyVerifier.execute`. Each call is
+  one `execute_script`, one `find_elements`, an `is_displayed()` per spinner
+  and a `sleep(0.05)`.
+* `ensure_frame()` (1038‑1049) performed a **full iframe scan per item**, after
+  the frame was already known.
+* Commit verification re-read the **entire table** on every poll, so cost grew
+  with the number of rows already added — the batch got slower as it went.
+* Fixed sleeps: dropdown poll 6 s @ 0.08 s, speciality ≤ 5 s @ 0.08 s,
+  `CDPDOMObserver.wait_for_mutation` @ 0.05 s.
+
+### 4.2 What changed
+
+| Area | Baseline | Now |
+|---|---|---|
+| Browser attach | per patient | **one** per batch process |
+| Treatment Plan discovery | per item | once, cached + revalidated |
+| Frame binding | `ensure_frame()` per item | cached; re-bound only on proven loss |
+| Locator strategy | rediscovered per control per item | session-scoped cache, invalidated on staleness |
+| Table read | full table, repeatedly | one compact `execute_script` probe, documented DOM fallback |
+| Verification | full-table rescan | **targeted**: only rows after the pre-click count |
+| Waiting | fixed sleeps | event/condition-driven adaptive poll |
+| `wait_for_idle` | 15 s gate per micro-operation | cheap common path; the gate is the exception |
+
+No verification, retry, reconciliation or safety gate was removed to achieve
+this. The mutation sequence inside one patient's Treatment Plan remains
+strictly serial and deterministic — **no parallel portal mutations**.
+
+### 4.3 Measured before/after
+
+Both implementations drive the **same** portal double with the **same** plan.
+The harness refuses to report a speedup unless both sides produced identical
+outcomes (`equal_work=true`: same completions, same physical Plus clicks).
+
+Reproduce with:
+
+```
+python3 tools/benchmark_hotpath.py --all --repeat 3 --baseline-repeat 1 --out docs/perf
+```
+
+Environment: Python 3.11.2, Linux, 2 CPUs, 2026‑10‑03. Raw data:
+`docs/perf/benchmark_hotpath.json`.
+
+| items | profile | baseline ms | hardened ms | speedup | baseline DOM | hardened DOM | DOM reduction |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 10 | fast | 116 307.4 | 311.7 | **373×** | 43 922 | 637 | **98.5 %** |
+| 27 | fast | 311 531.7 | 843.0 | **370×** | 194 236 | 1 725 | **99.1 %** |
+| 10 | medium | 117 547.0 | 3 076.6 | **38×** | 43 982 | 747 | **98.3 %** |
+
+DOM round trips per item — the latency-independent figure:
+
+| items | baseline DOM/item | hardened DOM/item |
+|---:|---:|---:|
+| 10 | 4 392.2 | 63.7 |
+| 27 | 7 193.9 | 63.9 |
+
+**The important number is not the speedup, it is the shape.** The baseline's
+per-item cost *grows with batch size* (4 392 → 7 194 DOM calls per item going
+from 10 to 27 items) because verification rescanned the whole table. The
+hardened path is **flat**:
+
+| items | elapsed ms | ms/item | DOM/item | frame discoveries | full tab scans | fixed sleep ms |
+|---:|---:|---:|---:|---:|---:|---:|
+| 27 | 849.3 | 31.45 | 63.89 | 1 | 1 | 0.0 |
+| 84 | 2 672.0 | 31.81 | 63.96 | 1 | 1 | 0.0 |
+| 200 | 6 568.2 | 32.84 | 63.98 | 1 | 1 | 0.0 |
+
+O(n²) became O(n). One attach, one discovery, one tab scan, zero fixed
+sleeping, at every batch size.
+
+### 4.4 Honest reading of these numbers — `NOT_YET_VERIFIED` on live
+
+The portal double answers instantly, so the baseline's **fixed sleeps dominate
+its wall clock**; a real portal with real network latency will not show 370×.
+The defensible, latency-independent claims are:
+
+* DOM round trips per item: **≈ 98–99 % fewer**,
+* per-item cost no longer grows with batch size,
+* fixed sleeping on the happy path: **0 ms** (asserted by test),
+* one CDP attach / one discovery / one tab scan per batch (asserted by test).
+
+Live Chrome and live CGHS/NHA portal timings are **NOT_YET_VERIFIED** — this
+sandbox has no browser and no portal access.
+
+---
+
+## 5. Telemetry
+
+Per item: `run_id`, `bill_id`, `final_code`, `quantity`, `state`, `stage`,
+`elapsed_ms`, `dom_calls`, `cache_hits`, `cache_misses`, verification outcome,
+reconciliation outcome, `diagnostic`.
+
+Per batch (`BatchPerformanceSummary.as_dict()`, emitted on `performance_signal`):
+`batch_elapsed_ms`, `items_total`, `items_completed`, `items_failed`,
+`items_reconciliation_required`, `items_skipped`, `avg_item_ms`, `p50_item_ms`,
+`p95_item_ms`, `total_dom_calls`, `total_execute_script_calls`,
+`full_tab_scans`, `frame_discoveries`, `fixed_sleep_ms`, `retries`,
+`duplicate_plus_attempts_blocked`.
+
+`duplicate_plus_attempts_blocked` is the one to watch: it must stay at 0 in a
+healthy batch, and any non-zero value means the ledger stopped a second
+mutation that the old code would have performed.
+
+---
+
+## 6. Business rules — unchanged, and now pinned by tests
+
+These were **not** touched. `tests/test_parser_rules.py` loads the *original*
+module from the baseline commit and asserts the new code agrees with it
+row-for-row:
+
+* **CC001** ← counted ICU Room Rent rows.
+* **WC001** ← counted qualifying ward rows (AC multibeds + single + other).
+* **CN002** = `icu_count × 3 + ward_count × 2`, a locked derivation.
+  A raw CN002 consultation row in the bill is **rejected**, not trusted.
+* **CC002** only when `OXYGEN` appears in the row (24/12/1, summed).
+* **DRUG100** = IP + OT Pharmacy subtotals; **CNSU100** ← consumables total.
+* Portal mapping: `DRUG100` → `drugs(DRGU100-None)`, `CNSU100` →
+  `consumables(CNSU100-None)` — locked, not inferred from fixtures.
+* `Patient Payable`, `Grand Total` and `Payer Payable` are excluded from
+  department subtotals.
+* Aggregation happens **after** normalisation.
+
+No case-specific amount was promoted to a rule. No final billing result was
+invented for bill 40343.
+
+---
+
+## 7. Tests
+
+| File | Tests | Covers |
+|---|---:|---|
+| `tests/test_plus_state_machine.py` | 35 | correctness + the full enumerated failure list |
+| `tests/test_performance_caching.py` | 17 | session reuse, caches, DOM budgets, zero fixed sleep |
+| `tests/test_tab_frame_safety.py` | 11 | tab/frame/patient-identity safety |
+| `tests/test_parser_rules.py` | 60 | differential against the baseline rules |
+| `tests/test_stress.py` | 9 | 27 / 84 / 200 items × fast / medium / slow |
+| `tests/test_property_fuzz.py` | 64 | seeded random portals + invariants |
+| `tests/test_packaging.py` | 10 | canonical ownership, no duplicate engines, artifact |
+
+Notable properties asserted rather than hoped for:
+
+* An AST check (not a grep) proves no `ASSUMED-COMMITTED` marker survives and
+  that `window_handles` is **never** subscripted anywhere in the codebase.
+* Two valid patient tabs ⇒ `AmbiguousPatientTab` naming both handles, **zero**
+  Plus clicks, `FAILED_BEFORE_DISPATCH`.
+* Locked-quantity 3 ⇒ exactly 3 clicks, stopping at the first unverified unit.
+* A code that commits is never re-clicked on a re-run of the same plan.
+* A portal whose table cannot be read **at all** can never produce a success —
+  every item freezes for the operator. (Found by fuzz seeds 5, 11 and 31.)
+
+### Not verified here
+
+* **Real-format bill regression (40343, 39078, 40337, D1–D5): `ENVIRONMENT_BLOCKED`.**
+  No such PDFs exist in the repository, and a Google Drive search returned
+  none. The parser is instead pinned differentially against the baseline
+  implementation, which is the strongest available check without the fixtures.
+  Supply the PDFs and the regression can be added directly.
+* **Live portal execution: `NOT_YET_VERIFIED`** — no Chrome, no display, no
+  portal credentials in this environment, and credential automation is
+  forbidden by the brief regardless.
+* **Windows EXE build: `NOT_YET_VERIFIED`** — PyInstaller targets Windows; this
+  is Linux. The spec file now collects the `cghs` submodules so the frozen
+  build will not fail at runtime with `ModuleNotFoundError`, but that is a
+  code-level fix, not an executed build.
+
+---
+
+## 8. Layout
+
+```
+app.py                      PyQt5 UI + DiagnosticEngine + thin BatchAutomationThread
+cghs/
+  locators.py               locator + CGHS code registry
+  telemetry.py              logger, perf counters, adaptive poller, batch summary
+  rules.py                  pure CGHS text rules (verbatim from baseline)
+  parsing.py                PDF -> plan items (lazy PyMuPDF)
+  dom.py                    compact probe, cached resolution, targeted waits
+  txstate.py                Plus state machine, dispatch ledger, journal
+  tabs.py                   tab discovery with evidence + ambiguity stop
+  session.py                one attach, one verified cached context
+  controllers.py            one class per portal control
+  orchestrator.py           deterministic item sequence + batch runner
+tools/
+  benchmark_hotpath.py      measured baseline vs hardened comparison
+  build_package.py          build AND reopen-verify the delivery ZIP
+docs/
+  AUTOMATION_PERFORMANCE_HARDENING.md
+  perf/benchmark_hotpath.json
+```
+
+`app.py` went from 3 247 lines to 1 329, with CRLF endings preserved. It
+defines **no** automation class; `tests/test_packaging.py` fails the build if
+any engine class is ever defined in two places.

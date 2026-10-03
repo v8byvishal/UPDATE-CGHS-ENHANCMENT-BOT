@@ -11,6 +11,8 @@ ENVIRONMENT_BLOCKED - it must never fabricate a "before" number.
 
 from __future__ import annotations
 
+import pathlib
+import hashlib
 import subprocess
 import sys
 import types
@@ -51,10 +53,56 @@ def _install_stubs():
             sys.modules[name] = _StubModule(name)
 
 
+#: SHA-256 of the baseline ``app.py`` blob at BASELINE_COMMIT.  Both the git
+#: blob and the shipped snapshot are checked against this, so the differential
+#: tests can never silently compare against the wrong reference.
+BASELINE_APP_SHA256 = "84325c0cf1b463d1cd98b2a295ce66cc678ae73eb212a2feabda3c7fe7c8a285"
+
+#: Byte-identical copy of that blob, shipped so the differential parser tests
+#: still run from an extracted release archive (which has no .git directory).
+BASELINE_SNAPSHOT = pathlib.Path(__file__).resolve().parent / "baseline_app_c3ccdf3.py.txt"
+
+
+class BaselineUnavailable(RuntimeError):
+    """Neither the git blob nor the shipped snapshot could be read."""
+
+
 def baseline_source(commit: str = BASELINE_COMMIT) -> str:
-    out = subprocess.run(["git", "show", f"{commit}:app.py"], cwd=str(REPO_ROOT),
-                         capture_output=True, check=True)
-    return out.stdout.decode("utf-8", errors="replace")
+    """Return the ORIGINAL ``app.py``, verified byte-for-byte.
+
+    Prefers the git blob; falls back to the shipped snapshot so the tests work
+    from an extracted ZIP.  Either way the bytes must hash to
+    ``BASELINE_APP_SHA256`` - a differential test that compared against the
+    wrong source would prove nothing.
+    """
+    data = None
+    errors = []
+
+    try:
+        out = subprocess.run(["git", "show", f"{commit}:app.py"], cwd=str(REPO_ROOT),
+                             capture_output=True, check=True)
+        data = out.stdout
+    except Exception as exc:                                # noqa: BLE001
+        errors.append(f"git: {type(exc).__name__}: {exc}")
+
+    if data is None and BASELINE_SNAPSHOT.exists():
+        try:
+            data = BASELINE_SNAPSHOT.read_bytes()
+        except Exception as exc:                            # noqa: BLE001
+            errors.append(f"snapshot: {type(exc).__name__}: {exc}")
+
+    if data is None:
+        raise BaselineUnavailable(
+            f"baseline app.py unavailable at {commit}: " + "; ".join(errors))
+
+    if commit == BASELINE_COMMIT:
+        digest = hashlib.sha256(data).hexdigest()
+        if digest != BASELINE_APP_SHA256:
+            raise BaselineUnavailable(
+                f"baseline app.py integrity check FAILED: expected "
+                f"{BASELINE_APP_SHA256}, got {digest}")
+
+    return data.decode("utf-8", errors="replace")
 
 
 def load_baseline(commit: str = BASELINE_COMMIT) -> types.ModuleType:
