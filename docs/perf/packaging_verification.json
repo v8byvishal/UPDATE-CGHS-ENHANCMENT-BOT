@@ -52,7 +52,7 @@
       "detail": "tests/test_tab_frame_safety.py: 11"
     }
   ],
-  "zip_sha256": "5a393909f7304bdd4791abe9d8935ba76ad47160efe4ea52fdb8566a39c1e824",
+  "zip_sha256": "dbdb652fa708d66a27596782463ebec431d8fb56c2d2511229b7a3f0f355a5cb",
   "zip_bytes": 217757,
   "entry_count": 47,
   "critical_file_hashes": {
@@ -62,7 +62,7 @@
       "matches_workspace": true
     },
     "ui_theme.py": {
-      "sha256": "d6987c043993f999cdf35e99d721ac68285a9a6174cd25707da584db8394526e",
+      "sha256": "e42f2b4de857d2c342062041d1dabf90f88517fa3111ae9ceb82412161c4e584",
       "bytes": 12074,
       "matches_workspace": true
     },

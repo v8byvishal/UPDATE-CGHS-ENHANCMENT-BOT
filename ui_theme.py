@@ -53,7 +53,7 @@ TEXT_PRIMARY = "#e9edf6"
 #: secondary copy - cool gray, still comfortably readable on BG
 TEXT_SECONDARY = "#a3adc2"
 #: de-emphasised copy - captions, hints
-TEXT_MUTED = "#6f7a90"
+TEXT_MUTED = "#747f95"
 #: text on a neon fill
 TEXT_ON_ACCENT = "#04050a"
 
