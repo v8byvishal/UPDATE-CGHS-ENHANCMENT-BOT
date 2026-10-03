@@ -36,6 +36,7 @@ ZIP_NAME = "CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip"
 #: files that MUST be in the archive, byte-identical to the workspace
 CRITICAL_FILES = [
     "app.py",
+    "ui_theme.py",
     "CGHS_Enhancement_Bot.spec",
     "BUILD_WINDOWS.cmd",
     "cghs/__init__.py",
@@ -54,6 +55,7 @@ CRITICAL_FILES = [
 
 INCLUDE_GLOBS = [
     "app.py",
+    "ui_theme.py",
     "CGHS_Enhancement_Bot.spec",
     "BUILD_WINDOWS.cmd",
     "requirements.txt",

@@ -39,7 +39,7 @@
     {
       "check": "archived app.py is the slim UI file",
       "status": "PASS",
-      "detail": "1329 lines (baseline was 3247)"
+      "detail": "1294 lines (baseline was 3247)"
     },
     {
       "check": "extracted cghs package imports cleanly",
@@ -52,18 +52,23 @@
       "detail": "tests/test_tab_frame_safety.py: 11"
     }
   ],
-  "zip_sha256": "1fe96b7279a659bb65e9a6fa94204305676e8503cfbfd182ab7304c659c2cfb5",
-  "zip_bytes": 214762,
-  "entry_count": 46,
+  "zip_sha256": "5a393909f7304bdd4791abe9d8935ba76ad47160efe4ea52fdb8566a39c1e824",
+  "zip_bytes": 217757,
+  "entry_count": 47,
   "critical_file_hashes": {
     "app.py": {
-      "sha256": "eee0dd10f5888b276258acee6db06a2831da0455094be3b84e82544b7d21cc2a",
-      "bytes": 62785,
+      "sha256": "3e225c13129b78908f82f497d3329e6d2c5ad44a39d09d10e6e33f6cc6607fd7",
+      "bytes": 60712,
+      "matches_workspace": true
+    },
+    "ui_theme.py": {
+      "sha256": "d6987c043993f999cdf35e99d721ac68285a9a6174cd25707da584db8394526e",
+      "bytes": 12074,
       "matches_workspace": true
     },
     "CGHS_Enhancement_Bot.spec": {
-      "sha256": "8852a6ae1fc4f77651777ef9be5ad9fdd8f8233145acfe1ba1f89e3e3d1ed9be",
-      "bytes": 1281,
+      "sha256": "c7db1cad886c06810ded8f18a55a21f4f0c22c0bd42cd820908d20862e75d0ca",
+      "bytes": 1507,
       "matches_workspace": true
     },
     "BUILD_WINDOWS.cmd": {

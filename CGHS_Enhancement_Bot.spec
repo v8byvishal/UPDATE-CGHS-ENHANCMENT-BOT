@@ -13,6 +13,11 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 # at runtime instead of failing at build time.
 hiddenimports += collect_submodules('cghs')
 
+# The UI theme module is imported by app.py for presentation only; it is
+# listed explicitly so a packaging mistake fails at build time, not at
+# runtime with an unstyled or crashed window.
+hiddenimports += ['ui_theme']
+
 
 a = Analysis(
     ['app.py'],
