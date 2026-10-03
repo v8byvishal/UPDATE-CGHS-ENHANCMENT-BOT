@@ -1,0 +1,33 @@
+# --- PyInstaller build output (regenerate with: pyinstaller CGHS_Enhancement_Bot.spec)
+build/
+dist/
+*.spec.bak
+Analysis-*.toc
+EXE-*.toc
+PKG-*.toc
+PYZ-*.toc
+PYZ-*.pyz
+base_library.zip
+pyimod0*.pyc
+warn-*.txt
+xref-*.html
+# NOTE: a root-level struct.pyc shadows the stdlib `struct` module and breaks
+# every python invocation from the repo root. It must never be committed again.
+/struct.pyc
+
+# --- Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# --- runtime output of the bot
+transaction_journal.jsonl
+audit_failures/
+parser_debug_reports/
+docs/perf/*.local.json
+
+# --- packaged deliverable
+CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip
+dist_zip/

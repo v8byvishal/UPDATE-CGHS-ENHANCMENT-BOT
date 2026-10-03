@@ -1,0 +1,16 @@
+class EnterpriseLogger:
+    def __init__(self, log_signal: Optional[pyqtSignal] = None):
+        self.log_signal = log_signal
+    def _emit(self, level: str, msg: str):
+        formatted = f"[{time.strftime('%H:%M:%S', time.localtime())}] [{level}] {msg}"
+        print(formatted)
+        if self.log_signal:
+            self.log_signal.emit(formatted)
+    def info(self, msg: str): self._emit("INFO", msg)
+    def warn(self, msg: str): self._emit("WARN", f"⚠️ {msg}")
+    def error(self, msg: str): self._emit("ERROR", f"❌ {msg}")
+
+# =============================================================================
+# CGHS PARSING ENGINE - PRESERVED EXACTLY (NO CHANGES FOR THIS TASK)
+# =============================================================================
+
