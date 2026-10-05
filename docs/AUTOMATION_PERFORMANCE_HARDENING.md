@@ -772,6 +772,119 @@ engine**; all 20 pass after.
 * The PT004/PT005 post-Plus reconciliation finding is a **different** defect
   and has deliberately not been touched.
 
+## 13. Post-Plus: driving the REAL current Procedure control
+
+### The live evidence
+
+    CN002  procedure -> speciality -> quantity -> Plus dispatched
+                                               -> Plus confirmed -> COMPLETED
+    C001   TYPE_PROCEDURE -> CONTROL-UNAVAILABLE
+           one controlled recovery
+           Treatment Plan context is VALID
+           Procedure control is still not interactable
+           STOP shared portal control; remaining 9 items PENDING
+
+The cascade protection from section 12 did exactly what it should: it named
+the CONTROL, kept the frame, recovered once, then stopped and left the
+untried codes `PENDING` rather than inventing nine failures.  The defect is
+upstream of all of that - the engine could not find the control that was
+sitting on the screen.
+
+### Root cause
+
+After the Plus, React re-renders the Procedure field.  The spent
+react-select container is left in the document, hidden, and the replacement
+is mounted immediately **after** it with a new instance number.  Every
+registered strategy was anchored either to an INSTANCE or to a POSITION:
+
+| strategy | after the re-render it resolves to |
+|---|---|
+| `#react-select-5-input` | the spent input |
+| `input[...aria-controls*='react-select-5']` | the spent input |
+| `//label[...procedure...]/following::div[...-container...][1]//input` | the spent **container** |
+| `//label[...procedure...]/following::input[1]` | the spent input |
+| `//*[@formcontrolname='procedure']//input` | nothing (the portal is React) |
+| `//input[contains(@id,'procedure')]` | nothing - `react-select-9-input` does not contain the word |
+
+So the live control was never a candidate.  Every selector still matched the
+hidden clone, which is why `locate()` reported "present but not
+interactable" rather than "absent" - and why one recovery could not help:
+re-running the same position-anchored lookup produced the same dead element.
+The `[1]` is the whole defect in one character.
+
+### The fix
+
+1. **Position independence** (section 8).  Two strategies were added that
+   carry no positional predicate: every react-select container after the
+   Procedure label, and every combobox input after it.  Nothing anywhere
+   names an instance number.
+2. **Arbitration** (section 11).  Those strategies are deliberately broad -
+   they also match Speciality and Reason - so a candidate produced by any
+   label-relative strategy is checked against the neighbouring controls
+   before it is accepted.  Zero candidates is `CONTROL_UNAVAILABLE`, one is
+   used, and more than one raises `AmbiguousControlException` instead of
+   silently returning `candidates[0]`.
+3. **Real interactability** (section 9).  `_usable()` reads geometry for the
+   procedure control, so a zero-area clone that still reports
+   `is_displayed() == True` is stepped over and the walk continues to a live
+   sibling, instead of being handed back and failing at `send_keys`.
+4. **One probe universe** (section 7).  `_PROBE_QUERIES` kept only the XPath
+   strategies, so the compact probe answered questions about a strictly
+   smaller candidate set than the resolver searched.  Entries are now
+   `[kind, value]` and the probe evaluates CSS and XPath alike: one
+   authoritative definition of "the current Procedure control".
+
+### Why arbitration is free on the happy path
+
+Asking the browser "which elements are the Speciality and Reason controls?"
+costs round trips, and doing it on every resolution pushed a single item
+from 78 to 85 DOM calls - straight through the 80-call budget.
+
+The resolver instead **remembers the identity of each control it has already
+driven** (`_resolved_identity`), so recognising a neighbour is a set lookup.
+The browser is only asked when that free check still leaves more than one
+candidate standing, which only happens on a re-render.  Procedure-exclusive
+strategies keep first-match-wins and are not arbitrated at all.
+
+| scenario | metric | before | after |
+|---|---|---|---|
+| single item (budget 80) | DOM calls | 78 | **78** |
+| 27 codes | find_elements / execute_script | 1339 / 677 | **1339 / 677** |
+| GP001 locked qty30 | find_elements / execute_script | 532 / 404 | **532 / 404** |
+| all | fixed_sleep_ms | 0 | **0** |
+| all | frame_discoveries | 1 | **1** |
+| CN002 qty6 -> C001 qty2 | Plus clicks / rows | 6 / 6 | **8 / 8** |
+
+That last row is the fix: before, C001 never ran at all.
+
+### What was deliberately NOT changed
+
+`orchestrator.py`, `controllers.py`, `txstate.py`, `session.py`, `tabs.py`,
+`rules.py`, `parsing.py` and the UI are byte-identical.  The recovery stays
+at exactly one attempt, `PENDING` preservation is untouched, Plus and the
+dispatch ledger are untouched, and `TX-PROCEDURE-CONTROL-UNAVAILABLE`
+remains distinct from `TX-PORTAL-CONTEXT-LOST`.
+
+Ambiguity is reported as `AmbiguousControlException`, a **subclass** of
+`ElementNotInteractableException`.  That was chosen over a new
+`Diagnostic` member so every existing caller keeps treating it as an ELEMENT
+fault with the frame and tab caches intact; introducing a new diagnostic
+would have meant editing the recovery path this task forbids touching.
+
+### Status
+
+`tests/test_post_plus_procedure_control.py` is 31 tests covering A-L; **23
+of them fail against the pre-fix engine**.  The eight that pass before and
+after are the section 12 guarantees (frame cache preserved, one recovery,
+`PENDING` preservation, locked-quantity integrity) - they are there to prove
+the fix did not weaken them.
+
+`LIVE_PORTAL_VERIFICATION = NOT_YET_VERIFIED`.  The root cause is proven
+from the strategy registry and reproduced against the React double, not from
+a captured live DOM: this environment is headless Linux with no portal
+credentials, so sections 4, 5, 6 and 19 (live capture, live A-E snapshots,
+live Windows runs) cannot be executed here and must be run by the operator.
+
 ## 9. Final report (task section 17)
 
 | # | Item | Value |

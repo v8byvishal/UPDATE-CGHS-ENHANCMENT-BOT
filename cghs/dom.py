@@ -33,7 +33,7 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.common.by import By
 
-from .locators import LOCATORS, portal_row_aliases
+from .locators import AMBIGUOUS_STRATEGIES, LOCATORS, portal_row_aliases
 from .telemetry import AdaptivePoller, EnterpriseLogger, PerfCounters
 
 
@@ -82,6 +82,35 @@ INTERACTIVE_CONTROLS = frozenset({
     "QUANTITY_INPUT", "PLUS_BUTTON",
 })
 
+#: Controls whose instance-independent strategies are broad enough to also
+#: match a NEIGHBOURING control, and the keys naming the neighbours that must
+#: therefore be subtracted before a choice is made (task section 11).
+#: Deliberately scoped to the one control this fix is about: widening it would
+#: change arbitration for controls that are not failing.
+FOREIGN_CONTROL_KEYS = {
+    "PROCEDURE_INPUT": ("SPECIALITY_INPUT", "REASON_DROPDOWN", "QUANTITY_INPUT"),
+}
+
+#: Controls for which "displayed and enabled" is NOT accepted as proof that
+#: the control can be driven; geometry is read as well (task section 9).
+#: Scoped to the one control this fix is about - every other control keeps
+#: exactly the acquisition cost and behaviour it had before.
+GEOMETRY_VERIFIED_CONTROLS = frozenset({"PROCEDURE_INPUT"})
+
+#: Keys whose resolved identity is worth remembering, i.e. every key named as
+#: a neighbour of something.
+_FOREIGN_OF_INTEREST = frozenset(
+    k for keys in FOREIGN_CONTROL_KEYS.values() for k in keys)
+
+
+class AmbiguousControlException(ElementNotInteractableException):
+    """Several equally valid live candidates for one interactive control.
+
+    A subclass of ElementNotInteractableException on purpose: every caller
+    that already treats "this control cannot be driven" as an ELEMENT fault -
+    never a frame fault - keeps doing exactly that, caches intact.
+    """
+
 
 # ---------------------------------------------------------------------------
 # Compact single-probe reads (6.5)
@@ -103,6 +132,21 @@ try {
     return out;
   }
   function xp1(q){ var a = xpAll(q); return a.length ? a[0] : null; }
+  /* A query is [kind, value]; "css" goes through querySelectorAll and
+     "xpath" through document.evaluate.  Legacy bare strings stay XPath so an
+     older payload still resolves. */
+  function nodesFor(q){
+    try {
+      if (typeof q === "string") { return xpAll(q); }
+      if (!q || !q.length) { return []; }
+      if (q[0] === "css") {
+        var out = [], nl = document.querySelectorAll(q[1]);
+        for (var i = 0; i < nl.length; i++) { out.push(nl[i]); }
+        return out;
+      }
+      return xpAll(q[1]);
+    } catch (e) { return []; }
+  }
   function vis(e){
     if (!e) { return false; }
     try {
@@ -113,11 +157,11 @@ try {
   }
   function firstVisible(queries){
     for (var i = 0; i < queries.length; i++) {
-      var els = xpAll(queries[i]);
+      var els = nodesFor(queries[i]);
       for (var j = 0; j < els.length; j++) { if (vis(els[j])) { return els[j]; } }
     }
     for (var k = 0; k < queries.length; k++) {
-      var e2 = xpAll(queries[k]);
+      var e2 = nodesFor(queries[k]);
       if (e2.length) { return e2[0]; }
     }
     return null;
@@ -218,7 +262,7 @@ try {
     var seen = [];
     var oq = Q.DROPDOWN_OPTIONS || [];
     for (var o = 0; o < oq.length; o++) {
-      var list = xpAll(oq[o]);
+      var list = nodesFor(oq[o]);
       for (var p = 0; p < list.length; p++) {
         var node = list[p];
         if (seen.indexOf(node) >= 0) { continue; }
@@ -241,7 +285,7 @@ try {
     var rowNodes = [];
     var rq = Q.TABLE_ROWS || [];
     for (var r2 = 0; r2 < rq.length; r2++) {
-      var rs = xpAll(rq[r2]);
+      var rs = nodesFor(rq[r2]);
       for (var r3 = 0; r3 < rs.length; r3++) {
         if (rowNodes.indexOf(rs[r3]) < 0) { rowNodes.push(rs[r3]); }
       }
@@ -335,10 +379,20 @@ MUTATION_DISCONNECT_JS = (
     "window.__cghsObserver = null; } return true;"
 )
 
-#: XPath payloads handed to the browser probe so the JS and the Python fallback
-#: can never drift apart - both read the single :data:`cghs.locators.LOCATORS`.
-_PROBE_QUERIES: Dict[str, List[str]] = {
-    key: [value for by, value in strategies if by == By.XPATH]
+#: Selector payloads handed to the browser probe so the JS and the Python
+#: fallback can never drift apart - both read the single
+#: :data:`cghs.locators.LOCATORS`.
+#:
+#: Task section 7: this used to keep ONLY the XPath strategies, which gave the
+#: compact probe a strictly smaller candidate universe than
+#: SmartDOMResolver.  The probe could therefore answer "the Procedure field is
+#: ready" about one element while the resolver went looking for another - two
+#: competing definitions of "the current Procedure control".  Each entry is
+#: now ``[kind, value]`` with kind in {"css", "xpath"}, so both sides evaluate
+#: the identical, complete strategy list.
+_PROBE_QUERIES: Dict[str, List[List[str]]] = {
+    key: [["css" if by == By.CSS_SELECTOR else "xpath", value]
+          for by, value in strategies]
     for key, strategies in LOCATORS.items()
 }
 
@@ -455,6 +509,13 @@ class SmartDOMResolver:
         self.logger = logger
         self.counters = counters or driver.counters
         self._strategy_cache: Dict[str, Tuple[Any, str]] = {}
+        #: Identity of the element each key last resolved to.  Recorded for
+        #: free on every successful resolution and used to recognise a
+        #: NEIGHBOURING control without asking the browser anything, so
+        #: arbitration costs no DOM round trips at all.  Same lifetime as the
+        #: strategy cache: both describe the current DOM and both are dropped
+        #: the moment anything suggests it changed.
+        self._resolved_identity: Dict[str, Any] = {}
 
     # ---- cache control ----------------------------------------------
     def invalidate(self, locator_key: Optional[str] = None):
@@ -462,21 +523,48 @@ class SmartDOMResolver:
             if self._strategy_cache:
                 self.logger.trace("[LOCATOR-CACHE] full invalidate")
             self._strategy_cache.clear()
+            self._resolved_identity.clear()
         else:
             self._strategy_cache.pop(locator_key, None)
+            self._resolved_identity.pop(locator_key, None)
+
+    def _remember(self, locator_key: str, el) -> None:
+        """Record WHICH element a key resolved to, so a sibling control can
+        be recognised later without a DOM query."""
+        if locator_key in _FOREIGN_OF_INTEREST:
+            self._resolved_identity[locator_key] = self._identity(el)
 
     def cached_strategy(self, locator_key: str):
         return self._strategy_cache.get(locator_key)
 
     # ---- resolution --------------------------------------------------
-    def _usable(self, el, require_enabled: bool) -> bool:
+    def _has_area(self, el) -> bool:
+        """Section 9: ``is_displayed()`` is not the same as drivable.
+
+        React leaves remounted clones in the document that still report
+        displayed=True while occupying a zero-area box.  Selenium refuses to
+        type into those, so accepting one guarantees an
+        ElementNotInteractable *after* the control has already been clicked.
+        A driver that cannot report geometry is given the benefit of the
+        doubt - inventing a failure would be worse than the status quo.
+        """
+        rect = getattr(el, "rect", None)
+        if not isinstance(rect, dict):
+            return True
+        self.counters.element_reads += 1
+        return (rect.get("width") or 0) > 0 and (rect.get("height") or 0) > 0
+
+    def _usable(self, el, require_enabled: bool, geometry: bool = False) -> bool:
         try:
             self.counters.element_reads += 1
             if not el.is_displayed():
                 return False
             if require_enabled:
                 self.counters.element_reads += 1
-                return el.is_enabled()
+                if not el.is_enabled():
+                    return False
+            if geometry and not self._has_area(el):
+                return False
             return True
         except StaleElementReferenceException:
             return False
@@ -485,7 +573,64 @@ class SmartDOMResolver:
                 raise
             return False
 
-    def _scan(self, strategies, ctx, require_enabled: bool):
+    def _known_foreign(self, locator_key: str) -> set:
+        """Neighbour identities this resolver has ALREADY established while
+        driving them.  Free: no DOM round trips."""
+        return {self._resolved_identity[key]
+                for key in FOREIGN_CONTROL_KEYS.get(locator_key, ())
+                if key in self._resolved_identity}
+
+    def _query_foreign(self, locator_key: str) -> set:
+        """Ask the browser which elements the neighbouring controls are.
+
+        Only reached when the free check above could not produce a single
+        answer, i.e. on a re-render - never on the happy path.
+        """
+        foreign: set = set()
+        for key in FOREIGN_CONTROL_KEYS.get(locator_key, ()):
+            for strategy, val in LOCATORS.get(key, ()):
+                try:
+                    els = self.driver.find_elements(strategy, val)
+                except Exception as exc:
+                    if is_browser_disconnect(exc):
+                        raise
+                    continue
+                if els:
+                    # the first strategy that matches is the most specific
+                    # one registered for that control; that is enough
+                    foreign.update(self._identity(e) for e in els)
+                    break
+        return foreign
+
+    def _exclude_foreign_controls(self, locator_key: str, candidates: List[Any]):
+        """Drop candidates that are really a NEIGHBOURING control (section 11).
+
+        "The first input after the Procedure label" is only the procedure
+        control while the procedure control exists.  Once React has taken it
+        away, that same expression resolves to the Enhancement Reason
+        combobox - and typing a procedure code into the Reason field is far
+        worse than reporting the control unavailable.
+
+        Two tiers, cheapest first: identities already known from driving the
+        neighbours cost nothing, and the browser is only asked when that
+        leaves more than one candidate standing.
+        """
+        if not FOREIGN_CONTROL_KEYS.get(locator_key):
+            return list(candidates)
+        known = self._known_foreign(locator_key)
+        narrowed = [el for el in candidates
+                    if self._identity(el) not in known] if known else list(candidates)
+        if len(narrowed) == 1:
+            return narrowed
+        queried = self._query_foreign(locator_key)
+        if not queried:
+            return narrowed
+        return [el for el in narrowed if self._identity(el) not in queried]
+
+    def _scan(self, strategies, ctx, require_enabled: bool,
+              locator_key: Optional[str] = None):
+        verify_geometry = locator_key in GEOMETRY_VERIFIED_CONTROLS
+        arbitrated_key = locator_key in FOREIGN_CONTROL_KEYS
         for strategy, val in strategies:
             try:
                 if ctx is self.driver:
@@ -500,9 +645,42 @@ class SmartDOMResolver:
                 if is_browser_disconnect(exc):
                     raise
                 continue
-            for el in els:
-                if self._usable(el, require_enabled):
-                    return el, (strategy, val)
+            # Only the deliberately broad strategies can return a
+            # NEIGHBOURING control, so only they are arbitrated.  A
+            # procedure-exclusive strategy keeps first-match-wins and the
+            # happy path costs exactly what it cost before.
+            if not (arbitrated_key and val in AMBIGUOUS_STRATEGIES):
+                # A procedure-exclusive strategy identifies the control by
+                # its own identity, so there is nothing to search PAST and
+                # no reason to pay for geometry here: _acquire_interactable
+                # still reads the rect of whatever is finally returned.
+                for el in els:
+                    if self._usable(el, require_enabled, False):
+                        return el, (strategy, val)
+                continue
+            # ---- section 11: never silently take candidates[0] -----------
+            # Geometry matters HERE: a dead zero-area clone must not stop
+            # the walk, it must be stepped over so a live sibling is found.
+            live = [el for el in els
+                    if self._usable(el, require_enabled, verify_geometry)]
+            if not live:
+                continue
+            # NEVER accept a broad match unexamined, not even a lone one:
+            # with the procedure control gone, the only live candidate a
+            # broad strategy finds is the Reason combobox.
+            narrowed = self._exclude_foreign_controls(locator_key, live)
+            if len(narrowed) == 1:
+                self.logger.trace(
+                    f"[CONTROL-ARBITRATE] {locator_key}: {len(live)} live "
+                    f"candidates, {len(live) - 1} belonged to another control")
+                return narrowed[0], (strategy, val)
+            if len(narrowed) > 1:
+                raise AmbiguousControlException(
+                    f"{locator_key} matched {len(narrowed)} equally valid live "
+                    f"controls via {strategy}={val!r}; refusing to guess which "
+                    f"one the operator means. The browsing context is "
+                    f"unaffected.")
+            # every candidate was a different control: keep walking
         return None, None
 
     def locate(self, locator_key: str, parent: Optional[Any] = None):
@@ -514,11 +692,12 @@ class SmartDOMResolver:
         # ---- fast path: last known good strategy ----------------------
         cached = self._strategy_cache.get(locator_key) if parent is None else None
         if cached is not None:
-            el, found = self._scan([cached], ctx, True)
+            el, found = self._scan([cached], ctx, True, locator_key)
             if el is None:
-                el, found = self._scan([cached], ctx, False)
+                el, found = self._scan([cached], ctx, False, locator_key)
             if el is not None:
                 self.counters.locator_cache_hits += 1
+                self._remember(locator_key, el)
                 return el, found
             self.counters.locator_cache_misses += 1
             self._strategy_cache.pop(locator_key, None)
@@ -528,10 +707,11 @@ class SmartDOMResolver:
 
         # ---- full strategy walk (baseline semantics preserved) --------
         for require_enabled in (True, False):
-            el, found = self._scan(strategies, ctx, require_enabled)
+            el, found = self._scan(strategies, ctx, require_enabled, locator_key)
             if el is not None:
                 if parent is None:
                     self._strategy_cache[locator_key] = found
+                    self._remember(locator_key, el)
                 return el, found
         # ---- last resort --------------------------------------------
         # Both passes above already demand is_displayed(), so anything that

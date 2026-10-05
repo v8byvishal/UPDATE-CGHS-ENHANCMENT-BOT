@@ -149,6 +149,14 @@ class ReactSelectConfig:
     procedure_remount_recovers: bool = True
     #: a hidden duplicate procedure input present from the very start
     hidden_duplicate_procedure_input: bool = False
+    #: True -> the re-render mounts a WHOLE NEW react-select container and
+    #: leaves the spent one in the document, hidden, immediately before it.
+    #: This is the shape that breaks every position-anchored strategy:
+    #: "the first container after the Procedure label" is now the dead one.
+    procedure_remount_new_container: bool = False
+    #: True -> the replacement input is present and reports displayed=True
+    #: but occupies a zero-area box, so it cannot actually be typed into.
+    procedure_remount_zero_area: bool = False
     #: Stages the portal CLEARS after every Add.  The live CGHS portal clears
     #: the procedure (which is why the engine re-selects it for every locked
     #: unit); without this the double never re-touches the input and cannot
@@ -188,6 +196,19 @@ class RSElement:
     def is_displayed(self) -> bool:
         self.dom.counters["element_reads"] += 1
         return bool(self._live().get("visible", True))
+
+    @property
+    def rect(self):
+        """Geometry, exactly as Selenium reports it.
+
+        The double already refuses send_keys() into a zero-area node, which
+        is what the live portal does.  Without this property the production
+        geometry check could never SEE that - getattr(el, "rect", None)
+        returned None and every zero-area clone looked drivable.
+        """
+        self.dom.counters["element_reads"] += 1
+        w, h = self._live().get("rect", (160, 32))
+        return {"x": 0, "y": 0, "width": w, "height": h}
 
     def is_enabled(self) -> bool:
         self.dom.counters["element_reads"] += 1
@@ -692,8 +713,35 @@ class ReactSelectDOM:
             parts["input"] = old_input       # nothing interactable remains
             return
         inst = self.config.procedure_remount_instance
+        parent = old_input["parent"]
+        if self.config.procedure_remount_new_container:
+            old_container = self.containers["procedure"]
+            old_container["visible"] = False
+            new_container = self._mk("div", parent=self.root,
+                                     cls="css-b62m3t-container")
+            siblings = self.root["children"]
+            siblings.remove(new_container)
+            siblings.insert(siblings.index(old_container) + 1, new_container)
+            control = self._mk("div", parent=new_container,
+                               cls="css-13cymwt-control")
+            value_container = self._mk("div", parent=control,
+                                       cls="css-hlgwow-valueContainer")
+            parent = self._mk("div", parent=value_container,
+                              cls="css-qbdosj-Input")
+            # The replacement container IS the field now: its menu, its
+            # singleValue and its options all belong to it.  Leaving the
+            # bookkeeping on the spent container would render the dropdown
+            # inside a hidden subtree and no engine could ever use it.
+            new_container["_parts"] = parts
+            parts["control"] = control
+            parts["value_container"] = value_container
+            parts["single_value"] = None
+            parts["listbox"] = None
+            parts["open"] = False
+            old_container.pop("_parts", None)
+            self.containers["procedure"] = new_container
         new_input = self._mk(
-            "input", parent=old_input["parent"],
+            "input", parent=parent,
             attrs={"id": f"react-select-{inst}-input",
                    "role": "combobox",
                    "aria-autocomplete": "list",
@@ -702,6 +750,8 @@ class ReactSelectDOM:
                    "aria-owns": f"react-select-{inst}-listbox",
                    "autocomplete": "off",
                    "type": "text"})
+        if self.config.procedure_remount_zero_area:
+            new_input["rect"] = (0, 0)
         parts["input"] = new_input
         parts["instance"] = inst
 
@@ -816,6 +866,21 @@ class ReactSelectDOM:
                 walk(ch)
 
         walk(self.root)
+        # "[1]" means the FIRST following container only.  Without it the
+        # expression selects EVERY following container - which is the whole
+        # point of the position-independent strategy, so the double has to
+        # tell the two apart or the test proves nothing.
+        first_only = "-container')][1]" in xp or '-container")][1]' in xp
+        ids = set()
+
+        def collect(n):
+            if n.get("detached"):
+                return
+            if n["tag"] == "input":
+                ids.add(n["nid"])
+            for ch in list(n.get("children", [])):
+                collect(ch)
+
         for i, node in enumerate(order):
             if node["tag"] != "label":
                 continue
@@ -823,19 +888,11 @@ class ReactSelectDOM:
                 continue
             for cand in order[i + 1:]:
                 if cand["tag"] == "div" and "-container" in str(cand.get("class", "")):
-                    ids = set()
-
-                    def collect(n):
-                        if n.get("detached"):
-                            return
-                        if n["tag"] == "input":
-                            ids.add(n["nid"])
-                        for ch in list(n.get("children", [])):
-                            collect(ch)
-
                     collect(cand)
-                    return ids
-        return set()
+                    if first_only:
+                        return ids
+            return ids
+        return ids
 
     def _xpath_match(self, node, xp: str) -> bool:
         """Good enough for the locator shapes this project actually uses."""
@@ -852,6 +909,33 @@ class ReactSelectDOM:
             #    caller can pick the interactable one.  Scoped to [1] so it
             #    can never reach the speciality or reason control.
             return node["nid"] in self._label_container_input_ids(xp)
+        if ("following::input[@role='combobox']" in xp and "translate(" in xp):
+            # every combobox input after the label, not just the first
+            order = []
+
+            def walk(n):
+                if n.get("detached"):
+                    return
+                order.append(n)
+                for ch in list(n.get("children", [])):
+                    walk(ch)
+
+            walk(self.root)
+            import re as _re
+            m = _re.search(r"translate\(\s*\.\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)\s*,\s*'([^']+)'", xp)
+            needle = m.group(3).lower() if m else ""
+            for i, nd in enumerate(order):
+                if nd["tag"] != "label":
+                    continue
+                if needle not in str(nd.get("text", "")).lower():
+                    continue
+                for cand in order[i + 1:]:
+                    if (cand["tag"] == "input"
+                            and cand.get("attrs", {}).get("role") == "combobox"
+                            and cand["nid"] == node["nid"]):
+                        return True
+                return False
+            return False
         if "following::" in xp and "translate(" in xp:
             target = self._following_input_after_label(xp)
             return target is not None and target["nid"] == node["nid"]

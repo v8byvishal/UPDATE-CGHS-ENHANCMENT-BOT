@@ -55,6 +55,39 @@ CGHS_CATEGORY_MAP = {
     "L": "LB", "C": "CN", "CI": "CI", "RI": "RI", "RP": "RP", "R": "RP", "GP": "GP", "CC": "CC", "M": "MG", "MG": "MG",
 }
 
+#: The two position-independent Procedure strategies.  They are deliberately
+#: BROAD - they also match the Speciality and Reason comboboxes - so a
+#: candidate produced by one of them is never trusted on its own: the
+#: resolver subtracts the neighbouring controls first (task section 11).
+#: Every other Procedure strategy is procedure-exclusive by construction and
+#: is used first-match-wins, so the happy path pays nothing for arbitration.
+_PROC_LABEL = (
+    "//label[contains(translate(., 'PROCEDURE', 'procedure'), 'procedure')]")
+_PROC_FIRST_CONTAINER_INPUT = _PROC_LABEL + \
+    "/following::div[contains(@class, '-container')][1]//input"
+_PROC_FIRST_FOLLOWING_INPUT = _PROC_LABEL + "/following::input[1]"
+_PROC_ANY_CONTAINER_INPUT = _PROC_LABEL + \
+    "/following::div[contains(@class, '-container')]//input"
+_PROC_ANY_FOLLOWING_COMBOBOX = _PROC_LABEL + "/following::input[@role='combobox']"
+
+#: Every label-relative strategy is arbitrated, not just the new broad pair.
+#: "The first input after the Procedure label" is only the procedure control
+#: while the procedure control still exists - once it is gone, that very same
+#: expression resolves to the Enhancement Reason combobox and would type a
+#: procedure code into it.  Being anchored to a POSITION is exactly what
+#: makes a strategy untrustworthy, so position-anchored and
+#: position-independent forms alike must prove the candidate is not a
+#: neighbouring control.  None of these is reached until the
+#: procedure-exclusive strategies above have missed, so the happy path pays
+#: nothing.
+AMBIGUOUS_STRATEGIES = frozenset({
+    _PROC_FIRST_CONTAINER_INPUT,
+    _PROC_FIRST_FOLLOWING_INPUT,
+    _PROC_ANY_CONTAINER_INPUT,
+    _PROC_ANY_FOLLOWING_COMBOBOX,
+})
+
+
 LOCATORS = {
     "TREATMENT_PLAN_HEADER": [
         (By.XPATH, "//div[contains(@class, 'card-header') or contains(@class, 'panel-header')][contains(translate(., 'TREATMENT PLAN', 'treatment plan'), 'treatment plan')]"),
@@ -70,9 +103,24 @@ LOCATORS = {
         # old input in the document, hidden.  Returning ALL of that container's
         # inputs lets the resolver pick the interactable one; the [1] on the
         # container stops it ever reaching the speciality or reason control.
-        (By.XPATH, "//label[contains(translate(., 'PROCEDURE', 'procedure'), 'procedure')]"
-                   "/following::div[contains(@class, '-container')][1]//input"),
-        (By.XPATH, "//label[contains(translate(., 'PROCEDURE', 'procedure'), 'procedure')]/following::input[1]"),
+        (By.XPATH, _PROC_FIRST_CONTAINER_INPUT),
+        (By.XPATH, _PROC_FIRST_FOLLOWING_INPUT),
+        # --- position-independent rescue (task section 8) ------------------
+        # Everything above pins the control to a POSITION: "[1]" = the first
+        # react-select container (or the first input) after the Procedure
+        # label.  When React re-renders after a Plus it leaves the spent
+        # container in the document - hidden - and mounts the replacement
+        # AFTER it, so "[1]" resolves to the dead one for the rest of the
+        # session and the live control is never even a candidate.  That is
+        # the post-Plus CONTROL-UNAVAILABLE failure.
+        #
+        # These two drop the positional predicate.  They are deliberately
+        # broad - they also match the Speciality and Reason comboboxes - and
+        # SmartDOMResolver removes those via FOREIGN_CONTROL_KEYS before
+        # choosing.  Breadth plus exclusion is instance-number independent;
+        # a hand-picked index is not.
+        (By.XPATH, _PROC_ANY_CONTAINER_INPUT),
+        (By.XPATH, _PROC_ANY_FOLLOWING_COMBOBOX),
         (By.XPATH, "//*[@formcontrolname='procedure']//input | //*[@formcontrolname='procedureName']//input"),
         (By.XPATH, "//ng-select[contains(@formcontrolname, 'procedure')]//input"),
         (By.XPATH, "//mat-select[contains(@formcontrolname, 'procedure')]"),
