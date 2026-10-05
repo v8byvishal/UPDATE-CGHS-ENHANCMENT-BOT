@@ -573,6 +573,66 @@ class SmartDOMResolver:
                 raise
             return False
 
+    #: Nearest React-Select / ng-select wrapper of a given node.  Reverse
+    #: axis, so predicate [1] is the CLOSEST ancestor, not the outermost.
+    _CONTROL_CONTAINER = (
+        "ancestor-or-self::*[contains(@class, '-container') or "
+        "contains(@class, '-control') or contains(@class, 'ng-select')][1]")
+
+    def _container_drivable(self, el) -> bool:
+        """Is the CONTROL this element belongs to actually on screen?
+
+        Sections 10 and 12.  Two very different states both report
+        ``is_displayed() == False`` and only this tells them apart:
+
+        * a remounted **clone** - React hides the whole widget, so the
+          container is invisible (or zero-area) too and the node stays
+          refused, exactly as the cascade fix requires;
+        * the **live** control after a value was committed - react-select
+          collapses only its inner search ``<input>`` (width ~2px,
+          ``opacity: 0``) while the container keeps its full box.  This is
+          the state the baseline drove happily after the first Plus.
+
+        Never reached on the happy path: only the last resort asks.
+        """
+        try:
+            self.counters.find_elements_calls += 1
+            holder = el.find_element(By.XPATH, self._CONTROL_CONTAINER)
+        except Exception as exc:
+            if is_browser_disconnect(exc):
+                raise
+            return False        # no wrapper at all => not a select control
+        return self._usable(holder, True, True)
+
+    def _collapsed_but_live(self, locator_key: str, els: List[Any]) -> List[Any]:
+        """Candidates that are hidden ONLY because react-select collapsed them.
+
+        Deliberately conjunctive - every clause has killed a real bug:
+
+        * ``_exclude_foreign_controls`` - never return the Reason combobox;
+        * ``_has_area``                 - a ``display: none`` clone measures
+          0x0, a collapsed search input still occupies a line box;
+        * ``is_enabled``                - never type into a disabled form;
+        * ``_container_drivable``       - the widget itself must be on screen.
+        """
+        out = []
+        for el in self._exclude_foreign_controls(locator_key, els, force_query=True):
+            try:
+                if not self._has_area(el):
+                    continue
+                self.counters.element_reads += 1
+                if not el.is_enabled():
+                    continue
+            except StaleElementReferenceException:
+                continue
+            except WebDriverException as exc:
+                if is_browser_disconnect(exc):
+                    raise
+                continue
+            if self._container_drivable(el):
+                out.append(el)
+        return out
+
     def _known_foreign(self, locator_key: str) -> set:
         """Neighbour identities this resolver has ALREADY established while
         driving them.  Free: no DOM round trips."""
@@ -602,7 +662,8 @@ class SmartDOMResolver:
                     break
         return foreign
 
-    def _exclude_foreign_controls(self, locator_key: str, candidates: List[Any]):
+    def _exclude_foreign_controls(self, locator_key: str, candidates: List[Any],
+                                  force_query: bool = False):
         """Drop candidates that are really a NEIGHBOURING control (section 11).
 
         "The first input after the Procedure label" is only the procedure
@@ -620,7 +681,14 @@ class SmartDOMResolver:
         known = self._known_foreign(locator_key)
         narrowed = [el for el in candidates
                     if self._identity(el) not in known] if known else list(candidates)
-        if len(narrowed) == 1:
+        # A lone survivor is normally taken as-is: that keeps the happy path
+        # free.  `force_query` is set when the caller has already seen a
+        # PROCEDURE-EXCLUSIVE strategy match elements it could not use - i.e.
+        # the control is collapsed or remounted.  In that state the lone
+        # candidate a broad label-relative strategy finds is the Enhancement
+        # Reason combobox, and typing a procedure code into Reason is exactly
+        # what section 11 exists to prevent, so it is worth the round trip.
+        if len(narrowed) == 1 and not force_query:
             return narrowed
         queried = self._query_foreign(locator_key)
         if not queried:
@@ -631,6 +699,11 @@ class SmartDOMResolver:
               locator_key: Optional[str] = None):
         verify_geometry = locator_key in GEOMETRY_VERIFIED_CONTROLS
         arbitrated_key = locator_key in FOREIGN_CONTROL_KEYS
+        # Set once a strategy that can ONLY mean this control matched nodes
+        # that turned out to be undrivable: proof the control is collapsed or
+        # remounted, and the signal that a later broad match must be verified
+        # against the neighbours rather than trusted.
+        exclusive_rejected = False
         for strategy, val in strategies:
             try:
                 if ctx is self.driver:
@@ -657,6 +730,8 @@ class SmartDOMResolver:
                 for el in els:
                     if self._usable(el, require_enabled, False):
                         return el, (strategy, val)
+                if els:
+                    exclusive_rejected = True
                 continue
             # ---- section 11: never silently take candidates[0] -----------
             # Geometry matters HERE: a dead zero-area clone must not stop
@@ -668,7 +743,8 @@ class SmartDOMResolver:
             # NEVER accept a broad match unexamined, not even a lone one:
             # with the procedure control gone, the only live candidate a
             # broad strategy finds is the Reason combobox.
-            narrowed = self._exclude_foreign_controls(locator_key, live)
+            narrowed = self._exclude_foreign_controls(
+                locator_key, live, force_query=exclusive_rejected)
             if len(narrowed) == 1:
                 self.logger.trace(
                     f"[CONTROL-ARBITRATE] {locator_key}: {len(live)} live "
@@ -739,6 +815,30 @@ class SmartDOMResolver:
             if els:
                 matched_any = True
                 if locator_key in INTERACTIVE_CONTROLS:
+                    # A/B REGRESSION (sections 4, 5, 12).  The baseline had a
+                    # second pass here that returned els[0] whether or not it
+                    # was displayed, and that is the ONLY reason it kept
+                    # driving the procedure control after the first Plus:
+                    # once react-select owns a committed value it collapses
+                    # its search input to ~2px / opacity 0, so Selenium
+                    # reports displayed=False for a perfectly drivable field.
+                    # Refusing it outright turned a working queue into
+                    # TX-PROCEDURE-CONTROL-UNAVAILABLE on item two.
+                    #
+                    # Section 13 forbids simply restoring els[0]: salvage a
+                    # candidate only when it is provably THIS control and
+                    # provably on screen, and only when it is the only one.
+                    live = self._collapsed_but_live(locator_key, els)
+                    if len(live) == 1:
+                        self.logger.trace(
+                            f"[CONTROL-COLLAPSED] {locator_key}: input reports "
+                            f"not-displayed but its container is on screen and "
+                            f"arbitration left exactly one candidate; driving "
+                            f"it (baseline parity)")
+                        if parent is None:
+                            self._strategy_cache[locator_key] = (strategy, val)
+                            self._remember(locator_key, live[0])
+                        return live[0], (strategy, val)
                     continue        # never drive a control we cannot see
                 if parent is None:
                     self._strategy_cache[locator_key] = (strategy, val)

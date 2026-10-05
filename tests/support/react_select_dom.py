@@ -157,6 +157,16 @@ class ReactSelectConfig:
     #: True -> the replacement input is present and reports displayed=True
     #: but occupies a zero-area box, so it cannot actually be typed into.
     procedure_remount_zero_area: bool = False
+    #: True -> model what react-select ACTUALLY does to its search input once
+    #: a value is committed and focus leaves: ``opacity: 0`` and a ~2px wide
+    #: box.  Selenium then reports ``is_displayed() == False`` for a control
+    #: the operator can still click and type into - the box is still there,
+    #: and clicking it (the production JS-click fallback) re-expands it.
+    #:
+    #: This is the A/B state.  The baseline tolerated it because its last
+    #: resort returned ``els[0]`` regardless of displayedness; the arbitration
+    #: build refused it outright and stopped the queue on item two.
+    procedure_collapses_after_commit: bool = False
     #: Stages the portal CLEARS after every Add.  The live CGHS portal clears
     #: the procedure (which is why the engine re-selects it for every locked
     #: unit); without this the double never re-touches the input and cannot
@@ -194,8 +204,19 @@ class RSElement:
         return str(self._live().get("text", ""))
 
     def is_displayed(self) -> bool:
+        """Displayedness, INCLUDING ancestors - exactly like a real browser.
+
+        Hiding a container hides everything inside it; reading only the
+        node's own flag let a child of a hidden widget look drivable, which
+        is the one thing the post-Plus work must be able to distinguish.
+        """
         self.dom.counters["element_reads"] += 1
-        return bool(self._live().get("visible", True))
+        node = self._live()
+        while node is not None:
+            if not node.get("visible", True):
+                return False
+            node = node.get("parent")
+        return True
 
     @property
     def rect(self):
@@ -224,6 +245,34 @@ class RSElement:
         if name == "class":
             return str(node.get("class", ""))
         return node.get("attrs", {}).get(name)
+
+    # -- traversal ------------------------------------------------------
+    def find_element(self, by, value):
+        """Only the ancestor-or-self container lookup production performs.
+
+        Fidelity matters more than coverage here: an unsupported expression
+        must RAISE rather than quietly answer None, otherwise the double
+        would let a broken XPath look like a working one.
+        """
+        m = re.match(
+            r"^ancestor-or-self::\*\[(?P<pred>.+)\]\[1\]$", str(value).strip())
+        if m is None:
+            raise NoSuchElementException(
+                f"ReactSelectDOM double does not implement {value!r}")
+        wanted = re.findall(r"contains\(\s*@class\s*,\s*'([^']+)'\s*\)",
+                            m.group("pred"))
+        if not wanted:
+            raise NoSuchElementException(
+                f"ReactSelectDOM double does not implement {value!r}")
+        self.dom.counters["element_reads"] += 1
+        cur = self._live()
+        while cur is not None:
+            cls = str(cur.get("class", ""))
+            if any(w in cls for w in wanted):
+                return RSElement(self.dom, cur)
+            cur = cur.get("parent")
+        raise NoSuchElementException(
+            f"no ancestor-or-self matching {wanted} above node {self.id}")
 
     # -- interaction ----------------------------------------------------
     def click(self):
@@ -489,6 +538,14 @@ class ReactSelectDOM:
         parts["open"] = False
         self._render_menu(field_name)
 
+        if (self.config.procedure_collapses_after_commit
+                and field_name == "procedure"):
+            # react-select hides its own search input behind the rendered
+            # singleValue: opacity 0, ~2px wide.  Still in the layout, still
+            # clickable, but is_displayed() is now False.
+            parts["input"]["visible"] = False
+            parts["input"]["rect"] = (2, 21)
+
         if field_name == "procedure":
             self._on_procedure_committed(opt)
         self._refresh_plus()
@@ -550,6 +607,13 @@ class ReactSelectDOM:
         field_name = self._field_of(node)
         if field_name and node is self._parts(field_name)["input"]:
             parts = self._parts(field_name)
+            # Focus re-expands a collapsed react-select search input: this is
+            # precisely why the baseline could drive an element that reported
+            # displayed=False a moment earlier.
+            if not node.get("visible", True) and tuple(
+                    node.get("rect", (1, 1))) != (0, 0):
+                node["visible"] = True
+                node["rect"] = (160, 32)
             parts["open"] = True
             parts["open_at"] = time.perf_counter()
             parts["focused_index"] = 0

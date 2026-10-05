@@ -500,3 +500,178 @@ def test_remembered_identities_never_outlive_the_dom_they_describe():
 
     session.resolver.invalidate()
     assert session.resolver._resolved_identity == {}
+
+
+# ---------------------------------------------------------------------------
+# A/B REGRESSION: the OLD build kept going, this build stopped (sections 4,
+# 5, 12, 19, 20)
+#
+# The operator shipped both builds against the same portal.  OLD processed
+# the queue; UPDATED stopped after the first successful Plus with
+#
+#     'PROCEDURE_INPUT' matched only non-interactable elements
+#     (hidden or zero-area)
+#
+# Diffing the two sources at the procedure path shows exactly one behavioural
+# divergence, and it is not a selector:
+#
+#   OLD  locate():  pass 1 - first element with is_displayed()
+#                   pass 2 - `return els[0]` for the first strategy that
+#                            matched ANYTHING, displayed or not
+#                   then    NoSuchElement
+#
+#   NEW  locate():  pass 1/2 as before (plus geometry + arbitration)
+#                   pass 3 - `continue` for every INTERACTIVE control, then
+#                            raise ElementNotInteractable
+#
+# Pass 2 is what carried the OLD build past the first Plus.  React-Select
+# collapses its own search input - opacity 0, ~2px wide - as soon as a value
+# is committed to the control, so Selenium reports displayed=False for a
+# field that is still perfectly clickable and typeable; clicking it (the
+# JS-click fallback production already performs) re-expands it.  OLD drove
+# that element through pass 2.  UPDATED refused it, and one refusal of a
+# SHARED control legitimately stops the whole queue.
+#
+# The fix is NOT a restored `els[0]`: section 13 forbids that, and it is what
+# produced the original cascade.  A candidate is salvaged only when it
+# survives neighbour arbitration, still occupies a non-zero box, is enabled,
+# and its react-select container is itself on screen.  A display:none clone
+# measures 0x0 and fails the second clause; the Reason combobox fails the
+# first; a collapsed form fails the fourth.
+# ---------------------------------------------------------------------------
+
+def _collapsing(**kwargs):
+    """A portal whose procedure control collapses after a commit, i.e. the
+    state the baseline tolerated and this build refused."""
+    kwargs.setdefault("procedure_collapses_after_commit", True)
+    return _portal(**kwargs)
+
+
+def _commit_once(dom, session, code="CN002"):
+    """Put the portal into the post-commit state the operator reached."""
+    from cghs.controllers import ProcedureSelector
+    ProcedureSelector(session).execute(code)
+    return dom._parts("procedure")["input"]
+
+
+def test_ab_the_baseline_resolver_drives_the_control_this_build_refused():
+    """Section 20: the OLD implementation, loaded out of git - not faked.
+
+    Same portal, same DOM state, two resolvers.  This is the divergence.
+    """
+    from tests.support.legacy_loader import load_baseline
+    baseline = load_baseline()
+
+    dom, session = _collapsing(catalogue=_catalogue(["CN002", "CC002"]))
+    node = _commit_once(dom, session)
+    assert node["visible"] is False, "the double is not in the collapsed state"
+    assert tuple(node["rect"]) != (0, 0), \
+        "a collapsed input still occupies a box; 0x0 would be a clone"
+
+    old = baseline.SmartDOMResolver(dom, baseline.EnterpriseLogger(None))
+    old_el, _ = old.locate("PROCEDURE_INPUT")
+    assert old_el.id == node["nid"], \
+        "the baseline resolved something other than the live procedure input"
+
+    new_el, _ = session.resolver.locate("PROCEDURE_INPUT")
+    assert new_el.id == node["nid"], (
+        "A/B REGRESSION: the baseline drives this element and this build "
+        "must drive the same one")
+
+
+def test_ab_the_divergence_is_the_last_resort_not_the_selector_table():
+    """Both builds MATCH the element; only one refuses to return it.
+
+    Pinning this stops anyone 'fixing' the regression by adding selectors.
+    """
+    dom, session = _collapsing(catalogue=_catalogue(["CN002"]))
+    node = _commit_once(dom, session)
+
+    matched = {el.id
+               for strategy, val in LOCATORS["PROCEDURE_INPUT"]
+               for el in dom.find_elements(strategy, val)}
+    assert node["nid"] in matched, \
+        "the selector table already matches the live control"
+
+    displayed = [el for el in dom.find_elements(*LOCATORS["PROCEDURE_INPUT"][0])
+                 if el.is_displayed()]
+    assert displayed == [], \
+        "nothing is displayed, which is why both earlier passes fail"
+
+
+def test_collapsed_procedure_input_is_driven_after_a_commit():
+    dom, session = _collapsing(catalogue=_catalogue(["CN002"]))
+    node = _commit_once(dom, session)
+    el, _ = session.resolver.locate("PROCEDURE_INPUT")
+    assert el.id == node["nid"]
+
+
+def test_cn002_then_cc002_completes_when_react_collapses_the_input():
+    """The exact live queue: CN002 -> Plus -> CC002 (section 19/23)."""
+    dom, session = _collapsing(catalogue=_catalogue(["CN002", "CC002"]))
+    patient = _batch(session, ["CN002", "CC002"], qty={"CN002": 6, "CC002": 4})
+
+    assert [r["code"] for r in dom.rows] == ["CN002"] * 6 + ["CC002"] * 4
+    assert patient["status"] == "COMPLETED"
+    assert patient["pending"] == [], "no item may be left PENDING"
+    assert patient["failed"] == []
+
+
+def test_cn002_then_c001_completes_when_react_collapses_the_input():
+    dom, session = _collapsing(catalogue=_catalogue(["CN002", "C001"]))
+    patient = _batch(session, ["CN002", "C001"], qty={"CN002": 6, "C001": 2})
+    assert [r["code"] for r in dom.rows] == ["CN002"] * 6 + ["C001"] * 2
+
+
+def test_cn002_then_another_code_completes_when_react_collapses_the_input():
+    """Section 23: the third acceptance pair, a code from another family."""
+    dom, session = _collapsing(catalogue=_catalogue(["CN002", "LB001"]))
+    patient = _batch(session, ["CN002", "LB001"], qty={"CN002": 3, "LB001": 5})
+    assert [r["code"] for r in dom.rows] == ["CN002"] * 3 + ["LB001"] * 5
+
+
+# -- the salvage must stay narrow -------------------------------------------
+
+def test_salvage_still_refuses_a_hidden_clone_with_no_replacement():
+    """Section 13: a control that is really gone is still UNAVAILABLE.
+
+    The clone measures 0x0, so it fails the geometry clause and the queue
+    stops exactly as it did before - one recovery, remaining PENDING.
+    """
+    dom, session = _portal(catalogue=_catalogue(["CN002", "C001"]),
+                           procedure_remount_after_units=1,
+                           procedure_remount_recovers=False)
+    with pytest.raises(ElementNotInteractableException):
+        dom.plus_clicks = 1
+        dom._maybe_remount_procedure()
+        session.resolver.locate("PROCEDURE_INPUT")
+
+
+def test_salvage_requires_the_container_to_be_on_screen():
+    """A collapsed input inside a HIDDEN widget is a clone, not a control."""
+    dom, session = _collapsing(catalogue=_catalogue(["CN002"]))
+    _commit_once(dom, session)
+    dom.containers["procedure"]["visible"] = False
+    session.resolver.invalidate()
+    with pytest.raises(ElementNotInteractableException):
+        session.resolver.locate("PROCEDURE_INPUT")
+
+
+def test_salvage_never_returns_a_neighbouring_control():
+    """Arbitration runs BEFORE the salvage, so Reason can never win it."""
+    dom, session = _collapsing(catalogue=_catalogue(["CN002"]))
+    _drive_neighbours(session)
+    node = _commit_once(dom, session)
+    el, _ = session.resolver.locate("PROCEDURE_INPUT")
+    assert el.id == node["nid"]
+    assert el.id != dom._parts("reason")["input"]["nid"]
+    assert el.id != dom._parts("speciality")["input"]["nid"]
+
+
+def test_salvage_does_not_run_on_the_happy_path():
+    """No extra DOM traffic when the control is simply visible."""
+    dom, session = _portal()
+    before = dict(dom.counters)
+    session.resolver.locate("PROCEDURE_INPUT")
+    after = dict(dom.counters)
+    assert after["find_elements"] - before["find_elements"] <= 2
