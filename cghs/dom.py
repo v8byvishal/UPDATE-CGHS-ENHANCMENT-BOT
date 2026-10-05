@@ -291,7 +291,7 @@ try {
       }
     }
     var rows = [];
-    var codeRe = /\b(?:LB|RI|CI|CN|RP|GP|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100/i;
+    var codeRe = /\b(?:LB|RI|CI|CN|RP|GP|PT|WC|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100/i;
     for (var n = 0; n < rowNodes.length; n++) {
       var cells = rowNodes[n].querySelectorAll("td");
       var codeCell = "", qtyCell = "";
@@ -396,7 +396,7 @@ _PROBE_QUERIES: Dict[str, List[List[str]]] = {
     for key, strategies in LOCATORS.items()
 }
 
-_CODE_TOKEN_RE = re.compile(r"\b(?:LB|RI|CI|CN|RP|GP|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100", re.IGNORECASE)
+_CODE_TOKEN_RE = re.compile(r"\b(?:LB|RI|CI|CN|RP|GP|PT|WC|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100", re.IGNORECASE)
 
 
 def row_matches_code(code_text: str, code: str) -> bool:

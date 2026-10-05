@@ -363,7 +363,7 @@ class TableReader(_Controller):
                 for cell in cells:
                     self.counters.element_reads += 1
                     txt = cell.text.strip()
-                    if re.search(r'\b(LB|RI|CI|CN|RP|GP|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100',
+                    if re.search(r'\b(LB|RI|CI|CN|RP|GP|PT|WC|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100',
                                  txt, re.IGNORECASE):
                         code_cell = txt
                     if re.match(r'^\d{1,3}$', txt.strip()) and len(txt.strip()) < 4:

@@ -556,3 +556,127 @@ def test_journal_records_every_transaction(tmp_path):
     assert record["state"] == "COMPLETED"
     assert record["plus_dispatch_count"] == 1
     assert record["identity"]["internal_code"] == "LB012"
+
+
+# ---------------------------------------------------------------------------
+# PT / WC post-Plus row recognition
+#
+# Live 39706 run: the Procedure control, the Plus dispatch and the table
+# mutation all worked, yet three items stalled:
+#
+#   PT004 qty=24  PLUS-DISPATCHED  rows 108 -> 110  matching qty 0 -> 0
+#   PT005 qty=41  PLUS-DISPATCHED  rows 110 -> 112  matching qty 0 -> 0
+#   WC001 qty=2   PLUS-DISPATCHED  rows 128 -> 130  matching qty 0 -> 0
+#   -> TX-ROW-CODE-MISMATCH -> RECONCILIATION_REQUIRED, no second Plus
+#
+# The verifier was right to refuse: it was handed ``code: ""``.  The row-code
+# EXTRACTOR, not the matcher, is the defect - its hardcoded family list
+# (LB|RI|CI|CN|RP|GP|CC|C) is narrower than the code registry, which has
+# always contained PT and WC.  row_matches_code("PT004 - ...", "PT004") was
+# already True; the cell text never reached it.
+# ---------------------------------------------------------------------------
+
+PT_WC_CASES = [("PT004", "24"), ("PT005", "41"), ("WC001", "2")]
+
+
+def test_pt_and_wc_rows_are_extracted_by_the_canonical_token_regex():
+    """The extractor must see what the matcher already accepts."""
+    from cghs.dom import _CODE_TOKEN_RE, row_matches_code
+
+    for code, _qty in PT_WC_CASES:
+        cell = f"{code} - portal description"
+        assert row_matches_code(cell, code) is True, \
+            f"{code}: matcher regressed"
+        assert _CODE_TOKEN_RE.findall(cell), \
+            f"{code}: extractor dropped the code cell -> verifier sees code=''"
+
+
+def test_compact_probe_and_python_row_readers_agree_on_every_family():
+    """Section 12: one side must never recognise a family the other drops."""
+    import re as _re
+    from cghs.dom import PROBE_JS, _CODE_TOKEN_RE
+    from cghs.controllers import TableReader   # noqa: F401  (import guard)
+
+    js = _re.search(r"var codeRe = /(?P<body>.+?)/[a-z]*;", PROBE_JS)
+    assert js, "PROBE_JS no longer declares codeRe"
+    probe_re = _re.compile(js.group("body"), _re.IGNORECASE)
+
+    controllers_src = (REPO / "cghs" / "controllers.py").read_text(encoding="utf-8")
+
+    for code, _qty in PT_WC_CASES + [("LB012", "1"), ("CN002", "1"),
+                                     ("C001", "1"), ("CC001", "1"),
+                                     ("RI034", "1"), ("DRGU100", "1"),
+                                     ("CNSU100", "1")]:
+        cell = f"{code} - portal description"
+        assert bool(probe_re.search(cell)) is bool(_CODE_TOKEN_RE.search(cell)), \
+            f"{code}: compact probe and Python reader disagree"
+
+    for family in ("PT", "WC"):
+        assert family in controllers_src, \
+            f"the Selenium row reader still drops the {family} family"
+
+
+@pytest.mark.parametrize("code,qty", PT_WC_CASES)
+def test_pt_wc_row_is_recognised_and_verified_after_one_plus(code, qty):
+    """End to end: one Plus, exact row identified, quantity verified."""
+    portal = build_portal([code], latency=Latency.fast())
+    portal.quantity_locked = False
+    # Force the Selenium row reader: the compact-probe emulation hands back
+    # the row model verbatim, so only this path actually runs production's
+    # row-code extraction against real <td> text - which is where the live
+    # PT/WC rows were being dropped.
+    portal.config.faults.probe_unsupported = True
+    session, orch = make_orchestrator(portal, commit_timeout=0.6,
+                                      reconcile_grace=0.2)
+
+    result = orch.process_item(item(code, int(qty)))
+
+    assert result.success is True, result.state
+    assert result.state == TxState.COMPLETED.value
+    assert len(portal.plus_clicks) == 1, "exactly one Plus must be dispatched"
+    assert any(r["code"] == code for r in portal.rows)
+
+
+@pytest.mark.parametrize("code,qty", PT_WC_CASES)
+def test_pt_wc_rows_are_counted_by_the_duplicate_guard(code, qty):
+    """A PT/WC row already on the portal must be SEEN, or the duplicate
+    guard would happily add it a second time."""
+    portal = build_portal([code], latency=Latency.fast())
+    portal.seed_rows([(code, "1")])
+    portal.config.faults.probe_unsupported = True
+    session, _ = make_orchestrator(portal)
+    session.ensure_context()
+
+    from cghs.controllers import TableReader
+    from cghs.dom import row_matches_code
+    rows = TableReader(session).snapshot().items
+    assert any(row_matches_code(r.get("code", ""), code) for r in rows), \
+        f"{code}: an existing portal row is invisible to the duplicate guard"
+
+
+def test_pt_wc_change_does_not_relax_prefix_collision_safety():
+    """Section 7: exact matching, still no substring/prefix widening."""
+    from cghs.dom import row_matches_code
+    assert row_matches_code("CC001", "C001") is False
+    assert row_matches_code("C001", "C001") is True
+    assert row_matches_code("LB0121", "LB012") is False
+    assert row_matches_code("PT0041", "PT004") is False
+    assert row_matches_code("WC0011", "WC001") is False
+    assert row_matches_code("PT005", "PT004") is False
+    assert row_matches_code("WC001", "C001") is False
+    assert row_matches_code("drugs(DRGU100-None)", "DRUG100") is True
+
+
+def test_table_change_without_the_target_row_still_reconciles():
+    """Section 8: a mutated table alone is NEVER success, PT/WC included."""
+    portal = build_portal(["PT004"], latency=Latency.fast())
+    portal.config.faults.unrelated_mutation = {"PT004"}
+    portal.config.faults.probe_unsupported = True
+    session, orch = make_orchestrator(portal, commit_timeout=0.4,
+                                      reconcile_grace=0.2)
+
+    result = orch.process_item(item("PT004", 1))
+
+    assert result.success is False
+    assert any(r["code"] == "ZZ999" for r in portal.rows)
+    assert not any(r["code"] == "PT004" for r in portal.rows)
