@@ -75,9 +75,49 @@ ROW_SAMPLES = [
 ]
 
 
+#: Samples whose FINAL CODES intentionally differ from the baseline, and why.
+#: Everything not listed here must still agree code-for-code.
+CODE_DEVIATIONS = {
+    "Room Rent( CGHS-RI ) ICU 1 4500.00 4500.00": (
+        ["RI145"], [],
+        "RI145 was manufactured out of the rupee column: the baseline searched "
+        "100 characters past the CGHS marker, digit-repair welded the quantity "
+        "onto the amount ('1 4500.00' -> '14500.00') and the first three digits "
+        "of that number became a code. No such service is on the row."),
+}
+
+
 @pytest.mark.parametrize("value", CODE_SAMPLES)
 def test_normalize_cghs_code_matches_baseline(value):
-    assert rules.normalize_cghs_code(value) == BASELINE.normalize_cghs_code(value)
+    """The FINAL CODES must match the baseline, except where declared.
+
+    Only the codes are compared: the reason string is explanatory text, not a
+    business rule, and it now names the locked rule that fired.  Every code
+    difference has to be declared in CODE_DEVIATIONS with its evidence.
+    """
+    mine = [code for code, _ in rules.normalize_cghs_code(value)]
+    theirs = [code for code, _ in BASELINE.normalize_cghs_code(value)]
+
+    if value in CODE_DEVIATIONS:
+        was, now, _ = CODE_DEVIATIONS[value]
+        assert theirs == was, "baseline no longer produces the declared codes"
+        assert mine == now
+    else:
+        assert mine == theirs
+
+
+def test_every_declared_code_deviation_is_real_and_explained():
+    for value, (was, now, reason) in CODE_DEVIATIONS.items():
+        assert value in CODE_SAMPLES, f"{value!r} is not a differential sample"
+        assert was != now, f"{value!r} is declared but does not actually differ"
+        assert len(reason) > 120, f"{value!r} needs real evidence, not a note"
+
+
+def test_normalize_cghs_code_reasons_are_still_populated():
+    """A changed reason string is fine; an empty one is not."""
+    for value in CODE_SAMPLES:
+        for code, reason in rules.normalize_cghs_code(value):
+            assert code and reason, f"{value!r} produced an unexplained code"
 
 
 @pytest.mark.parametrize("row", ROW_SAMPLES)
@@ -148,6 +188,23 @@ def test_rules_module_is_a_verbatim_copy_of_the_baseline_block():
 #: The ONLY business-rule function allowed to differ from the baseline, and why.
 #: See test_consumables_subtotal_is_layout_independent for the proof.
 DECLARED_RULE_DEVIATIONS = {
+    "normalize_cghs_code": (
+        "The baseline built candidate codes as 'category + token' and accepted "
+        "the first candidate that existed in VALID_CODES. Because "
+        "_build_valid_codes generates the entire CC001..CC100 family as "
+        "wildcards, EVERY invented CCxxx validated, so the function implemented "
+        "a blanket Cxxx -> CCxxx expansion with no evidence: 'VENTILATOR CGHS-C "
+        "C003' produced CC003, a code that does not exist, and the six "
+        "context-sensitive aliases (C004/C008/C010/C011/C012/C014) resolved "
+        "identically whether or not the row carried their service. It also "
+        "searched 100 characters past the CGHS marker, so digit-repair welded "
+        "the quantity onto the amount and manufactured RI145 out of a rupee "
+        "value. Resolution is now an explicit ladder - explicit family token, "
+        "locked category composition, locked same-row context rule - and an "
+        "alias that no locked rule resolves is returned as REVIEW_REQUIRED "
+        "instead of being guessed or silently dropped. Compound '+' "
+        "expressions are split and resolved per component, and prefix carry "
+        "across a '+' is no longer assumed."),
     "extract_consumables_total": (
         "Baseline scanned one alternating regex with finditer, which matches at "
         "the earliest position. When a line-item amount sat immediately above a "

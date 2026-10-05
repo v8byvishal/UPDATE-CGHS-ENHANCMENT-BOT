@@ -26,11 +26,14 @@ from typing import Any, Dict, List, Tuple  # noqa: F401
 
 from .locators import VALID_CODES
 from .rules import (
+    EXECUTABLE,
+    REVIEW_REQUIRED,
     extract_consumables_total,
     extract_dept_subtotal,
     normalize_cghs_code,
     parse_oxygen_quantity,
     parse_row_quantity,
+    resolve_cghs_codes,
 )
 
 
@@ -287,17 +290,45 @@ class CGHSParsingEngine:
             section = row["section"]
             service_name = row["service_name"]
 
-            # Normalize codes in this row
-            normalized = normalize_cghs_code(row_text)
+            # Identify every code occurrence in this row FIRST, each one
+            # resolved independently (a '+' compound is several occurrences).
+            # Aggregation happens further down, strictly after resolution.
+            occurrences = resolve_cghs_codes(row_text, page=page,
+                                             section=section,
+                                             service_name=service_name)
+
+            # An alias that no locked rule resolves is real evidence: it is
+            # reported for review, never silently dropped and never executed.
+            for occ in occurrences:
+                if occ["status"] != EXECUTABLE:
+                    rejected.append({
+                        "page": str(page),
+                        "block": row_text[:300],
+                        "reason": f"{REVIEW_REQUIRED}: {occ['normalization_reason']}",
+                        "section": section,
+                        "code": occ["original_token"],
+                        "status": REVIEW_REQUIRED,
+                        "raw_expression": occ["raw_expression"],
+                        "original_token": occ["original_token"],
+                    })
+
+            normalized = [(o["final_code"], o["normalization_reason"])
+                          for o in occurrences if o["status"] == EXECUTABLE]
+            locked_quantities = {o["final_code"]: o["quantity"]
+                                 for o in occurrences
+                                 if o["status"] == EXECUTABLE
+                                 and o["quantity"] is not None}
 
             if not normalized:
-                # Could be CGHS row but no valid code extracted - reject
-                rejected.append({
-                    "page": str(page),
-                    "block": row_text[:300],
-                    "reason": "CGHS marker but no valid code could be normalized from row",
-                    "section": section
-                })
+                if not occurrences:
+                    # CGHS marker but nothing code-shaped at all in the row.
+                    rejected.append({
+                        "page": str(page),
+                        "block": row_text[:300],
+                        "reason": "CGHS marker but no valid code could be normalized from row",
+                        "section": section
+                    })
+                # occurrences that need review are already recorded above
                 continue
 
             for code, reason in normalized:
@@ -365,8 +396,11 @@ class CGHSParsingEngine:
                             })
                             continue
 
-                # For other codes, parse quantity
-                qty = parse_row_quantity(row_text)
+                # Quantity: a locked rule wins (Oxygen full/half day), else
+                # the explicit row quantity.  An amount is never a quantity.
+                qty = locked_quantities.get(code)
+                if qty is None:
+                    qty = parse_row_quantity(row_text)
 
                 # Validate code against VALID_CODES (already done in normalize)
                 if code not in VALID_CODES:

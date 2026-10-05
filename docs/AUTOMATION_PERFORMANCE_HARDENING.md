@@ -895,6 +895,100 @@ a captured live DOM: this environment is headless Linux with no portal
 credentials, so sections 4, 5, 6 and 19 (live capture, live A-E snapshots,
 live Windows runs) cannot be executed here and must be run by the operator.
 
+## 14. CGHS code identification: locked mappings, no invented codes
+
+### The defect
+
+`normalize_cghs_code` resolved a code by building candidates as
+`category + token` and accepting the first one that happened to exist in
+`VALID_CODES`.  `_build_valid_codes` generates whole families as wildcards -
+`CC001..CC100`, `C001..C100`, `LB001..LB399` - so **every** invented `CCxxx`
+validated.  That is a blanket `Cxxx -> CCxxx` rule with nothing behind it:
+
+| row | baseline | correct |
+|---|---|---|
+| `VENTILATOR CGHS-C C003` | `CC003` | review - no approved target |
+| `UNRELATED CGHS-C C004` | `CC004` | review - no NIV Machine on the row |
+| `UNRELATED CGHS-C C012` | `CC012` | review - no Nebulizer on the row |
+| `BLOOD BANK PACKED CELLS CGHS-C C002` | `CC002` | review - not the Oxygen code |
+| `Room Rent( CGHS-RI ) ICU 1 4500.00` | `RI145` | nothing - that is a rupee amount |
+
+The last one is the clearest: the search ran 100 characters past the CGHS
+marker, digit-repair welded the quantity onto the amount
+(`1 4500.00` -> `14500.00`), and the first three digits of that number became
+a code.  No such service is on the row.
+
+All six context-sensitive aliases resolved **identically whether or not the
+row carried their service**, so the "context-sensitive" mappings were not
+context-sensitive at all.
+
+### The fix: an explicit resolution ladder
+
+A raw alias is no longer a code.  Each component resolves through one ordered
+ladder, and anything that falls off the end is reported, never guessed:
+
+1. **raw C-alias** (`C002`, `C003`, `C004`, ...) - resolvable *only* by a
+   locked rule that reads same-row evidence.  `C003` has no approved target
+   and always returns `REVIEW_REQUIRED`; `C002` is Oxygen only, and in a
+   Blood Bank / Packed Cells row it stays unresolved.
+2. **explicit family token** - `LB269`, `RI034`, `CC002` validated against
+   the registry.
+3. **locked category composition** - a table, not concatenation:
+   `L+Bxxx -> LBxxx`, `G+Pxxx -> GPxxx`, `P+Txxx -> PTxxx`, `C+Nxxx -> CNxxx`.
+   `("C", "C")` is deliberately absent - that pair *is* the blanket rule.
+4. **locked numeric composition** - `CGHS-RI + 034 -> RI034`.
+5. otherwise `REVIEW_REQUIRED`, carrying the token and the reason.
+
+The alias search region now stops at the first money column, which is what
+kills `RI145`.
+
+### Compound expressions
+
+`CGHS-LB269+LB270-2025` is **two codes**.  The year suffix is metadata, the
+`+` is a delimiter, and each component is normalised, validated and given
+provenance *independently*; identical final codes aggregate only afterwards,
+so the same alias appearing in two different contexts can never be merged on
+the raw token.
+
+Prefix carry across a `+` is **not** performed: in `CGHS-LB269+270` the
+component `270` is ambiguous, so `LB269` executes and `270` goes to review.
+Safety over recall - but the component that *is* explicit still executes.
+
+### Registry discipline
+
+`VALID_CODES` is unchanged: 1802 codes, and no `BC` or `CT` family was
+invented.  `BC002` and `CT001` are therefore preserved for review rather than
+manufactured, and a test pins that - a prefix appearing once in a bill is not
+a licence to wildcard a family into the registry.
+
+A service description (`blood`, `radiology`, ...) is context only; on its own
+it never produces a code.
+
+### Cost
+
+Parsing got slightly **faster** - 3.29 ms vs 3.93 ms per 135-row document -
+because the alias region stops at the money column instead of scanning 100
+characters per marker.  One resolver call per row, no second pass, no
+document rescan, no new PDF read.
+
+### Status
+
+`tests/test_cghs_code_rules.py` is 99 tests; **32 fail against the pre-fix
+engine**.  The 67 that pass before and after are the behaviours that had to
+survive: the direct codes, the `CC001`/`WC001`/`CN002` Room Rent derivations,
+Patient Payable separation, the amount-based `DRUG100`/`CNSU100` semantics
+and the full-prefix compound split.
+
+| criterion | result |
+|---|---|
+| `BLOOD_CODE_IDENTIFICATION` | **NOT_VERIFIED** - no `BC` registry entry or bill fixture |
+| `CT_CODE_IDENTIFICATION` | **NOT_VERIFIED** - no `CT` registry entry or bill fixture |
+| `LAB` / `RADIOLOGY` / `CARDIOLOGY` | PASS - `LB`/`RI`/`CI` are registry families |
+
+No real hospital-bill PDF exists in this repository, so section 30 cannot be
+executed here: the category evidence above comes from the code registry and
+synthetic rows in the documented bill format, not from an approved bill.
+
 ## 9. Final report (task section 17)
 
 | # | Item | Value |

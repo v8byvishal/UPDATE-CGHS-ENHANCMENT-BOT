@@ -12,9 +12,85 @@ BUSINESS RULES ARE UNCHANGED.  Any behavioural change in this file is a defect.
 """
 
 import re
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .locators import VALID_CODES, CGHS_CATEGORY_MAP, PORTAL_OPTION_MAP  # noqa: F401
+
+# ---------------------------------------------------------------------------
+# Locked CGHS code-resolution tables
+#
+# A raw 4-character alias (C002, C003, C008, C010, C011, C012, C014, N002, ...)
+# is NOT an executable enhancement code.  It only becomes one when a LOCKED
+# rule below resolves it.  There is deliberately no generic ``C -> CC``
+# expansion: the baseline built candidates as ``category + token`` and accepted
+# the first one that happened to exist in VALID_CODES, and because
+# ``_build_valid_codes`` generates the whole CC001..CC100 family as wildcards,
+# EVERY invented CCxxx validated.  That is how "VENTILATOR CGHS-C C003" became
+# CC003 - a code nobody ever defined.
+# ---------------------------------------------------------------------------
+
+#: An occurrence that may be executed against the portal.
+EXECUTABLE = "EXECUTABLE"
+#: An occurrence that is real but could not be resolved by a locked rule.
+#: It is surfaced to the operator, never silently dropped and never executed.
+REVIEW_REQUIRED = "REVIEW_REQUIRED"
+#: Reason tag for an alias with no locked mapping.
+UNRESOLVED_MAPPING = "UNRESOLVED_MAPPING"
+
+#: Category + alias-prefix -> final family.  ("C", "C") is deliberately absent.
+LOCKED_CATEGORY_COMPOSITION = {
+    ("L", "B"): "LB",   # CGHS-L  + Bxxx -> LBxxx
+    ("G", "P"): "GP",   # CGHS-G  + Pxxx -> GPxxx
+    ("P", "T"): "PT",   # CGHS-P  + Txxx -> PTxxx
+    ("C", "N"): "CN",   # CGHS-C  + Nxxx -> CNxxx
+    ("R", "P"): "RP",
+    ("M", "G"): "MG",
+}
+
+#: Categories that are already a full family prefix and so take a bare numeric
+#: (CGHS-RI + 034 -> RI034, CGHS-CI + 005 -> CI005).
+LOCKED_NUMERIC_CATEGORIES = frozenset({
+    "LB", "RI", "CI", "RP", "GP", "PT", "CN", "CC", "WC", "MG",
+})
+
+#: Families that may appear as a complete explicit token in the bill.
+_EXPLICIT_FAMILY = re.compile(
+    r'^(LB|RI|CI|RP|GP|PT|CN|CC|WC|MG|NI|ST|OT)(\d{3})$')
+
+#: A raw C-alias.  Never executable on its own - it must pass a locked rule.
+_RAW_C_ALIAS = re.compile(r'^C(\d{3})$')
+
+#: Context-sensitive locked mappings.  Each entry is
+#: alias -> (final code, same-row evidence pattern, human description).
+#: The mapping fires ONLY when the evidence is present in the same row.
+LOCKED_CONTEXT_MAPPINGS = {
+    "C004": ("CC004", re.compile(r'NIV\s*MACHINE'), "NIV Machine Per Day"),
+    "C008": ("CC008", re.compile(r'BLOOD\s*TRANSFUSION'), "Blood Transfusion Charge"),
+    "C010": ("CC010", re.compile(r'ENDO\s*TRACHEAL'), "Endotracheal Intubation"),
+    "C011": ("CC011", re.compile(r'CENTRAL\s*LINE'), "Central Line"),
+    "C012": ("CC012", re.compile(r'NEBULI[SZ]'), "Nebulizer Therapy"),
+    "C014": ("CC014", re.compile(r"RYLE'?S?\s*TUBE"), "Ryles Tube Insertion Charge"),
+}
+
+#: C003 has NO approved target.  Both known contexts stay unresolved: inventing
+#: CC003 is explicitly forbidden until a locked source-of-truth rule exists.
+_NEVER_RESOLVED_ALIASES = frozenset({"C003"})
+
+#: C002 is Oxygen ONLY.  In a Blood Bank / Packed Cells row the same alias
+#: means something else entirely and must not become CC002.
+_OXYGEN_CONTEXT = re.compile(r'OXYGEN')
+_BLOOD_BANK_CONTEXT = re.compile(r'BLOOD\s*BANK|PACKED\s*CELL')
+
+#: An amount column.  An alias token never lies beyond the first money value on
+#: the row, so the search region stops there - otherwise digit-repair welds the
+#: quantity onto the amount ("1 4500.00" -> "14500.00") and manufactures a code
+#: out of rupees ("Room Rent( CGHS-RI ) ICU 1 4500.00" used to yield RI145).
+_AMOUNT_TOKEN = re.compile(r'\d[\d,]*\.\d{2}')
+
+#: Year/metadata suffix: -2025 and its PDF-fragmented forms.
+_YEAR_SUFFIX = re.compile(r'-\s*20\s*\d\s*\d\b|-\s*20\s*\d{2}\b|-\s*20\d{2}\b'
+                          r'|-\s*202\b|-\s*20\b')
+
 
 #: Matches the "Dept Sub Total" LABEL only.  The amount is resolved separately
 #: so that label-first and value-first layouts cannot shadow one another.
@@ -203,142 +279,201 @@ def parse_oxygen_quantity(row_text: str) -> int:
     return 1
 
 def normalize_cghs_code(row_text: str) -> List[Tuple[str, str]]:
+    """Deterministic row-aware code normalisation.
+
+    Returns ``(final_code, normalization_reason)`` for the EXECUTABLE
+    occurrences only - the compatibility shape every existing caller expects.
+    :func:`resolve_cghs_codes` is the canonical implementation and also
+    reports the occurrences that need review; use it when you need provenance
+    or must not lose an unresolved alias.
     """
-    Deterministic row-aware code normalization
-    Returns list of (final_code, normalization_reason)
+    return [(occ["final_code"], occ["normalization_reason"])
+            for occ in resolve_cghs_codes(row_text)
+            if occ["status"] == EXECUTABLE]
+
+
+def _alias_region(row_text: str, marker_end: int) -> str:
+    """The searchable span after a CGHS marker.
+
+    Stops at the first money column: an alias never lies beyond it, and
+    leaving the amounts in lets digit-repair weld a quantity onto an amount
+    and manufacture a code out of rupees.
     """
-    results = []
+    region = row_text[marker_end:marker_end + 100]
+    region = region.replace("|", " ").replace("\n", " ")
+
+    money = _AMOUNT_TOKEN.search(region)
+    if money:
+        region = region[:money.start()]
+
+    region = _YEAR_SUFFIX.sub("", region)
+    # repair PDF-fragmented numbers: "B042+0 43" -> "B042+043"
+    region = re.sub(r'(\d)\s+(\d)', r'\1\2', region)
+    region = re.sub(r'(\d)\s+(\d)', r'\1\2', region)
+    return region
+
+
+def _resolve_component(cat: str, token: str, pref: str, num: str,
+                       upper_row: str) -> Tuple[Optional[str], str, str,
+                                                Optional[int]]:
+    """Resolve ONE code component against the locked rules.
+
+    Returns ``(final_code, status, reason, locked_quantity)``.  ``final_code``
+    is None when nothing legitimate could be produced.  Evidence order is
+    explicit token -> canonical registry -> locked context rule; inference
+    never becomes executable on its own.
+    """
+    # 1. A raw C-alias is never executable by itself.  It resolves only
+    #    through a locked rule that reads the SAME-ROW evidence.
+    if _RAW_C_ALIAS.match(token):
+        if token in _NEVER_RESOLVED_ALIASES:
+            return (None, REVIEW_REQUIRED,
+                    f"{UNRESOLVED_MAPPING}: {token} has no approved target "
+                    f"code; inventing CC{num} is forbidden", None)
+
+        if token == "C002":
+            if _BLOOD_BANK_CONTEXT.search(upper_row):
+                return (None, REVIEW_REQUIRED,
+                        f"{UNRESOLVED_MAPPING}: C002 in a Blood Bank / Packed "
+                        f"Cells row is not the Oxygen code and must not "
+                        f"become CC002", None)
+            if _OXYGEN_CONTEXT.search(upper_row):
+                qty = parse_oxygen_quantity(upper_row)
+                return ("CC002", EXECUTABLE,
+                        f"C002 + Oxygen evidence in the same row => CC002 "
+                        f"x{qty}", qty)
+            return (None, REVIEW_REQUIRED,
+                    f"{UNRESOLVED_MAPPING}: C002 carries no Oxygen evidence "
+                    f"in the same row", None)
+
+        locked = LOCKED_CONTEXT_MAPPINGS.get(token)
+        if locked:
+            final, evidence, description = locked
+            if evidence.search(upper_row):
+                return (final, EXECUTABLE,
+                        f"{token} + '{description}' evidence in the same row "
+                        f"=> {final}", None)
+            return (None, REVIEW_REQUIRED,
+                    f"{UNRESOLVED_MAPPING}: {token} requires "
+                    f"'{description}' evidence in the same row to become "
+                    f"{final}; the row does not carry it", None)
+
+        return (None, REVIEW_REQUIRED,
+                f"{UNRESOLVED_MAPPING}: no locked rule resolves raw alias "
+                f"{token}", None)
+
+    # 2. An explicit, complete code token from a known family.
+    if _EXPLICIT_FAMILY.match(token):
+        if token in VALID_CODES:
+            return (token, EXECUTABLE,
+                    f"Explicit code token '{token}' in the bill row", None)
+        return (None, REVIEW_REQUIRED,
+                f"{UNRESOLVED_MAPPING}: explicit token {token} is not in the "
+                f"CGHS code registry", None)
+
+    # 3. Locked category composition: CGHS-L + Bxxx -> LBxxx.
+    family = LOCKED_CATEGORY_COMPOSITION.get((cat, pref))
+    if family:
+        candidate = f"{family}{num}"
+        if candidate in VALID_CODES:
+            return (candidate, EXECUTABLE,
+                    f"Locked composition CGHS-{cat} + {token} => {candidate}",
+                    None)
+        return (None, REVIEW_REQUIRED,
+                f"{UNRESOLVED_MAPPING}: composition CGHS-{cat} + {token} "
+                f"=> {candidate} is not in the CGHS code registry", None)
+
+    # 4. A category that is already a family, carrying a bare numeric.
+    if not pref and cat in LOCKED_NUMERIC_CATEGORIES:
+        candidate = f"{cat}{num}"
+        if candidate in VALID_CODES:
+            return (candidate, EXECUTABLE,
+                    f"Locked composition CGHS-{cat} + {num} => {candidate}",
+                    None)
+        return (None, REVIEW_REQUIRED,
+                f"{UNRESOLVED_MAPPING}: CGHS-{cat} + {num} => {candidate} is "
+                f"not in the CGHS code registry", None)
+
+    # 5. Nothing legitimate.  Preserve the token; never guess a family.
+    return (None, REVIEW_REQUIRED,
+            f"{UNRESOLVED_MAPPING}: category '{cat}' with token '{token}' "
+            f"matches no locked rule", None)
+
+
+def resolve_cghs_codes(row_text: str, page: Any = None, section: str = "",
+                       service_name: str = "") -> List[Dict[str, Any]]:
+    """Canonical CGHS code identification for one bill row.
+
+    Splits explicit ``+`` compound expressions into independent components,
+    resolves each one on its own through the locked rules, and returns an
+    occurrence per component carrying its provenance.  Aggregation happens
+    downstream, strictly AFTER resolution, so two different contexts can never
+    be merged on a raw alias.
+    """
+    occurrences: List[Dict[str, Any]] = []
+    if not row_text:
+        return occurrences
+
     upper = row_text.upper()
     if "CGHS" not in upper:
-        return results
+        return occurrences
 
-    # Find CGHS marker positions
-    # Pattern: CGHS-?([A-Z]{1,3})? - capture category
-    # Example: CGHS-L, CGHS-C, CGHS-RI, CGHS-CI, CGHS-P, CGHS-G, CGHS- (with no letter?)
-    # Use regex to find CGHS- followed by optional letters, then optional whitespace, then alias part
-    # We want to extract category and alias region
+    for marker in re.finditer(r'CGHS[-\s]*([A-Z]{1,3})', upper):
+        cat = (marker.group(1) or "").strip()
+        region = _alias_region(row_text, marker.end())
 
-    # Find all CGHS occurrences in row (should be one per row)
-    for cghs_match in re.finditer(r'CGHS[-\s]*([A-Z]{1,3})', upper):
-        cat_raw = cghs_match.group(1) or ""
-        # cat_raw may include extra? e.g., "L", "C", "RI", "CI", "P", "G"
-        # But for cases like "CGHS-RI 001", cat_raw = "RI"
-        # For "CGHS-P T005", cat_raw = "P"
-        # For "CGHS-C N002", cat_raw = "C"
-        # For "CGHS-L B243", cat_raw = "L"
-        cat = cat_raw.strip()
+        expression = re.search(
+            r'([A-Z]{0,2}\d{3}(?:\s*\+\s*[A-Z]*\d{3})*)', region, re.IGNORECASE)
+        if not expression:
+            continue
 
-        # Alias region: substring after CGHS match, up to maybe 60 chars, until next CGHS or end
-        start = cghs_match.end()
-        alias_sub = row_text[cghs_match.start(): cghs_match.start()+100]  # use original case but upper for parsing
-        # Actually take from match end
-        alias_region = row_text[start: start+100]
+        normalised = re.sub(r'\s*\+\s*', '+', expression.group(1)).upper()
+        parts = [p for p in normalised.split('+') if p]
+        count = len(parts)
 
-        # Clean alias region: replace newlines, pipes, multiple spaces
-        alias_region = alias_region.replace("|"," ").replace("\n"," ")
-        # Fix fragmented numbers: (\d)\s+(\d) -> \1\2 twice
-        alias_region = re.sub(r'(\d)\s+(\d)', r'\1\2', alias_region)
-        alias_region = re.sub(r'(\d)\s+(\d)', r'\1\2', alias_region)
-        # Remove year suffixes
-        alias_region = re.sub(r'-\s*20\s*25', '', alias_region, flags=re.IGNORECASE)
-        alias_region = re.sub(r'-\s*2025', '', alias_region, flags=re.IGNORECASE)
-        alias_region = re.sub(r'-\s*20\s*2[0-9]', '', alias_region, flags=re.IGNORECASE)
-        alias_region = re.sub(r'-\s*20\b', '', alias_region, flags=re.IGNORECASE)
-        alias_region = re.sub(r'-\s*202\b', '', alias_region, flags=re.IGNORECASE)
+        # The marker regex consumes the category, so "CGHS-LB269+LB270" leaves
+        # "269+LB270".  Put the category back when the bill wrote it as part of
+        # the first token, so provenance shows the expression as printed.
+        raw_expression = normalised
+        if parts and not re.match(r'^[A-Z]', parts[0]):
+            raw_expression = f"{cat}{normalised}"
 
-        # Now search for alias pattern: first occurrence of [A-Z]{0,2}\d{3} optionally with + parts
-        # Example: B243, N002, 001, T005, P009, C002, C012, B042+043+044, B042+0 43+044 already cleaned to B042+043+044
-        # Use regex to find code-like token: ([A-Z]{0,2}\d{3}(?:\s*\+\s*[A-Z]*\d{3})*)
-        # But we want to capture merged
-        alias_match = re.search(r'([A-Z]{0,2}\d{3}(?:\s*\+\s*[A-Z]*\d{3})*)', alias_region, re.IGNORECASE)
-        if not alias_match:
-            # Try finding just 3-digit number
-            alias_match = re.search(r'(\d{3})', alias_region)
-            if not alias_match:
+        for index, part in enumerate(parts):
+            shape = re.match(r'^([A-Z]{0,2})(\d{3})$', part)
+            if not shape:
                 continue
-            alias_str = alias_match.group(1)
-        else:
-            alias_str = alias_match.group(1)
+            pref, num = shape.group(1), shape.group(2)
 
-        # Clean alias_str: remove spaces around +
-        alias_str = re.sub(r'\s*\+\s*', '+', alias_str)
-        # Replace fragmented: already done
-        # Split merged by +
-        parts = [p.strip() for p in alias_str.split('+') if p.strip()]
-
-        # Track current prefix for bare numbers
-        current_prefix = None  # letter prefix for number
-        expanded_codes = []
-
-        for part in parts:
-            # part like B042, 043, N002, 001, T005, P009, C002
-            m = re.match(r'^([A-Z]{0,2})(\d{3})$', part, re.IGNORECASE)
-            if m:
-                pref = m.group(1).upper()  # may be empty, or B, N, T, P, C, etc
-                num = m.group(2)
-                if pref:
-                    current_prefix = pref
-                    full_token = pref + num  # e.g., B042, N002, T005
-                else:
-                    # No prefix, use current_prefix if exists
-                    if current_prefix:
-                        full_token = current_prefix + num  # e.g., 043 with current B => B043
-                        pref = current_prefix
-                    else:
-                        full_token = num  # e.g., 001 with no prefix
-                        pref = ""
-                # Now generate candidate final codes
-                # Candidate logic:
-                candidates = []
-                # cat + full_token (e.g., L + B042 = LB042, C + N002 = CN002, P + T005 = PT005, G + P009 = GP009, C + C002 = CC002, RI + 001 = RI001)
-                # For cat like RI, full_token may be 001, so cat+full_token = RI001
-                # For cat L, full_token B042 => LB042
-                # For cat C, full_token C002 => CC002
-                # Also candidate = full_token itself if valid (e.g., C012 itself valid)
-                # Also candidate = cat + num (e.g., C + 002 = C002, but we want CC002 for oxygen, but generate both and validate)
-                cat_upper = cat.upper()
-
-                # Candidate 1: cat + full_token (if full_token has prefix, this will double)
-                if full_token:
-                    cand1 = cat_upper + full_token
-                    candidates.append(cand1)
-                # Candidate 2: if full_token itself is valid and length >=3, include
-                candidates.append(full_token.upper())
-                # Candidate 3: cat + num
-                cand3 = cat_upper + num
-                candidates.append(cand3)
-                # Candidate 4: if pref exists, cat + pref + num already covered by cand1, but also pref+num is full_token
-                # For cases where cat is multi-letter like RI, and full_token is B042? Unlikely, but include RI + B042? That would be RIB042 invalid
-                # So we filter candidates to those that look like valid CGHS code: [A-Z]{1,3}\d{3}
-
-                # Normalize candidates: remove any that are not matching pattern [A-Z]{1,4}\d{3} or DRUG100 etc
-                # And check against VALID_CODES
-                chosen = None
-                reason = ""
-                for cand in candidates:
-                    cand_up = cand.upper()
-                    # Clean cand: remove any non-alphanumeric? Keep letters and digits
-                    cand_up = re.sub(r'[^A-Z0-9]', '', cand_up)
-                    # Must match pattern: 1-3 letters + 3 digits, or special
-                    if re.match(r'^[A-Z]{1,3}\d{3}$', cand_up) or cand_up in ["DRUG100","CNSU100","CN002","WC001","CC001","CC002"]:
-                        if cand_up in VALID_CODES:
-                            chosen = cand_up
-                            reason = f"Row evidence '{part}' with category '{cat}' => {cand_up} (candidate from {candidates})"
-                            break
-                if chosen:
-                    expanded_codes.append((chosen, reason))
-                else:
-                    # If no candidate valid, try alternative: maybe cat itself is part of final code? e.g., cat RI, num 133 => RI133 valid, we already tried cat+num which is RI133, which should be valid
-                    # If still not valid, reject
-                    pass
+            if not pref and count > 1 and index > 0:
+                # Section 17: the bill omitted the prefix on a later component
+                # ("CGHS-LB269+270").  Carrying LB across the '+' is a guess,
+                # so the component is preserved for review instead.
+                final, status, reason, locked_qty = (
+                    None, REVIEW_REQUIRED,
+                    f"{UNRESOLVED_MAPPING}: component '{part}' of "
+                    f"'{raw_expression}' omits its code prefix; prefix carry "
+                    f"is ambiguous and is not performed", None)
             else:
-                # part doesn't match, maybe it's like "B042+0" already split? Actually we split, so should match
-                continue
+                final, status, reason, locked_qty = _resolve_component(
+                    cat, part, pref, num, upper)
 
-        # Add expanded codes to results
-        for code, reason in expanded_codes:
-            # Validate code is not hallucinated from duration like 101hr - our alias extraction limited to 100 chars after CGHS and first code token, so should not include 101hr
-            # Additionally, reject if code is CC010 and row contains OXYGEN? Actually CC010 could be valid but need evidence: our alias extraction for OXYGEN row gave C002, not 101, so CC010 would not appear
-            results.append((code, reason))
+            occurrence = {
+                "final_code": final,
+                "status": status,
+                "normalization_reason": reason,
+                "quantity": locked_qty,
+                "original_token": part,
+                "raw_expression": raw_expression,
+                "category": cat,
+                "page": page,
+                "section": section,
+                "service_name": service_name,
+                "source_row_text": row_text[:500],
+            }
+            if count > 1:
+                occurrence["parent_expression"] = raw_expression
+                occurrence["component_index"] = index
+                occurrence["component_count"] = count
+            occurrences.append(occurrence)
 
-    return results
+    return occurrences
