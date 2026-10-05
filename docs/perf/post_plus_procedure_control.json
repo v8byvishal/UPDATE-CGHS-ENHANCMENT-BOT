@@ -1,0 +1,157 @@
+{
+  "title": "Post-Plus procedure control: cost of the fix (task section 18)",
+  "before_commit": "6745865",
+  "after_commit": "f02528c",
+  "measured_with": "tools/measure_procedure_control.py",
+  "portal_double": "tests/support/react_select_dom.py (React-Select), resets_after_add=('procedure',)",
+  "note": "dom_calls = find_elements + element_reads + execute_script. The two happy-path scenarios are byte-identical before and after: arbitration recognises a neighbouring control from the identity recorded while driving it, so it costs no DOM round trip. The two re-render scenarios cost more because before the fix they did not finish - the engine stopped at the stale control.",
+  "single_item_dom_budget": {
+    "portal_double": "tests/support/fake_portal.py (Angular)",
+    "bound": 80,
+    "before": 78,
+    "after": 78,
+    "enforced_by": "tests/test_performance_caching.py::test_single_item_dom_budget and tests/test_stress.py::test_two_hundred_items_stay_within_the_session_and_dom_budget"
+  },
+  "scenarios": [
+    {
+      "scenario": "happy_path_27_codes",
+      "before": {
+        "find_elements": 435,
+        "element_reads": 939,
+        "execute_script": 997,
+        "dom_calls": 2371,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 27,
+        "outcome": "27/27 committed"
+      },
+      "after": {
+        "find_elements": 435,
+        "element_reads": 939,
+        "execute_script": 997,
+        "dom_calls": 2371,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 27,
+        "outcome": "27/27 committed"
+      },
+      "delta": {
+        "find_elements": 0,
+        "element_reads": 0,
+        "execute_script": 0,
+        "dom_calls": 0,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 0
+      }
+    },
+    {
+      "scenario": "gp001_locked_qty30",
+      "before": {
+        "find_elements": 524,
+        "element_reads": 434,
+        "execute_script": 400,
+        "dom_calls": 1358,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 30,
+        "outcome": "success=True plus=30 rows=30"
+      },
+      "after": {
+        "find_elements": 524,
+        "element_reads": 434,
+        "execute_script": 400,
+        "dom_calls": 1358,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 30,
+        "outcome": "success=True plus=30 rows=30"
+      },
+      "delta": {
+        "find_elements": 0,
+        "element_reads": 0,
+        "execute_script": 0,
+        "dom_calls": 0,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 0
+      }
+    },
+    {
+      "scenario": "gp001_locked_qty30_remount_at_19",
+      "before": {
+        "find_elements": 363,
+        "element_reads": 288,
+        "execute_script": 259,
+        "dom_calls": 910,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 19,
+        "outcome": "success=False plus=19 rows=19"
+      },
+      "after": {
+        "find_elements": 530,
+        "element_reads": 604,
+        "execute_script": 400,
+        "dom_calls": 1534,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 30,
+        "outcome": "success=True plus=30 rows=30"
+      },
+      "delta": {
+        "find_elements": 167,
+        "element_reads": 316,
+        "execute_script": 141,
+        "dom_calls": 624,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 11
+      }
+    },
+    {
+      "scenario": "cn002_then_c001_rerender",
+      "before": {
+        "find_elements": 167,
+        "element_reads": 110,
+        "execute_script": 94,
+        "dom_calls": 371,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 6,
+        "outcome": "CN002 success=True C001 success=False plus=6 rows=6"
+      },
+      "after": {
+        "find_elements": 189,
+        "element_reads": 171,
+        "execute_script": 126,
+        "dom_calls": 486,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 8,
+        "outcome": "CN002 success=True C001 success=True plus=8 rows=8"
+      },
+      "delta": {
+        "find_elements": 22,
+        "element_reads": 61,
+        "execute_script": 32,
+        "dom_calls": 115,
+        "frame_discoveries": 0,
+        "tab_scans": 0,
+        "fixed_sleep_ms": 0.0,
+        "rows": 2
+      }
+    }
+  ]
+}

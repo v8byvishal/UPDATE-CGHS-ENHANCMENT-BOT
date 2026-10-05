@@ -846,16 +846,26 @@ The browser is only asked when that free check still leaves more than one
 candidate standing, which only happens on a re-render.  Procedure-exclusive
 strategies keep first-match-wins and are not arbitrated at all.
 
-| scenario | metric | before | after |
-|---|---|---|---|
-| single item (budget 80) | DOM calls | 78 | **78** |
-| 27 codes | find_elements / execute_script | 1339 / 677 | **1339 / 677** |
-| GP001 locked qty30 | find_elements / execute_script | 532 / 404 | **532 / 404** |
-| all | fixed_sleep_ms | 0 | **0** |
-| all | frame_discoveries | 1 | **1** |
-| CN002 qty6 -> C001 qty2 | Plus clicks / rows | 6 / 6 | **8 / 8** |
+Measured by `tools/measure_procedure_control.py`, pre-fix column taken with
+`cghs/` reverted to `6745865`.  `dom_calls` = find_elements + element_reads
++ execute_script.
 
-That last row is the fix: before, C001 never ran at all.
+| scenario | DOM calls before | after | outcome before | outcome after |
+|---|---|---|---|---|
+| 27 codes, happy path | 2371 | **2371** | 27/27 | 27/27 |
+| GP001 locked qty30 | 1358 | **1358** | 30 Plus / 30 rows | 30 Plus / 30 rows |
+| GP001 qty30, re-render at unit 19 | 910 | 1534 | **FAILED at 19** | **30 Plus / 30 rows** |
+| CN002 qty6 -> C001 qty2 | 371 | 486 | **C001 failed, 6 rows** | **8 Plus / 8 rows** |
+| single item (budget 80) | 78 | **78** | - | - |
+
+The first two rows are byte-identical in every counter - `find_elements`
+435/435 and 524/524, `execute_script` 997/997 and 400/400 - so the fix is
+free wherever nothing re-renders.  The last two cost more only because
+before the fix they did not finish: the engine stopped at the stale control
+after 19 and 6 units respectively.  `fixed_sleep_ms` is 0 and
+`frame_discoveries` is unchanged in all four.
+
+Full numbers: `docs/perf/post_plus_procedure_control.json`.
 
 ### What was deliberately NOT changed
 
