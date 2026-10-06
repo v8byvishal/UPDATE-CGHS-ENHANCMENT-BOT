@@ -78,6 +78,14 @@ ROW_SAMPLES = [
 #: Samples whose FINAL CODES intentionally differ from the baseline, and why.
 #: Everything not listed here must still agree code-for-code.
 CODE_DEVIATIONS = {
+    "WARD CHARGES CGHS-G WC001 2 500.00 1000.00": (
+        ["WC001"], [],
+        "WC001 is not a CGHS code: the 1998-record master list defines no WC "
+        "family at all (it was a synthetic range() family). WC001 is an "
+        "internal Room Rent tally, derived at parsing.py from counted ward "
+        "rows, and parsing.py already REJECTS any WC001 appearing on a CGHS "
+        "row ('must be from Room Rent only'). Resolving it from bill text "
+        "would therefore manufacture a code the registry does not contain."),
     "Room Rent( CGHS-RI ) ICU 1 4500.00 4500.00": (
         ["RI145"], [],
         "RI145 was manufactured out of the rupee column: the baseline searched "
@@ -372,8 +380,14 @@ def test_drug_and_consumable_portal_mappings_are_locked():
     assert PORTAL_OPTION_MAP["DRUG100"] == "drugs(DRGU100-None)"
     assert PORTAL_OPTION_MAP["CNSU100"] == "consumables(CNSU100-None)"
     assert PORTAL_OPTION_MAP == BASELINE.PORTAL_OPTION_MAP
-    assert VALID_CODES == BASELINE.VALID_CODES
     assert CGHS_CATEGORY_MAP == BASELINE.CGHS_CATEGORY_MAP
+    # VALID_CODES deliberately DIVERGES from the baseline: the synthetic
+    # range()-generated universe (1802 codes, most of them invented) was
+    # replaced by the operator-supplied 1998-record CGHS master list.  The
+    # portal mappings either side of it are unchanged, which is the point of
+    # this test - the registry swap did not disturb them.
+    assert VALID_CODES != BASELINE.VALID_CODES
+    assert len(VALID_CODES) == 1998
 
 
 def test_portal_input_value_uses_the_mapping_then_the_code():
@@ -383,5 +397,13 @@ def test_portal_input_value_uses_the_mapping_then_the_code():
 
 
 def test_amount_based_codes_are_exactly_the_two_documented_ones():
-    amount_based = {code for code in VALID_CODES if code in PORTAL_OPTION_MAP}
-    assert amount_based == {"DRUG100", "CNSU100"}
+    """The two amount-based codes are portal targets, not CGHS master codes.
+
+    DRUG100/CNSU100 are department-subtotal pseudo-codes with proven portal
+    mappings.  They are deliberately absent from the CGHS master list, and
+    being a portal target is not registry membership - so the registry must
+    NOT contain them, and the portal map must contain exactly these two.
+    """
+    assert set(PORTAL_OPTION_MAP) == {"DRUG100", "CNSU100"}
+    assert not (set(PORTAL_OPTION_MAP) & set(VALID_CODES)), (
+        "a portal pseudo-code leaked into the CGHS registry")

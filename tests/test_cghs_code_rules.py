@@ -21,7 +21,13 @@ from __future__ import annotations
 import pytest
 
 from cghs import parsing, rules
-from cghs.locators import VALID_CODES
+from cghs.locators import (
+    CGHS_CODE_FAMILIES,
+    CGHS_CODE_REGISTRY,
+    PORTAL_OPTION_MAP,
+    VALID_CODES,
+    cghs_record,
+)
 from cghs.rules import EXECUTABLE, REVIEW_REQUIRED, resolve_cghs_codes
 
 
@@ -65,7 +71,7 @@ def _parse(lines, full_text=None):
     ("LIPID PROFILE CGHS-LB012", "LB012"),
     ("CHEST XRAY CGHS-RI034", "RI034"),
     ("ECHO CGHS-CI005", "CI005"),
-    ("PROCEDURE CGHS-GP021", "GP021"),
+    ("PROCEDURE CGHS-GP009", "GP009"),
     ("PHYSIOTHERAPY CGHS-PT004", "PT004"),
 ])
 def test_direct_codes_resolve_to_themselves(row, expected):
@@ -76,7 +82,7 @@ def test_direct_codes_resolve_to_themselves(row, expected):
     ("LIPID PROFILE CGHS-L B012", "LB012"),     # CGHS-L  + Bxxx -> LBxxx
     ("CHEST XRAY CGHS-RI 034", "RI034"),        # CGHS-RI + num  -> RIxxx
     ("ECHO CGHS-CI 005", "CI005"),              # CGHS-CI + num  -> CIxxx
-    ("PROCEDURE CGHS-G P021", "GP021"),         # CGHS-G  + Pxxx -> GPxxx
+    ("PROCEDURE CGHS-G P009", "GP009"),         # CGHS-G  + Pxxx -> GPxxx
     ("PHYSIOTHERAPY CGHS-P T004", "PT004"),     # CGHS-P  + Txxx -> PTxxx
     ("CONSULTATION CGHS-C N002", "CN002"),      # CGHS-C  + Nxxx -> CNxxx
 ])
@@ -471,11 +477,30 @@ def test_raw_aliases_are_never_executable_as_themselves(alias):
 # sections 11-12, 23: registry discipline
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("prefix", ["BC", "CT"])
+@pytest.mark.parametrize("prefix", ["WC", "ST", "OT"])
 def test_unproven_families_are_not_wildcarded_into_the_registry(prefix):
-    """Section 23: a prefix seen once is not a licence to invent a family."""
+    """Section 23: a prefix seen once is not a licence to invent a family.
+
+    WC/ST/OT were each a full 100-code family in the synthetic registry.  The
+    CGHS master list defines not one of them, so the registry must hold none.
+    """
     present = [c for c in VALID_CODES if c.startswith(prefix)]
     assert present == [], f"{prefix} family added without evidence: {present[:5]}"
+
+
+@pytest.mark.parametrize("prefix,expected", [
+    ("BC", ["BC001", "BC002", "BC003", "BC004", "BC005", "BC006"]),
+    ("CT", ["CT001", "CT002", "CT003", "CT004", "CT005", "CT006"]),
+    ("HC", ["HC001", "HC002"]),
+])
+def test_a_proven_family_holds_exactly_the_master_codes(prefix, expected):
+    """BC/CT/HC are real families - but only for the codes the master lists.
+
+    The synthetic registry held neither; the master list proves BC001-006,
+    CT001-006 and HC001-002 and nothing beyond them.  A family being real is
+    not a licence to extend it, so the contents are pinned exactly.
+    """
+    assert sorted(c for c in VALID_CODES if c.startswith(prefix)) == expected
 
 
 @pytest.mark.parametrize("token", ["BC002", "CT001"])
@@ -524,3 +549,249 @@ def test_resolution_does_not_rescan_the_document():
 def test_resolver_is_pure_and_repeatable():
     row = "LAB PANEL CGHS-LB269+LB270-2025 1 100.00 100.00"
     assert resolve_cghs_codes(row) == resolve_cghs_codes(row)
+
+
+# ---------------------------------------------------------------------------
+# CGHS MASTER REGISTRY - the 1998-record list is the only source of code identity
+#
+# The registry used to be generated: ``for i in range(1, 400): LB{i:03d}`` and
+# friends produced 1802 codes, most of which no CGHS document ever defined,
+# while real codes were missing entirely.  It is now the operator-supplied
+# master list committed to this repository as
+# ``CGHS_1998_CODE_TREATMENT_NABH_SPECIALITY (1).txt``
+# (164739 bytes, sha256 b3ad063160bb8e9776769e528266518600939cae3f5eec236cedc62f796d0f80).
+# ---------------------------------------------------------------------------
+
+def test_the_registry_holds_exactly_the_1998_master_records():
+    """Section 20: the whole master list was consumed, nothing added."""
+    assert len(CGHS_CODE_REGISTRY) == 1998
+    assert len(VALID_CODES) == 1998
+
+
+def test_valid_codes_is_derived_from_the_registry_not_a_second_list():
+    """There is ONE registry.  VALID_CODES is its key set, not a copy."""
+    assert VALID_CODES == frozenset(CGHS_CODE_REGISTRY)
+    assert isinstance(VALID_CODES, frozenset)
+
+
+def test_every_record_satisfies_the_section_20_assertions():
+    """Section 20: the acceptance gate, asserted against the shipped data.
+
+    record_count / sr_no range / missing / duplicate / blank / numeric-rate.
+    A failure here means the integration shipped a repaired or lossy record.
+    """
+    records = list(CGHS_CODE_REGISTRY.values())
+    assert len(records) == 1998
+
+    sr_numbers = sorted(r.sr_no for r in records)
+    assert sr_numbers[0] == 1
+    assert sr_numbers[-1] == 1998
+    assert sr_numbers == list(range(1, 1999)), "missing or duplicate Sr No"
+
+    assert len({r.code for r in records}) == 1998, "duplicate CGHS code"
+
+    for r in records:
+        assert r.code.strip(), f"blank code at Sr {r.sr_no}"
+        assert r.description.strip(), f"blank description at Sr {r.sr_no}"
+        assert r.nabh_rate.strip(), f"blank NABH rate at Sr {r.sr_no}"
+        assert r.speciality.strip(), f"blank speciality at Sr {r.sr_no}"
+        assert r.nabh_rate.replace(".", "", 1).isdigit(), (
+            f"non-numeric NABH rate {r.nabh_rate!r} at Sr {r.sr_no}")
+
+
+def test_sr_no_is_metadata_and_never_the_code():
+    """Section 5: Sr 1998 is HC002 - the serial number is not an identity."""
+    assert cghs_record("HC002").sr_no == 1998
+    assert "1998" not in VALID_CODES
+    assert "1" not in VALID_CODES
+    # The old registry carried a bare numeric token; nothing numeric survives.
+    assert not [c for c in VALID_CODES if c.isdigit()]
+
+
+def test_hc002_the_last_master_record_is_valid():
+    """It was INVALID before: no range() ever produced an HC family."""
+    assert "HC002" in VALID_CODES
+    record = cghs_record("HC002")
+    assert record.code == "HC002"
+    assert record.nabh_rate == "2200"
+    assert record.speciality == "Annual Health Check-up"
+
+
+@pytest.mark.parametrize("code", ["CC099", "LB399", "RI200", "CI100", "C001",
+                                  "C002", "WC001", "PT100", "MG100", "OT001"])
+def test_codes_the_generator_invented_are_no_longer_valid(code):
+    """Section 4: every one of these was VALID purely because of range()."""
+    assert code not in VALID_CODES
+    assert cghs_record(code) is None
+
+
+def test_no_family_is_a_contiguous_synthetic_range():
+    """Section 4: no family may look like range(1, N) output.
+
+    The generator emitted unbroken 1..100 / 1..200 / 1..399 runs.  A real
+    family from the master list is far smaller than its highest number is
+    large only by coincidence, so the tell-tale is an exact 1..N run of a
+    size the generator used.
+    """
+    synthetic_sizes = {100, 200, 399}
+    for family in CGHS_CODE_FAMILIES:
+        members = sorted(c for c in VALID_CODES if c[:2] == family)
+        if len(members) not in synthetic_sizes:
+            continue
+        numbers = [int(c[2:]) for c in members]
+        assert numbers != list(range(1, len(members) + 1)), (
+            f"{family} is still a contiguous synthetic range of "
+            f"{len(members)} codes")
+
+
+def test_metadata_travels_with_the_code(
+):
+    """Sections 6/16/17: description, NABH rate and speciality stay attached."""
+    record = cghs_record("CC002")
+    assert record.description == "Compressed Air / Piped Oxygen per hour"
+    assert record.nabh_rate == "90"          # preserved exactly, never computed
+    assert record.speciality == "Critical Care"   # authoritative, never guessed
+
+
+def test_the_nabh_rate_is_the_source_string_not_a_number():
+    """Section 17: the rate is preserved exactly - not rounded or re-typed."""
+    assert cghs_record("BC002").nabh_rate == "1550"
+    assert cghs_record("CI001").nabh_rate == "158"
+    assert isinstance(cghs_record("CI001").nabh_rate, str)
+
+
+def test_speciality_is_read_from_the_master_not_inferred_from_the_prefix():
+    """Section 16: two codes sharing no prefix logic still carry their own."""
+    assert cghs_record("BC002").speciality == "Blood Component Charges"
+    assert cghs_record("GP001").speciality == "General Procedure"
+    assert cghs_record("PT004").speciality == "Physiotherapy"
+
+
+def test_registry_lookup_is_exact_and_never_fuzzy():
+    """No closest match, no description search, no prefix widening."""
+    assert cghs_record("cc002") is not None      # input case is normalised
+    assert cghs_record(" CC002 ") is not None    # ...and surrounding space
+    assert cghs_record("CC0020") is None
+    assert cghs_record("CC02") is None
+    assert cghs_record("Compressed Air") is None
+    assert cghs_record("") is None
+    assert cghs_record(None) is None
+
+
+@pytest.mark.parametrize("row,expected", [
+    ("SERVICE CGHS-L B248-2025 1 100.00 100.00", "LB248"),
+    ("SERVICE CGHS-RI 062-2025 1 100.00 100.00", "RI062"),
+    ("SERVICE CGHS-CI 003-2025 1 100.00 100.00", "CI003"),
+    ("PACKED RED CELL CGHS-B C002-2025 1 100.00 100.00", "BC002"),
+    ("SERVICE CGHS-A G008-2025 1 100.00 100.00", "AG008"),
+    ("SERVICE CGHS-E P092-2025 1 100.00 100.00", "EP092"),
+    ("SERVICE CGHS-M G001-2025 1 100.00 100.00", "MG001"),
+    ("SERVICE CGHS-N S064-2025 1 100.00 100.00", "NS064"),
+    ("SERVICE CGHS-N U110-2025 1 100.00 100.00", "NU110"),
+    ("SERVICE CGHS-N U122-2025 1 100.00 100.00", "NU122"),
+    ("SERVICE CGHS-P T004-2025 1 100.00 100.00", "PT004"),
+    ("SERVICE CGHS-P T005-2025 1 100.00 100.00", "PT005"),
+    ("SERVICE CGHS-G P009-2025 1 100.00 100.00", "GP009"),
+])
+def test_every_real_hospital_bill_format_resolves(row, expected):
+    """Sections 7/14/19: each one, and each result, is in the master list."""
+    assert codes(row) == [expected]
+    assert expected in VALID_CODES
+
+
+@pytest.mark.parametrize("row,expected", [
+    ("SERVICE CGHS-RI 062-202 5 1 100.00 100.00", "RI062"),   # 062-202 + 5
+    ("SERVICE CGHS-RI 062-20 25 1 100.00 100.00", "RI062"),
+    ("SERVICE CGHS-L B-103-2 025 1 100.00 100.00", "LB103"),  # B-103-2 + 025
+    ("SERVICE CGHS-L B103-2 025 1 100.00 100.00", "LB103"),
+])
+def test_a_pdf_line_wrapped_code_is_reconstructed_then_validated(row, expected):
+    """Sections 8/19: reconstruct the token, then still prove registry membership."""
+    assert codes(row) == [expected]
+
+
+def test_the_hyphen_repair_never_welds_a_year_onto_a_family_letter():
+    """Section 8: reconstruct, but never invent.  B-2025 is not B202."""
+    assert "B202" not in codes("SERVICE CGHS-L B-2025 1 100.00 100.00")
+    assert "LB202" not in codes("SERVICE CGHS-L B-2025 1 100.00 100.00")
+    assert "RI202" not in codes("SERVICE CGHS-RI -2025 1 100.00 100.00")
+
+
+def test_the_year_suffix_never_reaches_the_executable_code():
+    """Section 9: -2025 is metadata."""
+    for code in codes("SERVICE CGHS-RI 062-2025 1 100.00 100.00"):
+        assert code == "RI062"
+        assert "2025" not in code and "-" not in code
+
+
+def test_a_proven_compound_becomes_three_independent_codes():
+    """Sections 10/11/22: CGHS-L B042+043+044 is three codes, not one."""
+    row = "LAB PANEL CGHS-L B042+043+044-2025 1 100.00 100.00"
+    assert codes(row) == ["LB042", "LB043", "LB044"]
+    for code in codes(row):
+        assert code in VALID_CODES
+        assert "-" not in code and "+" not in code
+
+    occurrences = resolve_cghs_codes(row)
+    assert len(occurrences) == 3
+    assert {o["component_index"] for o in occurrences} == {0, 1, 2}
+    assert all(o["component_count"] == 3 for o in occurrences)
+    # Section 26: provenance survives the split.
+    assert all(o["raw_expression"] == "B042+043+044" for o in occurrences)
+
+
+def test_prefix_carry_needs_a_registry_hit_for_every_component():
+    """Section 11: carry is refused the moment a component is not a real code.
+
+    LB042 exists; LB999 does not.  The proven component still resolves, the
+    unprovable one is preserved for review rather than invented.
+    """
+    row = "LAB PANEL CGHS-L B042+999-2025 1 100.00 100.00"
+    assert codes(row) == ["LB042"]
+    assert review(row) == ["999"]
+
+
+@pytest.mark.parametrize("row", [
+    "SERVICE CGHS-GP021 1 100.00 100.00",      # range() invented GP014..GP100
+    "SERVICE CGHS-CC099 1 100.00 100.00",      # range() invented CC015..CC100
+    "SERVICE CGHS-LB999 1 100.00 100.00",
+    "SERVICE CGHS-RI999 1 100.00 100.00",
+    "INVOICE 4471 CGHS-L B9999 1 100.00 100.00",
+])
+def test_a_pattern_shaped_code_absent_from_the_master_is_never_executable(row):
+    """Sections 3/21: shape is not membership.  Fail closed, and say so."""
+    assert codes(row) == []
+    assert review(row), "the occurrence was silently dropped instead of reported"
+
+
+@pytest.mark.parametrize("identifier", ["HSN 998514", "PMIS 12345",
+                                        "SERVICE CODE 4471", "ITEM 00123"])
+def test_a_foreign_identifier_is_never_read_as_a_cghs_code(identifier):
+    """Section 18: invoice / HSN / PMIS / item numbers are not CGHS codes."""
+    assert codes(f"{identifier} 1 100.00 100.00") == []
+
+
+def test_the_c_family_safety_rules_are_unchanged_by_the_registry_swap():
+    """Section 12/13: the locked context rules still govern raw C aliases."""
+    # C003 has no approved target and stays unresolved - CC003 now EXISTS in
+    # the master list, which makes this the sharpest possible version of the
+    # rule: availability of a plausible target is still not authorisation.
+    assert "CC003" in VALID_CODES
+    assert codes("VENTILATOR CGHS-C C003 1 100.00 100.00") == []
+    assert review("VENTILATOR CGHS-C C003 1 100.00 100.00") == ["C003"]
+
+    # C002 is Oxygen only, and only with the evidence on the same row.
+    assert codes("OXYGEN FULL DAY CGHS-C C002") == ["CC002"]
+    assert codes("BLOOD BANK PACKED CELLS CGHS-C C002") == []
+    assert codes("SOME OTHER SERVICE CGHS-C C002") == []
+
+    # The remaining context mappings still need their same-row evidence.
+    assert codes("BLOOD TRANSFUSION CGHS-C C008") == ["CC008"]
+    assert codes("UNRELATED SERVICE CGHS-C C008") == []
+
+
+def test_portal_pseudo_codes_are_not_registry_members():
+    """Registry membership is not a portal target, and vice versa."""
+    for pseudo in PORTAL_OPTION_MAP:
+        assert pseudo not in VALID_CODES
+        assert cghs_record(pseudo) is None

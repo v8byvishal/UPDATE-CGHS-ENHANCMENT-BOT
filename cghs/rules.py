@@ -14,7 +14,12 @@ BUSINESS RULES ARE UNCHANGED.  Any behavioural change in this file is a defect.
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from .locators import VALID_CODES, CGHS_CATEGORY_MAP, PORTAL_OPTION_MAP  # noqa: F401
+from .locators import (  # noqa: F401
+    CGHS_CATEGORY_MAP,
+    CGHS_CODE_FAMILIES,
+    PORTAL_OPTION_MAP,
+    VALID_CODES,
+)
 
 # ---------------------------------------------------------------------------
 # Locked CGHS code-resolution tables
@@ -38,6 +43,11 @@ REVIEW_REQUIRED = "REVIEW_REQUIRED"
 UNRESOLVED_MAPPING = "UNRESOLVED_MAPPING"
 
 #: Category + alias-prefix -> final family.  ("C", "C") is deliberately absent.
+#:
+#: Every pair below is an observed real-bill format whose resulting family is
+#: present in the CGHS master list.  The composition is still only a CANDIDATE:
+#: it becomes executable solely when the composed code exists in the registry,
+#: so a pair being listed here can never manufacture a code.
 LOCKED_CATEGORY_COMPOSITION = {
     ("L", "B"): "LB",   # CGHS-L  + Bxxx -> LBxxx
     ("G", "P"): "GP",   # CGHS-G  + Pxxx -> GPxxx
@@ -45,6 +55,11 @@ LOCKED_CATEGORY_COMPOSITION = {
     ("C", "N"): "CN",   # CGHS-C  + Nxxx -> CNxxx
     ("R", "P"): "RP",
     ("M", "G"): "MG",
+    ("A", "G"): "AG",   # CGHS-A  + Gxxx -> AGxxx  (General Surgery)
+    ("E", "P"): "EP",   # CGHS-E  + Pxxx -> EPxxx  (ENT Procedure)
+    ("N", "S"): "NS",   # CGHS-N  + Sxxx -> NSxxx  (Neuro Surgery)
+    ("N", "U"): "NU",   # CGHS-N  + Uxxx -> NUxxx  (Nephrology/Urology)
+    ("B", "C"): "BC",   # CGHS-B  + Cxxx -> BCxxx  (Blood Component Charges)
 }
 
 #: Categories that are already a full family prefix and so take a bare numeric
@@ -54,8 +69,15 @@ LOCKED_NUMERIC_CATEGORIES = frozenset({
 })
 
 #: Families that may appear as a complete explicit token in the bill.
+#:
+#: DERIVED from the master registry - never hand-maintained - plus the three
+#: legacy families (WC/ST/OT) that the bill text can still carry but that the
+#: master list does not define.  Matching here only means "this token has the
+#: SHAPE of a code"; executability still requires registry membership, so
+#: listing a family can never make an unregistered code executable.
 _EXPLICIT_FAMILY = re.compile(
-    r'^(LB|RI|CI|RP|GP|PT|CN|CC|WC|MG|NI|ST|OT)(\d{3})$')
+    r'^(' + '|'.join(sorted(CGHS_CODE_FAMILIES | {"WC", "ST", "OT"},
+                            key=lambda f: (-len(f), f))) + r')(\d{3})$')
 
 #: A raw C-alias.  Never executable on its own - it must pass a locked rule.
 _RAW_C_ALIAS = re.compile(r'^C(\d{3})$')
@@ -307,10 +329,55 @@ def _alias_region(row_text: str, marker_end: int) -> str:
         region = region[:money.start()]
 
     region = _YEAR_SUFFIX.sub("", region)
+    # Rejoin a family letter the PDF split from its number with a hyphen:
+    # "CGHS-L B-103-2 025" -> "B103...".  Deliberately AFTER the year strip,
+    # so a clean "-2025" is already gone and this can never weld a year onto
+    # a letter ("B-2025" -> "B" long before we get here).  One letter, three
+    # digits, nothing invented.
+    region = re.sub(r'\b([A-Z])-(\d{3})\b', r'\1\2', region)
     # repair PDF-fragmented numbers: "B042+0 43" -> "B042+043"
     region = re.sub(r'(\d)\s+(\d)', r'\1\2', region)
     region = re.sub(r'(\d)\s+(\d)', r'\1\2', region)
     return region
+
+
+def _carry_prefix(cat: str, parts: List[str], index: int, pref: str,
+                  num: str) -> Optional[str]:
+    """Section 11: the family of a PROVEN compound, else ``None``.
+
+    A prefix is carried across ``+`` only when every condition holds:
+
+    * the component itself is numeric-only (nothing to override);
+    * it is not the first component of the expression;
+    * the FIRST component carried an explicit alphabetic family
+      (``B042`` in ``CGHS-L B042+043+044``) - a bare first component such as
+      ``CGHS-LB269+270`` proves nothing and must not be carried;
+    * every component between the first and this one is numeric-only, so the
+      expression is one contiguous run under one unchanged category;
+    * the resulting code exists in the CGHS master registry.
+
+    Anything else returns ``None`` and the caller preserves the component for
+    review.  This never invents a family and never widens to a new category.
+    """
+    if pref or index == 0:
+        return None
+
+    first = re.match(r'^([A-Z]{1,2})(\d{3})$', parts[0])
+    if not first:
+        return None
+
+    # Every component after the first must be numeric-only for the run to be
+    # contiguous and unambiguous.
+    for middle in parts[1:index]:
+        if not re.fullmatch(r'\d{3}', middle):
+            return None
+
+    family = LOCKED_CATEGORY_COMPOSITION.get((cat, first.group(1)))
+    if family is None:
+        return None
+
+    candidate = f"{family}{num}"
+    return candidate if candidate in VALID_CODES else None
 
 
 def _resolve_component(cat: str, token: str, pref: str, num: str,
@@ -323,9 +390,21 @@ def _resolve_component(cat: str, token: str, pref: str, num: str,
     explicit token -> canonical registry -> locked context rule; inference
     never becomes executable on its own.
     """
+    # 0. A C-token that is the ALIAS PREFIX of an explicit locked composition
+    #    is not a raw C-alias at all: "CGHS-B C002" is the Blood Component
+    #    category carrying Cxxx, which composes to BC002 (Packed Red Cell).
+    #    ("C", "C") is deliberately absent from the table, so a genuine
+    #    "CGHS-C C002" row can never take this path and keeps the full
+    #    Oxygen / Blood Bank safety treatment in branch 1 below.
+    _composed_family = LOCKED_CATEGORY_COMPOSITION.get((cat, pref))
+    _is_composed_alias = (
+        _composed_family is not None
+        and f"{_composed_family}{num}" in VALID_CODES
+    )
+
     # 1. A raw C-alias is never executable by itself.  It resolves only
     #    through a locked rule that reads the SAME-ROW evidence.
-    if _RAW_C_ALIAS.match(token):
+    if _RAW_C_ALIAS.match(token) and not _is_composed_alias:
         if token in _NEVER_RESOLVED_ALIASES:
             return (None, REVIEW_REQUIRED,
                     f"{UNRESOLVED_MAPPING}: {token} has no approved target "
@@ -444,10 +523,26 @@ def resolve_cghs_codes(row_text: str, page: Any = None, section: str = "",
                 continue
             pref, num = shape.group(1), shape.group(2)
 
-            if not pref and count > 1 and index > 0:
+            carried = _carry_prefix(cat, parts, index, pref, num)
+
+            if not pref and count > 1 and index > 0 and carried:
+                # Section 11: the compound is PROVEN - the first component
+                # carried an explicit family, every component is numeric-only
+                # after it, the category is unchanged across the one
+                # contiguous expression, and the carried code exists in the
+                # registry.  "CGHS-L B042+043+044" is therefore three
+                # independent codes, not one and two dropped.
+                final, status, reason, locked_qty = (
+                    carried, EXECUTABLE,
+                    f"Prefix carried from the first component of "
+                    f"'{raw_expression}' => {carried}; the compound is "
+                    f"unambiguous and {carried} is in the CGHS code registry",
+                    None)
+            elif not pref and count > 1 and index > 0:
                 # Section 17: the bill omitted the prefix on a later component
-                # ("CGHS-LB269+270").  Carrying LB across the '+' is a guess,
-                # so the component is preserved for review instead.
+                # ("CGHS-LB269+270").  The first component is itself bare, so
+                # there is no explicit family to carry: that would be a guess,
+                # and the component is preserved for review instead.
                 final, status, reason, locked_qty = (
                     None, REVIEW_REQUIRED,
                     f"{UNRESOLVED_MAPPING}: component '{part}' of "
