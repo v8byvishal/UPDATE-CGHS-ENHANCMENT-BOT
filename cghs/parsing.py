@@ -30,6 +30,7 @@ from .rules import (
     REVIEW_REQUIRED,
     extract_consumables_total,
     extract_dept_subtotal,
+    reconcile_pharmacy,
     normalize_cghs_code,
     parse_oxygen_quantity,
     parse_row_quantity,
@@ -454,10 +455,15 @@ class CGHSParsingEngine:
 
         # DRUG100 and CNSU100 from dept subtotals - preserve existing logic
         try:
-            ip_amt = extract_dept_subtotal(full_text, r'IP\s*Pharmacy')
-            ot_amt = extract_dept_subtotal(full_text, r'OT\s*Pharmacy')
-            drugs_amt = ip_amt + ot_amt
-            if drugs_amt > 0 and drugs_amt < 500000:
+            pharmacy = reconcile_pharmacy(full_text)
+            ip_amt = pharmacy["ip_detailed"]
+            ot_amt = pharmacy["ot_detailed"]
+            drugs_amt = pharmacy["total"]
+            if drugs_amt > 0 and pharmacy["status"] == EXECUTABLE:
+                # No upper bound.  A real bill's pharmacy spend runs to seven
+                # figures; the old ``drugs_amt < 500000`` gate, combined with
+                # the same cutoff inside extract_dept_subtotal, reported
+                # DRUG100 = 1,790.80 (OT alone) on a 743,895.18 pharmacy.
                 raw_occurrences.append({
                     "code": "DRUG100",
                     "qty": 1,
@@ -469,15 +475,37 @@ class CGHSParsingEngine:
                     "source_section": "Pharmacy",
                     "source_service_name": "IP+OT Pharmacy",
                     "source_row_text": f"IP {ip_amt} OT {ot_amt}",
-                    "normalization_reason": f"DRUG100 = IP Pharmacy subtotal ({ip_amt:.2f}) + OT Pharmacy subtotal ({ot_amt:.2f}), Patient Payable excluded"
+                    "pharmacy_provenance": pharmacy["provenance"],
+                    "normalization_reason": pharmacy["reason"],
                 })
                 aggregation_log.append(f"[DRUG100] {ip_amt:.2f} + {ot_amt:.2f} = {drugs_amt:.2f}")
+            elif drugs_amt > 0:
+                # The bill contradicts itself about its own pharmacy total.
+                # Reporting either figure would be a guess, so the amount is
+                # surfaced for review and never silently executed.
+                rejected.append({
+                    "page": "DRUGS",
+                    "block": (f"IP Pharmacy detailed {ip_amt:,.2f} / summary "
+                              f"{pharmacy['ip_summary']} | OT Pharmacy detailed "
+                              f"{ot_amt:,.2f} / summary {pharmacy['ot_summary']}"),
+                    "reason": f"{REVIEW_REQUIRED}: {pharmacy['reason']}",
+                    "section": "Pharmacy",
+                    "code": "DRUG100",
+                    "status": REVIEW_REQUIRED,
+                    "raw_expression": f"IP {ip_amt} OT {ot_amt}",
+                    "original_token": "DRUG100",
+                    "pharmacy_provenance": pharmacy["provenance"],
+                })
+                aggregation_log.append(
+                    f"[DRUG100] {REVIEW_REQUIRED}: detailed {drugs_amt:,.2f} vs "
+                    f"summary {pharmacy['summary_total']:,.2f}, difference "
+                    f"{pharmacy['difference']:,.2f} - not executed")
         except Exception as e:
             rejected.append({"page": "DRUGS", "block": str(e)[:200], "reason": "DRUG100 extraction error"})
 
         try:
             cons_total, cons_details = extract_consumables_total(full_text)
-            if cons_total > 0 and cons_total < 500000:
+            if cons_total > 0:   # no magnitude cutoff - see rules.extract_dept_subtotal
                 raw_occurrences.append({
                     "code": "CNSU100",
                     "qty": 1,

@@ -188,7 +188,10 @@ def test_rules_module_is_a_verbatim_copy_of_the_baseline_block():
 
     # Any change to a business rule must be DECLARED, with a reason, and backed
     # by its own differential test.  Undeclared drift still fails hard.
-    assert modified == sorted(DECLARED_RULE_DEVIATIONS), (
+    # Compared as sorted sequences: ``modified`` follows baseline SOURCE order,
+    # the declaration is alphabetical.  Equality of content is the assertion -
+    # every change declared, every declaration real - not incidental ordering.
+    assert sorted(modified) == sorted(DECLARED_RULE_DEVIATIONS), (
         f"undeclared rule change(s): {sorted(set(modified) - set(DECLARED_RULE_DEVIATIONS))}; "
         f"declared but unchanged: {sorted(set(DECLARED_RULE_DEVIATIONS) - set(modified))}")
 
@@ -213,7 +216,28 @@ DECLARED_RULE_DEVIATIONS = {
         "instead of being guessed or silently dropped. Compound '+' "
         "expressions are split and resolved per component, and prefix carry "
         "across a '+' is no longer assumed."),
+    "extract_dept_subtotal": (
+        "Baseline accepted a department subtotal only when '0 < val < 500000'. "
+        "That magnitude cutoff is not a business rule - no CGHS or hospital "
+        "rule caps a department at five lakh - and on real bill BPLIP39538 "
+        "(Mr. KAMTA PRASAD TIWARI, BPL-ICR-29191) it silently destroyed the "
+        "pharmacy figure: IP Pharmacy's real Dept Sub Total of 742,104.38 was "
+        "rejected and contributed 0.00, while OT Pharmacy's 1,790.80 passed, so "
+        "the caller summed 1,790.80 and - being under the same ceiling - "
+        "emitted DRUG100 = 1,790.80 against a true pharmacy spend of "
+        "743,895.18. The extraction 'succeeded' syntactically and under-reported "
+        "by 742,104.38 with no warning. The cutoff is removed; the guards that "
+        "actually belong here are structural and are kept: the department slice, "
+        "the Patient Payable / Grand Total / Payer Payable exclusion, and the "
+        "requirement that the amount sit against a 'Dept Sub Total' label. "
+        "Additionally the Service Summary span is now skipped explicitly, so a "
+        "summary line restating the same department can never be added to its "
+        "detailed subtotal and double count it. See "
+        "test_dept_subtotal_differs_from_baseline_only_above_the_old_ceiling."),
     "extract_consumables_total": (
+        "Also carried the identical '0 < val < 500000' magnitude cutoff removed "
+        "from extract_dept_subtotal, which silently dropped real six-figure "
+        "consumable subtotals; see that entry for the full evidence. Separately: "
         "Baseline scanned one alternating regex with finditer, which matches at "
         "the earliest position. When a line-item amount sat immediately above a "
         "'Dept Sub Total :' label, the value-first branch matched that ROW amount "
@@ -407,3 +431,40 @@ def test_amount_based_codes_are_exactly_the_two_documented_ones():
     assert set(PORTAL_OPTION_MAP) == {"DRUG100", "CNSU100"}
     assert not (set(PORTAL_OPTION_MAP) & set(VALID_CODES)), (
         "a portal pseudo-code leaked into the CGHS registry")
+
+
+def test_dept_subtotal_differs_from_baseline_only_above_the_old_ceiling():
+    """Oracle for the extract_dept_subtotal deviation.
+
+    Below 500,000 the new implementation must agree with the baseline exactly.
+    At and above it the baseline returns 0.00 - it does not reject the bill, it
+    silently deletes the department - and the new implementation returns the
+    real figure.
+    """
+    def one(amount):
+        return (f"IP Pharmacy(999311)\n1 CGHS DRUG A IPP01 1 1.00 1.00\n"
+                f"Dept Sub Total : {amount:,.2f}\n")
+
+    for amount in (100.00, 12345.67, 250000.00, 499999.99):
+        assert rules.extract_dept_subtotal(one(amount), r'IP\s*Pharmacy') == \
+            pytest.approx(BASELINE.extract_dept_subtotal(one(amount), r'IP\s*Pharmacy')), \
+            f"{amount:,.2f} is below the old ceiling and must be unchanged"
+
+    for amount in (500000.00, 742104.38, 1250000.00):
+        assert BASELINE.extract_dept_subtotal(one(amount), r'IP\s*Pharmacy') == 0.0, \
+            "the baseline really did silently zero this department"
+        assert rules.extract_dept_subtotal(one(amount), r'IP\s*Pharmacy') == \
+            pytest.approx(amount, abs=0.005), "the real figure must survive now"
+
+
+def test_drug100_under_the_old_ceiling_is_byte_for_byte_unchanged():
+    """Bills the baseline handled correctly must produce the identical amount."""
+    text = ("IP Pharmacy(999311)\n1 CGHS DRUG A IPP01 1 1.00 1.00\n"
+            "Dept Sub Total : 12,345.67\n\n"
+            "OT Pharmacy(999311)\n1 CGHS DRUG B OTP01 1 1.00 1.00\n"
+            "Dept Sub Total : 2,345.00\n")
+    ip = rules.extract_dept_subtotal(text, r'IP\s*Pharmacy')
+    ot = rules.extract_dept_subtotal(text, r'OT\s*Pharmacy')
+    assert ip == pytest.approx(BASELINE.extract_dept_subtotal(text, r'IP\s*Pharmacy'))
+    assert ot == pytest.approx(BASELINE.extract_dept_subtotal(text, r'OT\s*Pharmacy'))
+    assert round(ip + ot, 2) == pytest.approx(14690.67, abs=0.005)

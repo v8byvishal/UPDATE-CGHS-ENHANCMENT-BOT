@@ -148,11 +148,88 @@ def _subtotal_at(text: str, label):
     return None, "no_amount"
 
 
+# ---------------------------------------------------------------------------
+# Service Summary vs detailed department sections
+#
+# A bill states each department TWICE: once as a line in the Service Summary
+# near the front, and once as a detailed section ending in "Dept Sub Total".
+# The two are not always equal - on bill BPLIP39538 the IP Pharmacy summary
+# read 773,703.60 while the detailed subtotal read 742,104.38, a gap of
+# 31,599.22.  The locked rule for DRUG100 (see the module docstring of
+# cghs.parsing) is the *subtotal*, so the detailed sections are what
+# ``extract_dept_subtotal`` must read, and the summary must be kept out of it.
+#
+# Structurally the summary is already excluded because its lines do not carry
+# the literal "Dept Sub Total".  That is not a guarantee, so the summary span
+# is located and skipped explicitly: a summary line that happened to spell the
+# label would otherwise be added to the detail and double count the department.
+# ---------------------------------------------------------------------------
+
+_SERVICE_SUMMARY_HEADING = re.compile(
+    r'(?:Official\s*)?Service\s*(?:Wise\s*)?Summary', re.IGNORECASE)
+_DEPT_HEADER_RE = re.compile(r'[A-Za-z][A-Za-z\s]*\(\s*999311\s*\)', re.IGNORECASE)
+
+#: Rupee tolerance when comparing two statements of the same department.
+#: This is decimal-precision slack (one paisa), NOT a business threshold.
+PHARMACY_RECONCILIATION_TOLERANCE = 0.01
+
+
+def _service_summary_span(text: str):
+    """Return ``(start, end)`` of the Service Summary block, or ``None``.
+
+    The block runs from the heading to the first detailed department header,
+    because that header is where the itemised sections begin.
+    """
+    heading = _SERVICE_SUMMARY_HEADING.search(text)
+    if not heading:
+        return None
+    end = len(text)
+    for h in _DEPT_HEADER_RE.finditer(text, heading.end()):
+        end = h.start()
+        break
+    return (heading.start(), end)
+
+
+def extract_service_summary_amount(text: str, dept_pattern: str):
+    """Read one department's amount from the Service Summary block.
+
+    Returns ``None`` when the bill has no Service Summary or the department is
+    not listed in it - absence of evidence, never a zero.  Only the department's
+    own line is read, so neighbouring rows (Patient Payable, Deposit, Grand
+    Total) can never be picked up.
+    """
+    span = _service_summary_span(text)
+    if span is None:
+        return None
+    start, end = span
+    label = re.compile(dept_pattern, re.IGNORECASE)
+    pos = start
+    for line in text[start:end].splitlines(keepends=True):
+        line_start, pos = pos, pos + len(line)
+        if line_start == start and _SERVICE_SUMMARY_HEADING.search(line):
+            continue
+        if not label.search(line):
+            continue
+        amounts = re.findall(r'([\d,]+\.\d{2})', line)
+        if not amounts:
+            continue
+        try:
+            return float(amounts[-1].replace(',', ''))
+        except ValueError:
+            continue
+    return None
+
+
 def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
     total = 0.0
     try:
-        dept_headers = list(re.finditer(r'[A-Za-z][A-Za-z\s]*\(\s*999311\s*\)', text, re.IGNORECASE))
+        summary_span = _service_summary_span(text)
+        dept_headers = list(_DEPT_HEADER_RE.finditer(text))
         for m in re.finditer(dept_pattern, text, re.IGNORECASE):
+            # The Service Summary states the same department a second time.
+            # Reading it here would double count the department.
+            if summary_span and summary_span[0] <= m.start() < summary_span[1]:
+                continue
             next_pos = len(text)
             for h in dept_headers:
                 if h.start() > m.start():
@@ -168,7 +245,13 @@ def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
                         val = float(mm.group(1).replace(',',''))
                         break
                     except: continue
-            if val is not None and 0 < val < 500000:
+            # No upper bound: a real IP Pharmacy subtotal on bill BPLIP39538 is
+            # 742,104.38.  The previous ``val < 500000`` cutoff did not reject
+            # the bill - it zeroed the IP component and let OT through, so the
+            # bot reported DRUG100 = 1,790.80 for 743,895.18 of pharmacy.  The
+            # guards that actually belong here are structural (department slice,
+            # Patient Payable / Grand Total exclusion), not a magnitude guess.
+            if val is not None and val > 0:
                 total += val
     except Exception:
         pass
@@ -184,7 +267,9 @@ def extract_consumables_total(text: str):
         try:
             val = float(amt_str.replace(',',''))
         except: continue
-        if not (0 < val < 500000):
+        # No upper bound - see extract_dept_subtotal: a magnitude cutoff
+        # silently discards real six-figure consumable subtotals.
+        if not val > 0:
             continue
         start = max(0, m.start()-5000)
         snippet = text[start:m.start()]
@@ -216,6 +301,103 @@ def extract_consumables_total(text: str):
             uniq.append((pat,val))
     total = sum(v for _,v in uniq)
     return total, uniq
+
+
+def reconcile_pharmacy(text: str) -> dict:
+    """Resolve the DRUG100 pharmacy amount and prove where it came from.
+
+    The amount itself is NOT a judgement call: the locked rule recorded in the
+    ``cghs.parsing`` module docstring is
+
+        DRUG100 = IP Pharmacy subtotal + OT Pharmacy subtotal
+
+    and "subtotal" is the detailed department ``Dept Sub Total``, which is why
+    ``extract_dept_subtotal`` skips any slice carrying Patient Payable.  This
+    function returns exactly that figure and never substitutes another.
+
+    What it adds is a cross-check.  Where the bill ALSO states the department
+    in its Service Summary, the two statements are compared.  They are expected
+    to agree; when they do not, the gap is real information about the bill that
+    the parser cannot resolve on its own - on BPLIP39538 the IP Pharmacy
+    summary exceeded the detailed subtotal by 31,599.22, and nothing in the
+    available source explains the composition of that gap.  Rather than pick a
+    number, the result is marked ``REVIEW_REQUIRED`` and carries both figures
+    so an operator decides.  A bill with no Service Summary offers no
+    contradicting evidence and stays ``EXECUTABLE`` exactly as before.
+
+    Returns a dict with ``total`` (the rule amount), the four component
+    readings, ``difference``, ``reconciled``, ``status``, ``reason`` and
+    ``provenance``.
+    """
+    departments = (("IP Pharmacy", r'IP\s*Pharmacy'), ("OT Pharmacy", r'OT\s*Pharmacy'))
+
+    detailed, summary, provenance = {}, {}, []
+    for label, pattern in departments:
+        amount = extract_dept_subtotal(text, pattern)
+        detailed[label] = amount
+        if amount > 0:
+            provenance.append({"label": label, "amount": round(amount, 2),
+                               "source": "detailed_dept_subtotal",
+                               "detail": f"{label} Dept Sub Total {amount:,.2f}"})
+        stated = extract_service_summary_amount(text, pattern)
+        summary[label] = stated
+        if stated is not None:
+            provenance.append({"label": label, "amount": round(stated, 2),
+                               "source": "service_summary",
+                               "detail": f"Service Summary {label} {stated:,.2f}"})
+
+    total = round(sum(detailed.values()), 2)
+
+    # Compare only the departments the summary actually states.  A department
+    # the summary omits contributes no evidence either way.
+    compared = [(label, summary[label], detailed[label])
+                for label, _ in departments if summary[label] is not None]
+    if not compared:
+        summary_total = None
+        difference = None
+        reconciled = True
+        reason = (f"DRUG100 = IP Pharmacy subtotal ({detailed['IP Pharmacy']:,.2f}) "
+                  f"+ OT Pharmacy subtotal ({detailed['OT Pharmacy']:,.2f}) "
+                  f"= {total:,.2f}; bill states no Service Summary to cross-check, "
+                  f"Patient Payable excluded")
+    else:
+        summary_total = round(sum(stated for _, stated, _ in compared), 2)
+        difference = round(sum(stated - found for _, stated, found in compared), 2)
+        reconciled = abs(difference) <= PHARMACY_RECONCILIATION_TOLERANCE
+        if reconciled:
+            reason = (f"DRUG100 = IP Pharmacy subtotal ({detailed['IP Pharmacy']:,.2f}) "
+                      f"+ OT Pharmacy subtotal ({detailed['OT Pharmacy']:,.2f}) "
+                      f"= {total:,.2f}; agrees with the Service Summary "
+                      f"({summary_total:,.2f}), Patient Payable excluded")
+        else:
+            gaps = "; ".join(
+                f"{label}: Service Summary {stated:,.2f} vs detailed subtotal "
+                f"{found:,.2f} (difference {stated - found:,.2f})"
+                for label, stated, found in compared if
+                abs(stated - found) > PHARMACY_RECONCILIATION_TOLERANCE)
+            reason = (
+                f"{UNRESOLVED_MAPPING}: pharmacy does not reconcile - {gaps}. "
+                f"The locked rule computes DRUG100 from the detailed subtotals "
+                f"({total:,.2f}), but the bill's own summary states "
+                f"{summary_total:,.2f}, a difference of {difference:,.2f} whose "
+                f"composition is not derivable from the bill text available to "
+                f"the parser. Operator must confirm the pharmacy amount; no "
+                f"figure is assumed.")
+
+    return {
+        "ip_detailed": detailed["IP Pharmacy"],
+        "ot_detailed": detailed["OT Pharmacy"],
+        "ip_summary": summary["IP Pharmacy"],
+        "ot_summary": summary["OT Pharmacy"],
+        "total": total,
+        "summary_total": summary_total,
+        "difference": difference,
+        "reconciled": reconciled,
+        "status": EXECUTABLE if reconciled else REVIEW_REQUIRED,
+        "reason": reason,
+        "provenance": provenance,
+    }
+
 
 def parse_row_quantity(row_text: str) -> int:
     """

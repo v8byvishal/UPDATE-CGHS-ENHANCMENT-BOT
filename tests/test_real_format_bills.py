@@ -337,3 +337,238 @@ def test_d_series_fixtures_when_present(stem):
     from cghs.parsing import CGHSParsingEngine
 
     assert CGHSParsingEngine().parse(str(path)) is not None
+
+
+# ===========================================================================
+# E. BILL 39538 - PHARMACY AMOUNT CORRECTNESS
+#
+# PROVENANCE - read before trusting any number below.
+#
+# 39538.pdf is NOT in this repository (a filesystem-wide search finds no copy)
+# and must not be added to it.  The figures asserted here are the ones the
+# operator read off the real bill:
+#
+#     Mr. KAMTA PRASAD TIWARI / IP BPLIP39538 / Bill BPL-ICR-29191
+#     Service Summary      IP Pharmacy = 773,703.60   OT Pharmacy = 1,790.80
+#     Detailed sections    IP Pharmacy Dept Sub Total = 742,104.38
+#                          OT Pharmacy                =   1,790.80
+#     difference           773,703.60 - 742,104.38    =  31,599.22
+#
+# Those documented values are reconstructed here in the department layout the
+# parser is specified to read - the SAME layout already exercised by the green
+# tests in tests/test_cghs_code_rules.py.
+#
+# What these tests prove: the extractor handles a real bill's magnitudes and
+# structure and reports the documented figures.  What they do NOT prove: that
+# a PyMuPDF text extraction of the real 39538.pdf produces this exact layout,
+# nor what the 31,599.22 difference consists of.  That second gap is the whole
+# reason the reconciliation below ends in REVIEW rather than a number.
+# ===========================================================================
+
+from cghs.parsing import CGHSParsingEngine
+from cghs.rules import EXECUTABLE, REVIEW_REQUIRED
+
+IP_PHARMACY_SUMMARY_39538 = 773703.60
+IP_PHARMACY_DETAILED_39538 = 742104.38
+OT_PHARMACY_39538 = 1790.80
+PHARMACY_DIFFERENCE_39538 = 31599.22
+#: The documented project rule - parsing.py "LOCKED RULES PRESERVED EXACTLY":
+#: DRUG100 = IP Pharmacy *subtotal* + OT Pharmacy *subtotal*.
+DRUG100_BY_PROJECT_RULE_39538 = IP_PHARMACY_DETAILED_39538 + OT_PHARMACY_39538
+
+
+def _bill_39538_text(with_summary=True):
+    """39538 in the department layout the parser is specified to read."""
+    head = [
+        "Service Summary",
+        "IP Pharmacy                               773,703.60",
+        "OT Pharmacy                                 1,790.80",
+        "Deposit Received                           50,000.00",
+        "Patient Payable                            12,345.00",
+        "Grand Total                             1,234,567.89",
+        "",
+    ] if with_summary else []
+    return "\n".join(head + [
+        "IP Pharmacy(999311)",
+        "1  CGHS TAB PARACETAMOL  IPP01  10  12.00  120.00",
+        "2  CGHS INJ MEROPENEM    IPP02  40  1250.00  50,000.00",
+        "Dept Sub Total : 742,104.38",
+        "",
+        "OT Pharmacy(999311)",
+        "1  CGHS INJ PROPOFOL  OTP01  8  223.85  1,790.80",
+        "Dept Sub Total : 1,790.80",
+        "",
+        "Patient Payable(999311)",
+        "1  NON CGHS ITEM  XX001  1  12345.00  12,345.00",
+        "Dept Sub Total : 12,345.00",
+    ])
+
+
+def _parse_text(text):
+    return CGHSParsingEngine().parse_document([[]], text, "<39538>")
+
+
+# --- 1. the specific bug: the artificial 500000 ceiling --------------------
+
+def test_ip_pharmacy_above_five_lakh_is_not_silently_dropped():
+    """A real IP Pharmacy subtotal of 742,104.38 must survive extraction.
+
+    The ceiling did not merely reject the bill - it zeroed the IP component
+    and let the OT component through, so the bot reported DRUG100 = 1,790.80
+    against a real pharmacy spend of 743,895.18.
+    """
+    got = rules.extract_dept_subtotal(_bill_39538_text(), r'IP\s*Pharmacy')
+    assert got == pytest.approx(IP_PHARMACY_DETAILED_39538, abs=0.005), (
+        f"IP Pharmacy extracted as {got:,.2f}; an arbitrary < 500000 ceiling "
+        f"silently discards real six-figure pharmacy subtotals")
+
+
+@pytest.mark.parametrize("amount", [499999.99, 500000.00, 500000.01,
+                                    742104.38, 773703.60, 1250000.00])
+def test_dept_subtotal_has_no_arbitrary_upper_bound(amount):
+    text = (f"IP Pharmacy(999311)\n1 X A1 1 1.00 1.00\n"
+            f"Dept Sub Total : {amount:,.2f}\n")
+    assert rules.extract_dept_subtotal(text, r'IP\s*Pharmacy') == pytest.approx(
+        amount, abs=0.005), f"{amount:,.2f} was dropped by a magnitude cutoff"
+
+
+def test_consumables_total_has_no_arbitrary_upper_bound():
+    text = ("OT Consumables(999311)\n1 STENT C1 1 1.00 1.00\n"
+            "Dept Sub Total : 600,000.00\n")
+    total, _details = rules.extract_consumables_total(text)
+    assert total == pytest.approx(600000.00, abs=0.005), (
+        "CNSU100 carried the identical ceiling defect")
+
+
+# --- 2/3. the two 39538 pharmacy sources, extracted independently ----------
+
+def test_39538_ip_pharmacy_detailed_subtotal():
+    assert rules.extract_dept_subtotal(
+        _bill_39538_text(), r'IP\s*Pharmacy') == pytest.approx(
+            IP_PHARMACY_DETAILED_39538, abs=0.005)
+
+
+def test_39538_ot_pharmacy_is_extracted_correctly():
+    assert rules.extract_dept_subtotal(
+        _bill_39538_text(), r'OT\s*Pharmacy') == pytest.approx(
+            OT_PHARMACY_39538, abs=0.005)
+
+
+def test_39538_service_summary_is_read_separately_from_the_detail():
+    """The summary figure must be reachable WITHOUT being mistaken for detail."""
+    assert rules.extract_service_summary_amount(
+        _bill_39538_text(), r'IP\s*Pharmacy') == pytest.approx(
+            IP_PHARMACY_SUMMARY_39538, abs=0.005)
+    assert rules.extract_service_summary_amount(
+        _bill_39538_text(), r'OT\s*Pharmacy') == pytest.approx(
+            OT_PHARMACY_39538, abs=0.005)
+
+
+# --- 4. the 31,599.22 discrepancy is explicitly handled --------------------
+
+def test_39538_discrepancy_is_measured_not_ignored():
+    ev = rules.reconcile_pharmacy(_bill_39538_text())
+    assert ev["ip_detailed"] == pytest.approx(IP_PHARMACY_DETAILED_39538, abs=0.005)
+    assert ev["ip_summary"] == pytest.approx(IP_PHARMACY_SUMMARY_39538, abs=0.005)
+    assert ev["difference"] == pytest.approx(PHARMACY_DIFFERENCE_39538, abs=0.01), (
+        "the 31,599.22 gap must be computed, not swallowed")
+    assert ev["reconciled"] is False
+    assert ev["status"] == REVIEW_REQUIRED
+
+
+def test_39538_discrepancy_reaches_the_operator_with_both_figures():
+    _final, _raw, _name, rejected, _log = _parse_text(_bill_39538_text())
+    notes = [r for r in rejected if r.get("code") == "DRUG100"]
+    assert notes, "an unexplained pharmacy gap must be reported, not dropped"
+    blob = " ".join(str(n) for n in notes)
+    assert "773,703.60" in blob or "773703.60" in blob
+    assert "742,104.38" in blob or "742104.38" in blob
+    assert "31,599.22" in blob or "31599.22" in blob
+    assert notes[0]["status"] == REVIEW_REQUIRED
+
+
+# --- 5. no silently fabricated DRUG100 -------------------------------------
+
+def test_39538_never_reports_the_ot_only_amount_as_drug100():
+    """The exact live defect: IP zeroed, OT emitted, nobody told."""
+    final, _raw, _name, _rejected, _log = _parse_text(_bill_39538_text())
+    drug = [i for i in final if i["code"] == "DRUG100"]
+    for item in drug:
+        assert item["amount"] != pytest.approx(OT_PHARMACY_39538, abs=0.005), (
+            "DRUG100 reported the OT component alone - the IP subtotal was "
+            "silently discarded")
+
+
+def test_39538_unreconciled_pharmacy_is_not_executed_silently():
+    final, _raw, _name, _rejected, _log = _parse_text(_bill_39538_text())
+    assert not [i for i in final if i["code"] == "DRUG100"], (
+        "an unexplained summary/detail gap must surface as REVIEW, never as a "
+        "silently executed amount")
+
+
+def test_a_reconciled_pharmacy_bill_still_executes_with_the_rule_amount():
+    """When the summary AGREES, the documented rule amount is executed."""
+    text = _bill_39538_text().replace(
+        "IP Pharmacy                               773,703.60",
+        "IP Pharmacy                               742,104.38")
+    ev = rules.reconcile_pharmacy(text)
+    assert ev["reconciled"] is True and ev["status"] == EXECUTABLE
+    final, _raw, _name, _rejected, _log = _parse_text(text)
+    drug = [i for i in final if i["code"] == "DRUG100"]
+    assert drug, "a reconciled pharmacy total must still be executed"
+    assert drug[0]["amount"] == pytest.approx(
+        DRUG100_BY_PROJECT_RULE_39538, abs=0.005)
+
+
+def test_pharmacy_amount_is_never_the_grand_total_or_patient_payable():
+    ev = rules.reconcile_pharmacy(_bill_39538_text())
+    for forbidden in (1234567.89, 12345.00, 50000.00):
+        assert ev["total"] != pytest.approx(forbidden, abs=0.005)
+        assert (ev["summary_total"] or 0) != pytest.approx(forbidden, abs=0.005)
+
+
+# --- 6. no double counting -------------------------------------------------
+
+def test_summary_and_detail_are_never_added_together():
+    got = rules.extract_dept_subtotal(_bill_39538_text(), r'IP\s*Pharmacy')
+    assert got == pytest.approx(IP_PHARMACY_DETAILED_39538, abs=0.005)
+    assert got != pytest.approx(
+        IP_PHARMACY_SUMMARY_39538 + IP_PHARMACY_DETAILED_39538, abs=0.005)
+
+
+def test_a_summary_line_spelling_dept_sub_total_is_still_not_detail():
+    """Hardening: a summary that happens to carry the detail label."""
+    text = "\n".join([
+        "Service Summary",
+        "IP Pharmacy Dept Sub Total : 773,703.60",
+        "",
+        "IP Pharmacy(999311)",
+        "1 X A1 1 1.00 1.00",
+        "Dept Sub Total : 742,104.38",
+    ])
+    assert rules.extract_dept_subtotal(text, r'IP\s*Pharmacy') == pytest.approx(
+        IP_PHARMACY_DETAILED_39538, abs=0.005)
+
+
+def test_decimal_precision_is_preserved():
+    ev = rules.reconcile_pharmacy(_bill_39538_text())
+    assert round(ev["total"], 2) == pytest.approx(743895.18, abs=0.005)
+
+
+# --- 7. provenance ---------------------------------------------------------
+
+def test_pharmacy_amount_carries_provenance():
+    ev = rules.reconcile_pharmacy(_bill_39538_text())
+    assert ev["provenance"], "every pharmacy figure must say where it came from"
+    labels = {p["label"] for p in ev["provenance"]}
+    assert {"IP Pharmacy", "OT Pharmacy"} <= labels
+    for p in ev["provenance"]:
+        assert p["source"] in {"detailed_dept_subtotal", "service_summary"}
+
+
+def test_bill_without_a_service_summary_is_not_flagged():
+    """No summary = no contradicting evidence = behave exactly as before."""
+    ev = rules.reconcile_pharmacy(_bill_39538_text(with_summary=False))
+    assert ev["ip_summary"] is None
+    assert ev["reconciled"] is True and ev["status"] == EXECUTABLE
+    assert ev["total"] == pytest.approx(DRUG100_BY_PROJECT_RULE_39538, abs=0.005)
