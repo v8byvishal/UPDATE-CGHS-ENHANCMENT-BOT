@@ -1,0 +1,2004 @@
+# CGHS MASTER CODE LIST — 1998 RECORDS
+# Source: New CGHS rates applicable to empanelled.pdf
+# Columns: Sr No | CGHS Code | CGHS TREATMENT PROCEDURE/INVESTIGATION LIST | NABH Rate | Speciality Classification
+# Source-derived. No codes generated or invented.
+
+Sr No	CGHS Code	CGHS TREATMENT PROCEDURE/INVESTIGATION LIST	NABH Rate	Speciality Classification
+1	CN001	Consultation OPD	350	Consultation
+2	CN002	Consultation for Inpatients	350	Consultation
+3	CN003	Consultation OPD – Super speciality/Psychiatry	700	Consultation
+4	LB001	Urine Routine- pH, Specific Gravity, Sugar, Protein and Microscopy	90	Laboratory Investigation
+5	LB002	Urine Microalbumin	219	Laboratory Investigation
+6	LB003	Stool Routine and Microscopy	72	Laboratory Investigation
+7	LB004	Stool for Occult Blood	90	Laboratory Investigation
+8	LB005	Post Coital Smear Examination	360	Laboratory Investigation
+9	LB006	Semen Analysis (Automated/Manual)	225	Laboratory Investigation
+10	LB007	Haemoglobin (Hb)	45	Laboratory Investigation
+11	LB008	Total Leucocytic Count (TLC)	45	Laboratory Investigation
+12	LB009	Differential Leucocytic Count (DLC)	90	Laboratory Investigation
+13	LB010	Erythrocyte Sedimentation Rate (ESR)	90	Laboratory Investigation
+14	LB011	Total Red Cell count with MCV,MCH,MCHC,DRW	45	Laboratory Investigation
+15	LB012	Complete Haemogram/CBC, Hb, RBC Count and Indices, TLC, DLC, Platelet, ESR, Peripheral Smear Examination)	270	Laboratory Investigation
+16	LB013	Platelet Count	90	Laboratory Investigation
+17	LB014	Reticulocyte Count	90	Laboratory Investigation
+18	LB015	Absolute Eosinophil Count (AEC)	90	Laboratory Investigation
+19	LB016	Packed Cell Volume (PCV)	45	Laboratory Investigation
+20	LB017	Peripheral Smear Examination	90	Laboratory Investigation
+21	LB018	Smear for Malaria/Filaria Parasite	90	Laboratory Investigation
+22	LB019	Bleeding Time	45	Laboratory Investigation
+23	LB020	Clotting Time	45	Laboratory Investigation
+24	LB021	Osmotic Fragility Test	270	Laboratory Investigation
+25	LB022	Bone Marrow Smear Examination	315	Laboratory Investigation
+26	LB023	Bone Marrow Smear Examination with Iron Stain	720	Laboratory Investigation
+27	LB024	Bone Marrow Smear Examination and Cytochemistry	10800	Laboratory Investigation
+28	LB025	Activated partial Thromboplastin Time (APTT)	261	Laboratory Investigation
+29	LB026	Rapid Test for Malaria (Card Test)/QBC Malaria Test	90	Laboratory Investigation
+30	LB027	Bleeding Disorder Panel- PT, APTT, Thrombin Time Fibrinogen, D-Dimer/ Fibrinogen Degradation Products (FDP)	720	Laboratory Investigation
+31	LB028	Factor Assays-Factor VIII	1350	Laboratory Investigation
+32	LB029	Factor Assays-Factor IX	1350	Laboratory Investigation
+33	LB030	Platelet Function Tests	1139	Laboratory Investigation
+34	LB031	Tests for Hypercoagulable States- Protein C, Protein S, Antithrombin	3042	Laboratory Investigation
+35	LB032	Tests for Lupus Anticoagulant	1170	Laboratory Investigation
+36	LB033	Tests Antiphospholipid Antibody IgG, IgM (for Cardiolipin and B2 Glycoprotein 1)	900	Laboratory Investigation
+37	LB034	Thalassemia Studies (Red Cell Indices and Hb HPLC)	900	Laboratory Investigation
+38	LB035	Tests for Sickling / Hb HPLC)	900	Laboratory Investigation
+39	LB036	Blood Group & Rh Type	81	Laboratory Investigation
+40	LB037	Cross Match	180	Laboratory Investigation
+41	LB038	Coomb’s Test - Direct	180	Laboratory Investigation
+42	LB039	Coomb’s Test - Indirect	225	Laboratory Investigation
+43	LB040	3 Cell Panel- Antibody Screening for Pregnant Female	945	Laboratory Investigation
+44	LB041	11 Cells Panel for Antibody Identification	2057	Laboratory Investigation
+45	LB042	Hepatitis B Surface Antigen (HBsAg)	270	Laboratory Investigation
+46	LB043	Hepatitis C Virus (HCV)	450	Laboratory Investigation
+47	LB044	Human Immunodeficiency Virus- HIV I and II	347	Laboratory Investigation
+48	LB045	Venereal Disease Research Laboratory Test (VDRL)	90	Laboratory Investigation
+49	LB046	RH Antibody Titre	270	Laboratory Investigation
+50	LB047	Platelet Concentrate Test	900	Laboratory Investigation
+51	LB048	Routine - H & E	491	Laboratory Investigation
+52	LB049	Special Stain	180	Laboratory Investigation
+53	LB050	Histopathology Examination (HPE) - Frozen Section	1350	Laboratory Investigation
+54	LB051	Histopathology Examination (HPE) - Paraffin Section	450	Laboratory Investigation
+55	LB052	Pap Smear	360	Laboratory Investigation
+56	LB053	Body Fluid for Malignant cells	315	Laboratory Investigation
+57	LB054	Paroxysmal Nocturnal Haemoglobinuria (PNH) Panel- CD55, CD59	1350	Laboratory Investigation
+58	LB055	Blood Glucose Random / Blood Glucose Fasting /Blood Glucose PP	36	Laboratory Investigation
+59	LB056	24 Hrs Urine for Proteins, Sodium, Creatinine	270	Laboratory Investigation
+60	LB057	Blood Urea Nitrogen (BUN) / Urea	90	Laboratory Investigation
+61	LB058	Serum Creatinine	90	Laboratory Investigation
+62	LB059	Urine Bile Pigment and Salt	63	Laboratory Investigation
+63	LB060	Urine Urobilinogen	63	Laboratory Investigation
+64	LB061	Urine Ketones	63	Laboratory Investigation
+65	LB062	Urine Occult Blood	63	Laboratory Investigation
+66	LB063	Urine Total Proteins	63	Laboratory Investigation
+67	LB064	Rheumatoid Factor / Rh Factor Test	675	Laboratory Investigation
+68	LB065	Bence Jones Protein	90	Laboratory Investigation
+69	LB066	Serum Uric Acid	135	Laboratory Investigation
+70	LB067	Serum Bilirubin total & direct	135	Laboratory Investigation
+71	LB068	Serum Iron	225	Laboratory Investigation
+72	LB069	C-Reactive Protein (CRP)	225	Laboratory Investigation
+73	LB070	C-Reactive Protein (CRP) Quantitative	270	Laboratory Investigation
+74	LB071	Body Fluid (CSF/Ascitic Fluid etc.)Sugar, Protein etc.	270	Laboratory Investigation
+75	LB072	Albumin	45	Laboratory Investigation
+76	LB073	Creatinine Clearance	180	Laboratory Investigation
+77	LB074	Serum Cholesterol	135	Laboratory Investigation
+78	LB075	Total Iron Binding Capacity (TIBC)	270	Laboratory Investigation
+79	LB076	Glucose (Fasting & PP)	72	Laboratory Investigation
+80	LB077	Serum Calcium –Total	135	Laboratory Investigation
+81	LB078	Serum Calcium – Ionic	540	Laboratory Investigation
+82	LB079	Serum Phosphorus	135	Laboratory Investigation
+83	LB080	Total Protein Albumin/Globulin Ratio (A/G Ratio)	63	Laboratory Investigation
+84	LB081	Immunoglobulin G (IgG)	360	Laboratory Investigation
+85	LB082	Immunoglobulin M(IgM)	360	Laboratory Investigation
+86	LB083	Immunoglobulin A(IgA)	360	Laboratory Investigation
+87	LB084	Antinuclear Antibody (ANA)	590	Laboratory Investigation
+88	LB085	Anti-double stranded DNA (anti-dsDNA)	720	Laboratory Investigation
+89	LB086	Serum Glutamic Pyruvic Transaminase (SGPT) / Alanine Aminotransferase (ALT)	90	Laboratory Investigation
+90	LB087	Serum Glutamic Oxaloacetic Transaminase (SGOT) /Aspartate Aminotransferase (AST)	90	Laboratory Investigation
+91	LB088	Serum Amylase	270	Laboratory Investigation
+92	LB089	Serum Lipase	360	Laboratory Investigation
+93	LB090	Serum Lactate	450	Laboratory Investigation
+94	LB091	Serum Magnesium	270	Laboratory Investigation
+95	LB092	Serum Sodium	108	Laboratory Investigation
+96	LB093	Serum Potassium	108	Laboratory Investigation
+97	LB094	Chloride	135	Laboratory Investigation
+98	LB095	Serum Bicarbonate	180	Laboratory Investigation
+99	LB096	Serum Ammonia	603	Laboratory Investigation
+100	LB097	Anaemia Profile (Hb, Serum Iron, TIBC, Ferritin, Transferrin Saturation, Stool Occult Blood, CBC, Reticulocyte Count)	1188	Laboratory Investigation
+101	LB098	Serum Testosterone	360	Laboratory Investigation
+102	LB099	Imprint Smear from Endoscopy	900	Laboratory Investigation
+103	LB100	Triglycerides	135	Laboratory Investigation
+104	LB101	Glucose Tolerance Test (GTT)	270	Laboratory Investigation
+105	LB102	Triple Marker Test (AFP,HCG,UE3)	1350	Laboratory Investigation
+106	LB103	Creatine Phosphokinase (CPK)/Creatine Kinase (CK)	207	Laboratory Investigation
+107	LB104	Foetal Haemoglobin (HbF)	450	Laboratory Investigation
+108	LB105	Prothrombin Time (PT)/ International normalized ratio (INR)	225	Laboratory Investigation
+109	LB106	Lactate dehydrogenase (LDH)	198	Laboratory Investigation
+110	LB107	Alkaline Phosphatase	135	Laboratory Investigation
+111	LB108	Acid Phosphatase	135	Laboratory Investigation
+112	LB109	CPK MB/CK MB	324	Laboratory Investigation
+113	LB110	CK MB Mass/CPK MB Mass	324	Laboratory Investigation
+114	LB111	Troponin I	630	Laboratory Investigation
+115	LB112	Troponin T	630	Laboratory Investigation
+116	LB113	Glucose-6-Phosphate Dehydrogenase (G6PD)	270	Laboratory Investigation
+117	LB114	Lithium	315	Laboratory Investigation
+118	LB115	Dilantin (Phenytoin)	540	Laboratory Investigation
+119	LB116	Carbamazepine.	630	Laboratory Investigation
+120	LB117	Cyclosporine	2250	Laboratory Investigation
+121	LB118	Valproic acid.	540	Laboratory Investigation
+122	LB119	Blood gas analysis / Arterial Blood Gas (ABG)	504	Laboratory Investigation
+123	LB120	Blood gas analysis / Arterial Blood Gas (ABG) with electrolytes	720	Laboratory Investigation
+124	LB121	Urine Pregnancy Test(UPT)	90	Laboratory Investigation
+125	LB122	Glycosylated Haemoglobin (HbA1c)	270	Laboratory Investigation
+126	LB123	Kidney Function Test (KFT)- (Sr.Creatinine,Blood Urea,BUN,Sr.Uric Acid,Sr.Sodium,Sr.Potassium,Urine R/E)	450	Laboratory Investigation
+127	LB124	Liver Function Test (LFT)	450	Laboratory Investigation
+128	LB125	Lipid Profile (Total cholesterol ,Triglycerides, LDL, HDL,VLDL)	441	Laboratory Investigation
+129	LB126	Serum Ferritin	315	Laboratory Investigation
+130	LB127	Vitamin B12 Assay.	540	Laboratory Investigation
+131	LB128	Folic Acid Assay.	585	Laboratory Investigation
+132	LB129	Extended Lipid Profile. (Total cholesterol, LDL,HDL, Triglycerides Apo A1,Apo B,Lp (a) )	900	Laboratory Investigation
+133	LB130	Apolipoprotein A1 (ApoA1)	360	Laboratory Investigation
+134	LB131	Apolipoprotein B (Apo B)	360	Laboratory Investigation
+135	LB132	Lipoprotein A / Lp A	360	Laboratory Investigation
+136	LB133	CD 3,4 and 8 Counts	1116	Laboratory Investigation
+137	LB134	CD 3,4 and 8 Percentage	1359	Laboratory Investigation
+138	LB135	Low Density Lipoprotein (LDL)	135	Laboratory Investigation
+139	LB136	Homocysteine	585	Laboratory Investigation
+140	LB137	Serum Electrophoresis	630	Laboratory Investigation
+141	LB138	Fibrinogen	450	Laboratory Investigation
+142	LB139	Gamma-Glutamyl Transpeptidase (GGTP)	135	Laboratory Investigation
+143	LB140	Fructosamine	450	Laboratory Investigation
+144	LB141	Beta 2 microglobulin (B2M) /β2 microglobulin	540	Laboratory Investigation
+145	LB142	Prostate Specific Antigen (PSA)- Total	428	Laboratory Investigation
+146	LB143	Prostate-Specific Antigen (PSA) - Free	720	Laboratory Investigation
+147	LB144	Alpha Fetoprotein (AFP)	495	Laboratory Investigation
+148	LB145	Human Chorionic Gonadotropin (HCG)/ Beta HCG	405	Laboratory Investigation
+149	LB146	Cancer Antigen 125 (CA 125)	720	Laboratory Investigation
+150	LB147	Cancer Antigen 19.9 (CA 19.9)	720	Laboratory Investigation
+151	LB148	Cancer Antigen 15.3 (CA 15.3)	720	Laboratory Investigation
+152	LB149	Vanillylmandelic Acid (VMA)	1440	Laboratory Investigation
+153	LB150	Calcitonin	1080	Laboratory Investigation
+154	LB151	Carcinoembryonic Antigen (CEA)	540	Laboratory Investigation
+155	LB152	Direct Immunofluorescence (Skin and Kidney Disease etc)	1080	Laboratory Investigation
+156	LB153	Indirect (anti ds DNA Anti Smith ANCA)	1080	Laboratory Investigation
+157	LB154	Calcidiol / 25-hydroxycholecalciferol / Vitamin D3 assay (Vit D3)	900	Laboratory Investigation
+158	LB155	Serum Protein electrophoresis with immunofixation electrophoresis (IFE)	630	Laboratory Investigation
+159	LB156	Anti-Cyclic Citrullinated Peptide (Anti CCP)	810	Laboratory Investigation
+160	LB157	Anti-tissue Transglutaminase antibody (Anti TTG Antibody) / Tissue Transglutaminase IgA (tTg-IgA)	720	Laboratory Investigation
+161	LB158	Serum Erythropoietin	1080	Laboratory Investigation
+162	LB159	Adrenocorticotropic Hormone (ACTH)	1080	Laboratory Investigation
+163	LB160	T3, T4, TSH -Thyroid Function Test (TFT)	405	Laboratory Investigation
+164	LB161	Thyroid stimulating hormone (TSH)	180	Laboratory Investigation
+165	LB162	Luteinizing hormone (LH)	360	Laboratory Investigation
+166	LB163	Follicle stimulating hormone (FSH)	360	Laboratory Investigation
+167	LB164	Prolactin	360	Laboratory Investigation
+168	LB165	Cortisol	495	Laboratory Investigation
+169	LB166	PTH(Parathormone)	900	Laboratory Investigation
+170	LB167	C-Peptide ( Connecting Peptide)	675	Laboratory Investigation
+171	LB168	Insulin	450	Laboratory Investigation
+172	LB169	Progesterone	360	Laboratory Investigation
+173	LB170	17 Hydroxyprogesterone (17 OH Progesterone)	675	Laboratory Investigation
+174	LB171	Dehydroepiandrosterone sulfate (DHEAS)	900	Laboratory Investigation
+175	LB172	Androstenedione	900	Laboratory Investigation
+176	LB173	Growth Hormone	540	Laboratory Investigation
+177	LB174	Thyroid peroxidase antibody (TPO)	630	Laboratory Investigation
+178	LB175	Thyroglobulin.	630	Laboratory Investigation
+179	LB176	Hydatid Serology	738	Laboratory Investigation
+180	LB177	Anti Sperm Antibodies.	810	Laboratory Investigation
+181	LB178	Hepatitis B Virus (HBV) DNA Qualitative	2250	Laboratory Investigation
+182	LB179	Hepatitis B Virus (HBV) DNA Quantitative.	3150	Laboratory Investigation
+183	LB180	Hepatitis C Virus (HCV) RNA Qualitative.	2700	Laboratory Investigation
+184	LB181	Human papillomavirus (HPV) Serology	1440	Laboratory Investigation
+185	LB182	Rota Virus serology	360	Laboratory Investigation
+186	LB183	Mantoux Test	180	Laboratory Investigation
+187	LB184	ADA( Adenosine deaminase)	585	Laboratory Investigation
+188	LB185	GeneXpert Test (Tuberculosis)	932	Laboratory Investigation
+189	LB186	QuantiFERON TB Gold	2250	Laboratory Investigation
+190	LB187	PCR for Tuberculosis (TB)	1080	Laboratory Investigation
+191	LB188	PCR for Human immunodeficiency virus (HIV)	1620	Laboratory Investigation
+192	LB189	Chlamydia antigen	900	Laboratory Investigation
+193	LB190	Chlamydia antibody	765	Laboratory Investigation
+194	LB191	Brucella serology	405	Laboratory Investigation
+195	LB192	Influenza A serology	900	Laboratory Investigation
+196	LB193	Acetylcholine receptor (AChR) antibody titre	4050	Laboratory Investigation
+197	LB194	Anti muscle specific receptor tyrosine kinase (Anti MuSK) antibody titre	6030	Laboratory Investigation
+198	LB195	Serum Copper	585	Laboratory Investigation
+199	LB196	Serum Ceruloplasmin	585	Laboratory Investigation
+200	LB197	Urinary copper	756	Laboratory Investigation
+201	LB198	Serum phenobarbitone level	540	Laboratory Investigation
+202	LB199	Coagulation profile	675	Laboratory Investigation
+203	LB200	D-Dimer	450	Laboratory Investigation
+204	LB201	CSF/Any Body Fluid Basic studies including cell count, protein, sugar, gram stain, India Ink preparation and smear for AFB	315	Laboratory Investigation
+205	LB202	PCR for Herpes simplex	1260	Laboratory Investigation
+206	LB203	Bacterial culture and sensitivity - Aerobic	414	Laboratory Investigation
+207	LB204	Bacterial culture and sensitivity - Anaerobic	630	Laboratory Investigation
+208	LB205	Mycobacterial culture and sensitivity	495	Laboratory Investigation
+209	LB206	Fungal culture	446	Laboratory Investigation
+210	LB207	Anti measles antibody titre (with serum antibody titre)	1080	Laboratory Investigation
+211	LB208	Viral culture	540	Laboratory Investigation
+212	LB209	Antibody titre (Herpes simplex, cytomegalovirus, flavivirus, zoster varicella virus)	1890	Laboratory Investigation
+213	LB210	Oligoclonal bands (OCBs)	2025	Laboratory Investigation
+214	LB211	Myelin basic protein (MBP)	3150	Laboratory Investigation
+215	LB212	Cryptococcal antigen	1350	Laboratory Investigation
+216	LB213	D Xylose test	990	Laboratory Investigation
+217	LB214	Faecal / Faecal fat test/ faecal chymotrypsin/ faecal elastase	900	Laboratory Investigation
+218	LB215	H pylori serology for Coeliac disease /Celiac disease	1080	Laboratory Investigation
+219	LB216	HBV genotyping	2588	Laboratory Investigation
+220	LB217	HCV genotyping	5045	Laboratory Investigation
+221	LB218	Urinary Vanillylmandelic Acid (VMA)	1967	Laboratory Investigation
+222	LB219	Urinary metanephrine/Normetanephrine	2610	Laboratory Investigation
+223	LB220	Urinary free catecholamine	2250	Laboratory Investigation
+224	LB221	Serum aldosterone	1620	Laboratory Investigation
+225	LB222	24 Hr urinary aldosterone	1350	Laboratory Investigation
+226	LB223	Plasma renin activity	1440	Laboratory Investigation
+227	LB224	Serum aldosterone/renin ratio	1350	Laboratory Investigation
+228	LB225	Osmolality urine	405	Laboratory Investigation
+229	LB226	Osmolality serum	405	Laboratory Investigation
+230	LB227	Urinary sodium	135	Laboratory Investigation
+231	LB228	Urinary Chloride	135	Laboratory Investigation
+232	LB229	Urinary potassium	135	Laboratory Investigation
+233	LB230	Urinary calcium	135	Laboratory Investigation
+234	LB231	Thyroid binding globulin	990	Laboratory Investigation
+235	LB232	24-hour urinary free cortisol	675	Laboratory Investigation
+236	LB233	Islet cell antibody	1080	Laboratory Investigation
+237	LB234	Glutamic Acid Decarboxylase Autoantibodies test (GAD antibodies)	1800	Laboratory Investigation
+238	LB235	Insulin associated antibody	882	Laboratory Investigation
+239	LB236	Insulin-like growth factor-1 (IGF-1)	1980	Laboratory Investigation
+240	LB237	Insulin-like growth factor binding protein 3 (IGF- BP3)	2070	Laboratory Investigation
+241	LB238	Sex hormone binding globulin	1386	Laboratory Investigation
+242	LB239	Estradiol (E2)	360	Laboratory Investigation
+243	LB240	Thyroglobulin antibody	630	Laboratory Investigation
+244	LB241	Kappa Lambda Light Chains, Free, Serum/ Serum free light chains (SFLC)	3623	Laboratory Investigation
+245	LB242	Serum IgE Level	342	Laboratory Investigation
+246	LB243	N-terminal pro BNP (NT-pro BNP / Brain natriuretic peptide (BNP)	1863	Laboratory Investigation
+247	LB244	HCV RNA Quantitative	1661	Laboratory Investigation
+248	LB245	Tacrolimus Level	2381	Laboratory Investigation
+249	LB246	Protein Creatinine Ratio (PCR), Urine / Albumin Creatinine Ratio (ACR), Urine	137	Laboratory Investigation
+250	LB247	HLA B27 (PCR)	518	Laboratory Investigation
+251	LB248	Procalcitonin	1863	Laboratory Investigation
+252	LB249	TORCH Test	1159	Laboratory Investigation
+253	LB250	Anti –Smooth Muscle Antibody Test (ASMA)	1314	Laboratory Investigation
+254	LB251	C ANCA-IFA	1350	Laboratory Investigation
+255	LB252	P ANCA-IFA	1350	Laboratory Investigation
+256	LB253	Angiotensin converting enzyme (ACE)	900	Laboratory Investigation
+257	LB254	Extractable Nuclear Antigens (ENA) - Quantitative	4140	Laboratory Investigation
+258	LB255	Chromogranin A	4500	Laboratory Investigation
+259	LB256	Faecal calprotectin	2457	Laboratory Investigation
+260	LB257	C3-COMPLEMENT	585	Laboratory Investigation
+261	LB258	C4-COMPLEMENT	585	Laboratory Investigation
+262	LB259	H1N1 (RT-PCR)	976	Laboratory Investigation
+263	LB260	Anti HEV IgM	900	Laboratory Investigation
+264	LB261	Anti HAV IgM	675	Laboratory Investigation
+265	LB262	HBsAg Quantitative	585	Laboratory Investigation
+266	LB263	Typhidot IgM	360	Laboratory Investigation
+267	LB264	Hepatitis B Core Antibody (HBcAb) Level (Hepatitis B Core IgM Antibody)	432	Laboratory Investigation
+268	LB265	Hepatitis B surface antibody (anti HBs)	585	Laboratory Investigation
+269	LB266	Free Triiodothyronine (FT3)	113	Laboratory Investigation
+270	LB267	Free Thyroxine (FT4)	113	Laboratory Investigation
+271	LB268	Widal Test	63	Laboratory Investigation
+272	LB269	Dengue NS1 Ag	360	Laboratory Investigation
+273	LB270	Dengue IgM and Ig G	720	Laboratory Investigation
+274	LB271	Interleukin 6 (IL 6)	1440	Laboratory Investigation
+275	LB272	Covid Antibody Test	630	Laboratory Investigation
+276	LB273	Cryoglobulins	900	Laboratory Investigation
+277	LB274	Cytogenetics	4500	Laboratory Investigation
+278	LB275	Plasma Free Normetanephrine	2070	Laboratory Investigation
+279	LB276	Plasma Metanephrines	2070	Laboratory Investigation
+280	LB277	PLA2 receptor antibody quantitative	3780	Laboratory Investigation
+281	LB278	Allergic Bronchopulmonary Aspergillosis (ABPA) Panel	2610	Laboratory Investigation
+282	LB279	Allergy Food Screening Panel	5400	Laboratory Investigation
+283	LB280	AMA (Anti Mitochondrial Antibody)	900	Laboratory Investigation
+284	LB281	AMH (Anti- Mullerian Hormone)	900	Laboratory Investigation
+285	LB282	ANA BLOT	2700	Laboratory Investigation
+286	LB283	ANA Profile	2700	Laboratory Investigation
+287	LB284	Anti GBM (Glomerular Basement Membrane) Antibody	1350	Laboratory Investigation
+288	LB285	Anti LKM (Liver Kidney Microsome) Ab	1350	Laboratory Investigation
+289	LB286	Anti Parietal Cell Antibodies	1800	Laboratory Investigation
+290	LB287	Anti Intrinsic Factor Antibodies	1800	Laboratory Investigation
+291	LB288	ASO Titre /ASLO Titre	486	Laboratory Investigation
+292	LB289	Aspergillus Fumigatus Specific IgE	1395	Laboratory Investigation
+293	LB290	Autoimmune Encephalitis Panel	15300	Laboratory Investigation
+294	LB291	Autoimmune Hepatitis Profile	2664	Laboratory Investigation
+295	LB292	Beta-D-Glucan Assay	13500	Laboratory Investigation
+296	LB293	C1 Esterase inhibitor (Quantitative )	2160	Laboratory Investigation
+297	LB294	CMV Quantitative (Viral load) Test	2070	Laboratory Investigation
+298	LB295	Double Marker (Beta-hCG,PAPP-A)	1800	Laboratory Investigation
+299	LB296	Quadruple test (AFP,HCG,UE3,Inhibin A)	2160	Laboratory Investigation
+300	LB297	HBeAb (Hepatitis B envelope Antibody)	324	Laboratory Investigation
+301	LB298	HBeAg (Hepatitis B envelope Antigen)	324	Laboratory Investigation
+302	LB299	HIAA 24 Hours Urinary	2070	Laboratory Investigation
+303	LB300	HIV Viral Load by PCR	4500	Laboratory Investigation
+304	LB301	HSV 1 & 2 IgG	738	Laboratory Investigation
+305	LB302	Hypersensitive Pneumonitis Panel	6480	Laboratory Investigation
+306	LB303	IgG4	1800	Laboratory Investigation
+307	LB304	Inhibin A	810	Laboratory Investigation
+308	LB305	Inhibin B	1710	Laboratory Investigation
+309	LB306	Scrub Typhus IgM	1440	Laboratory Investigation
+310	LB307	Interferon Gamma Release Assay (IGRA)	2700	Laboratory Investigation
+311	LB308	KOH Mount	135	Laboratory Investigation
+312	LB309	Serum AMA M2 (IFA Method)	1800	Laboratory Investigation
+313	LB310	Serum Gastrin	1080	Laboratory Investigation
+314	LB311	Serum Haptoglobin Levels	900	Laboratory Investigation
+315	LB312	Skin Prick Test for Allergy	1620	Laboratory Investigation
+316	LB313	Myositis Profile (Up to 16 Antigens)	7200	Laboratory Investigation
+317	LB314	Paraneoplastic Panel	9000	Laboratory Investigation
+318	LB315	TSH Receptor Antibody	1080	Laboratory Investigation
+319	LB316	Anti-Nuclear Antibodies - IFA	1440	Laboratory Investigation
+320	LB317	Autoimmune Liver Diseases Profile	4500	Laboratory Investigation
+321	LB318	Citrate Urine 24 Hour	1035	Laboratory Investigation
+322	LB319	Comprehensive Allergy Panel	6300	Laboratory Investigation
+323	LB320	Comprehensive Myeloma Protein Panel	6300	Laboratory Investigation
+324	LB321	DCP (DES Gamma-Carboxy- Prothrombin)	3015	Laboratory Investigation
+325	LB322	Desmoglein (DSG) 1 And 3 Antibody	4860	Laboratory Investigation
+326	LB323	Galactomannan	2799	Laboratory Investigation
+327	LB324	SCL 70 Antibody	1512	Laboratory Investigation
+328	LB325	Serum Chromogranin A	3420	Laboratory Investigation
+329	LB326	SSA- Antibody Ro Serum Test	1305	Laboratory Investigation
+330	LB327	SSB- Antibody La Serum Test	1305	Laboratory Investigation
+331	LB328	Stool for Clostridium difficile Toxin	2556	Laboratory Investigation
+332	LB329	TPHA	360	Laboratory Investigation
+333	LB330	UGT1A1 Gene Analysis	5400	Laboratory Investigation
+334	LB331	Urine For Myoglobin	495	Laboratory Investigation
+335	LB332	Leptospira Ig M	900	Laboratory Investigation
+336	LB333	Chikungunya Ig M	900	Laboratory Investigation
+337	LB334	Weil Felix Agglutination Test	450	Laboratory Investigation
+338	LB335	Continuous Glucose Monitoring for 2 Weeks	3600	Laboratory Investigation
+339	RI001	2D echocardiography	1328	Radiological Investigation
+340	RI002	Fetal Echo	1440	Radiological Investigation
+341	RI003	2D Transoesophageal Echocardiography (TEE)	1485	Radiological Investigation
+342	RI004	3D Transoesophageal Echocardiography (TEE)	1485	Radiological Investigation
+343	RI005	Stress Echo- exercise	2160	Radiological Investigation
+344	RI006	Stress Echo- pharmacological / D Stress Echo	2700	Radiological Investigation
+345	RI007	Stress Myocardial Perfusion Imaging (MPI)- exercise	8280	Radiological Investigation
+346	RI008	Stress Myocardial Perfusion Imaging (MPI) - pharmacological	8280	Radiological Investigation
+347	RI009	CT Coronary Angiography including Calcium Score Test	8280	Radiological Investigation
+348	RI010	Cardiac CT scan	5850	Radiological Investigation
+349	RI011	MRI Cardiac	7200	Radiological Investigation
+350	RI012	Stress Cardiac MRI	8280	Radiological Investigation
+351	RI013	Cardiac PET USG Transvaginal sonography (TVS Follicular	8280	Radiological Investigation
+352	RI014	monitoring /aspiration) /TVS follicular monitoring/pelvic pathology/ET measurement	900	Radiological Investigation
+353	RI015	Growth scan (including BPP, AFI, Doppler)	1800	Radiological Investigation
+354	RI016	1st trimester scan-dating scan/NT scan/Early pregnancy scan USG Colour Doppler Pregnancy / Fetal Doppler/Umbilical Doppler/Uterine	630	Radiological Investigation
+355	RI017	Vessel Doppler	1508	Radiological Investigation
+356	RI018	Biophysical score / Biophysical profile test (BPP test)	1350	Radiological Investigation
+357	RI019	USG Obstetrics for Anomalies scan	1800	Radiological Investigation
+358	RI020	USG Whole Abdomen Including Pelvis and post Void urine	720	Radiological Investigation
+359	RI021	Pelvic USG (gynae, infertility, prostate , KUB with post- void residual (PVR) etc ).	450	Radiological Investigation
+360	RI022	USG Small parts (scrotum, thyroid, parathyroid etc)	693	Radiological Investigation
+361	RI023	USG Large Parts (Joints/Chest,...etc)	720	Radiological Investigation
+362	RI024	USG Neonatal spine	900	Radiological Investigation
+363	RI025	USG Breast including relevant Lymph nodes- Bilateral/Unilateral	720	Radiological Investigation
+364	RI026	USG Hysterosalpingography (HSG)	2160	Radiological Investigation
+365	RI027	Fibroscan Liver	1035	Radiological Investigation
+366	RI028	Carotid Doppler Bilateral	900	Radiological Investigation
+367	RI029	Arterial Colour Doppler Bilateral	900	Radiological Investigation
+368	RI030	Venous Colour Doppler Bilateral	900	Radiological Investigation
+369	RI031	Colour Doppler, renal arteries/any other organ	900	Radiological Investigation
+370	RI032	X Ray Abdomen AP Supine or Erect (One film)	225	Radiological Investigation
+371	RI033	X Ray Abdomen Lateral view (one film)	189	Radiological Investigation
+372	RI034	X Ray Chest PA /AP/ Oblique view (one film)	207	Radiological Investigation
+373	RI035	X Ray Chest Lateral (one film)	207	Radiological Investigation
+374	RI036	X Ray Mastoids: Towne view, oblique views (3 films) X Ray Extremities (Hand/Leg/Feet/Finger/Toe) bones & Joints (Hip/ Knee/Ankle	450	Radiological Investigation
+375	RI037	/ shoulder/ Wrist / fingers/Toes, etc) AP & Lateral views (standing or weight bearing)(Two films)	342	Radiological Investigation
+376	RI038	X Ray Pelvis AP (one film)	180	Radiological Investigation
+377	RI039	X Ray Temporomandibular (TM) Joints (one film)	225	Radiological Investigation
+378	RI040	X Ray Abdomen & Pelvis for KUB	212	Radiological Investigation
+379	RI041	X Ray Skull AP & Lateral (2 films)/ Extra oral radiographs - All skull views, TMJ, Lateral oblique [Dental]	360	Radiological Investigation
+380	RI042	X Ray Spine AP & Lateral (2 films)	360	Radiological Investigation
+381	RI043	X Ray Paranasal sinuses (PNS) view (1 film)	180	Radiological Investigation
+382	RI044	Barium Swallow	1080	Radiological Investigation
+383	RI045	Barium Upper GI study	1350	Radiological Investigation
+384	RI046	Barium Upper GI study (Double contrast)	1800	Radiological Investigation
+385	RI047	Barium Meal follow through	1800	Radiological Investigation
+386	RI048	Barium Enema (Single contrast/double contrast)	1800	Radiological Investigation
+387	RI049	Small bowel enteroclysis	1800	Radiological Investigation
+388	RI050	General:Fistulography / Sinography/Sialography/Dacrocystography/ T-Tube cholangiogram/Nephrostogram	1143	Radiological Investigation
+389	RI051	Intravenous Pyelography (IVP)	1485	Radiological Investigation
+390	RI052	Micturating Cystourethrography (MCU)	1008	Radiological Investigation
+391	RI053	Retrograde Urethrography (RGU)	1008	Radiological Investigation
+392	RI054	Contrast Hystero-Salpingography (HSG)	1800	Radiological Investigation
+393	RI055	X ray Arthrography	1800	Radiological Investigation
+394	RI056	Ortho Scanogram	1521	Radiological Investigation
+395	RI057	Cephalography	315	Radiological Investigation
+396	RI058	Myelography	2250	Radiological Investigation
+397	RI059	Diagnostic Digital Subtraction Angiography (DSA) cerebral vessels	12060	Radiological Investigation
+398	RI060	X Ray Mammography – Bilateral/Unilateral	1238	Radiological Investigation
+399	RI061	MRI Mammography	4500	Radiological Investigation
+400	RI062	CT Scan Head/ Brain-Without Contrast / NCCT Head/Brain	932	Radiological Investigation
+401	RI063	CT Scan Head / Brain- with Contrast -including CT angiography	1980	Radiological Investigation
+402	RI064	CT Scan Chest - without contrast (for lungs)	1800	Radiological Investigation
+403	RI065	High Resolution computed Tomography (HRCT Chest)	1800	Radiological Investigation
+404	RI066	Contrast Enhanced Computed Tomograpy (CECT) Chest (Including CD)	2588	Radiological Investigation
+405	RI067	CT Scan Lower Abdomen (incl. Pelvis) With Contrast/ CT KUB with Contrast	4050	Radiological Investigation
+406	RI068	CT Scan Lower Abdomen (Incl. Pelvis) Without Contrast / CT KUB without Contrast	3150	Radiological Investigation
+407	RI069	CT Scan Whole Abdomen Without Contrast	3105	Radiological Investigation
+408	RI070	CT Scan Whole Abdomen With Contrast	4658	Radiological Investigation
+409	RI071	Triple Phase CT abdomen	4658	Radiological Investigation
+410	RI072	CT Urography	4050	Radiological Investigation
+411	RI073	CT Scan Angiography Chest	4658	Radiological Investigation
+412	RI074	CT Scan Angiography Abdomen	4658	Radiological Investigation
+413	RI075	CT Angiography Entire Aorta ( CT Aortogram)	9000	Radiological Investigation
+414	RI076	CT Scan Enteroclysis	6210	Radiological Investigation
+415	RI077	CT Scan Neck – Without Contrast	2250	Radiological Investigation
+416	RI078	CT Scan Neck – With Contrast	3150	Radiological Investigation
+417	RI079	CT Angio-Neck Vessels	5400	Radiological Investigation
+418	RI080	CT Scan Orbits - Without Contrast	1980	Radiological Investigation
+419	RI081	CT Scan Orbits - With Contrast	2880	Radiological Investigation
+420	RI082	CT Scan of Para Nasal Sinuses (CT PNS)- Without Contrast	2070	Radiological Investigation
+421	RI083	CT Scan of Para Nasal Sinuses (CT PNS)- With Contrast	2970	Radiological Investigation
+422	RI084	CT Scan Spine (Cervical, Dorsal, Lumbar,Sacral)–without Contrast	2520	Radiological Investigation
+423	RI085	CT Scan Temporal bone – without contrast	2250	Radiological Investigation
+424	RI086	CT Scan / Cone Beam CT (CBCT) Dental	1350	Radiological Investigation
+425	RI087	CT Scan Limbs -Without Contrast	2520	Radiological Investigation
+426	RI088	CT Scan Limbs -With Contrast including CT angiography	5220	Radiological Investigation
+427	RI089	MRI Head / Brain – Without Contrast	2475	Radiological Investigation
+428	RI090	MRI Head / Brain– With Contrast	4500	Radiological Investigation
+429	RI091	MRI Orbits – Without Contrast	1683	Radiological Investigation
+430	RI092	MRI Orbits – With Contrast	4500	Radiological Investigation
+431	RI093	MRI Nasopharynx and PNS – Without Contrast	3150	Radiological Investigation
+432	RI094	MRI Nasopharynx and PNS – With Contrast	4500	Radiological Investigation
+433	RI095	MR for Salivary Glands with Sialography/Maxillofacial MRI	4500	Radiological Investigation
+434	RI096	MRI Neck - Without Contrast	3150	Radiological Investigation
+435	RI097	MRI Neck- with contrast	5175	Radiological Investigation
+436	RI098	MRI Shoulder – Without contrast	3150	Radiological Investigation
+437	RI099	MRI Shoulder – With contrast	4500	Radiological Investigation
+438	RI100	MRI shoulder both Joints - Without contrast	3600	Radiological Investigation
+439	RI101	MRI Shoulder both joints – With contrast	5400	Radiological Investigation
+440	RI102	MRI Wrist Single joint - Without contrast	2970	Radiological Investigation
+441	RI103	MRI Wrist Single joint - With contrast	4500	Radiological Investigation
+442	RI104	MRI Wrist both joints - Without contrast	3600	Radiological Investigation
+443	RI105	MRI Wrist Both joints - With contrast	5175	Radiological Investigation
+444	RI106	MRI knee Single joint - Without contrast	2700	Radiological Investigation
+445	RI107	MRI knee Single joint - With contrast	5175	Radiological Investigation
+446	RI108	MRI knee both joints - Without contrast	3600	Radiological Investigation
+447	RI109	MRI knee both joints - With contrast	5175	Radiological Investigation
+448	RI110	MRI Ankle Single joint - Without contrast	3150	Radiological Investigation
+449	RI111	MRI Ankle single joint - With contrast	4500	Radiological Investigation
+450	RI112	MRI Ankle both joints - With contrast	5850	Radiological Investigation
+451	RI113	MRI Ankle both joints - Without contrast	3150	Radiological Investigation
+452	RI114	MRI Hip - With contrast	4500	Radiological Investigation
+453	RI115	MRI Hip – without contrast	3150	Radiological Investigation
+454	RI116	MRI Pelvis – Without Contrast	3150	Radiological Investigation
+455	RI117	MRI Pelvis – with contrast	5175	Radiological Investigation
+456	RI118	MRI Extremities - With contrast	5175	Radiological Investigation
+457	RI119	MRI Extremities - Without contrast	3150	Radiological Investigation
+458	RI120	MRI Temporomandibular – B/L - With contrast / MRI TMJ (Double Joint) with contrast	4500	Radiological Investigation
+459	RI121	MRI Temporomandibular – B/L - Without contrast / MRI -TMJ(Double Joint) without contrast	3150	Radiological Investigation
+460	RI122	MR Temporal Bone/ Inner ear with contrast	4500	Radiological Investigation
+461	RI123	MRI Temporal Bone/ Inner ear without contrast	3150	Radiological Investigation
+462	RI124	MRI Abdomen – Without Contrast	3150	Radiological Investigation
+463	RI125	MRI Abdomen – With Contrast	5175	Radiological Investigation
+464	RI126	MRI-Prostate (Multi-parametric) (Including CD)	6210	Radiological Investigation
+465	RI127	MRI Breast - With Contrast	4500	Radiological Investigation
+466	RI128	MRI Breast - Without Contrast	3150	Radiological Investigation
+467	RI129	MRI whole Spine Screening- Without Contrast	1800	Radiological Investigation
+468	RI130	MRI Chest – Without Contrast	3150	Radiological Investigation
+469	RI131	MRI Chest – With Contrast	4500	Radiological Investigation
+470	RI132	MRI Whole spine – Without Contrast	3960	Radiological Investigation
+471	RI133	MRI Cervical/ Cervico Dorsal Spine – With Contrast	4500	Radiological Investigation
+472	RI134	MRI Dorsal/ Dorso Lumbar Spine - Without Contrast	3150	Radiological Investigation
+473	RI135	MRI Dorsal/ Dorso Lumbar Spine – With Contrast	4500	Radiological Investigation
+474	RI136	MRI Lumbar/ Lumbo-Sacral Spine – Without Contrast	3150	Radiological Investigation
+475	RI137	MRI Lumbar/ Lumbo-Sacral Spine – With Contrast	5175	Radiological Investigation
+476	RI138	Whole body MRI (For oncological workup)	8280	Radiological Investigation
+477	RI139	MR cholecysto-pancreatography (MRCP)	7650	Radiological Investigation
+478	RI140	MRI Angiography - with contrast	5175	Radiological Investigation
+479	RI141	MR Enteroclysis	4500	Radiological Investigation
+480	RI142	MRI DEFECOGRAPHY	6300	Radiological Investigation
+481	RI143	MRI FISTULOGRAM	4050	Radiological Investigation
+482	RI144	MRI SPECTROSCOPY	2700	Radiological Investigation
+483	RI145	Dexa Scan Bone Densitometry - Two sites	1800	Radiological Investigation
+484	RI146	Dexa Scan Bone Densitometry - Three sites (Spine, Hip &extremity)	2250	Radiological Investigation
+485	RI147	Dexa Scan Bone Densitometry Whole body	2700	Radiological Investigation
+486	PI001	Pulmonary Function Test (PFT) / (Spirometry with Diffusing Capacity of the Lungs for Carbon monoxide (DLCO)	450	Pulmonology Investigation
+487	PI002	Lung Ventilation & Perfusion Scan (V/Q Scan)	5400	Pulmonology Investigation
+488	PI003	Lung Perfusion Scan	4500	Pulmonology Investigation
+489	PI004	6 Minute Walk Test	450	Pulmonology Investigation
+490	PI005	FeNO Breathing Test	648	Pulmonology Investigation
+491	PP001	Endo bronchial Ultrasound (EBUS) -Trans bronchial needle aspiration (TBNA) - Excluding the cost of Needle	18000	Pulmonology Procedure
+492	PP002	Video Bronchoscopy with BAL	9900	Pulmonology Procedure
+493	NM001	Whole Body Bone Scan with SPECT.	4500	Nuclear Medicine Investigation
+494	NM002	Three phase whole body Bone Scan	5400	Nuclear Medicine Investigation
+495	NM003	Brain Perfusion SPECT Scan with Technetium 99m radiopharmaceuticals.	12060	Nuclear Medicine Investigation
+496	NM004	Radionuclide Cisternography for CSF leak	6120	Nuclear Medicine Investigation
+497	NM005	Renal Cortical Scintigraphy with Technetium 99m Dimercaptosuccinic acid (DMSA)/DTPA	3600	Nuclear Medicine Investigation
+498	NM006	Dynamic Renography.	3600	Nuclear Medicine Investigation
+499	NM007	Dynamic Renography with Diuretic.	3600	Nuclear Medicine Investigation
+500	NM008	Dynamic Renography with Captopril	6120	Nuclear Medicine Investigation
+501	NM009	Testicular Scan with Technetium 99m Pertechnetate	1530	Nuclear Medicine Investigation
+502	NM010	Thyroid Uptake measurements with 131-Iodine.	2250	Nuclear Medicine Investigation
+503	NM011	Thyroid Scan with Technetium 99m Pertechnetate	1710	Nuclear Medicine Investigation
+504	NM012	Iodine-131 Whole Body Scan	12060	Nuclear Medicine Investigation
+505	NM013	Whole Body Scan with MIBG	12060	Nuclear Medicine Investigation
+506	NM014	Parathyroid Scan	6584	Nuclear Medicine Investigation
+507	NM015	Scintimammography.	5400	Nuclear Medicine Investigation
+508	NM016	Indium labelled octreotide Scan	64800	Nuclear Medicine Investigation
+509	NM017	FDG Whole body PET CT Scan	12938	Nuclear Medicine Investigation
+510	NM018	Brain / Heart FDG PET CT Scan	12938	Nuclear Medicine Investigation
+511	NM019	Gallium-68 Peptide PET / CT imaging for Neuroendocrine Tumour	12938	Nuclear Medicine Investigation
+512	NM020	PSMA PET CT Scan	13500	Nuclear Medicine Investigation
+513	NM021	F-DOPA PET-CT scan	13500	Nuclear Medicine Investigation
+514	BY001	Skin Biopsy	1125	Biopsies
+515	BY002	Punch/Wedge biopsy	2700	Biopsies
+516	BY003	Excision Biopsy of Ulcers	4500	Biopsies
+517	BY004	Excision Biopsy of Superficial Lumps	8280	Biopsies
+518	BY005	Incision Biopsy of Growths/Ulcers	4500	Biopsies
+519	BY006	Bone Marrow Aspiration and Biopsy	7650	Biopsies
+520	BY007	Scalene Node Biopsy	8280	Biopsies
+521	BY008	Liver Biopsy	7650	Biopsies
+522	BY009	Muscle Biopsy	2250	Biopsies
+523	BY010	Trucut Needle Biopsy- (excluding the cost of Needle/Biopsy Gun if used)	3465	Biopsies
+524	RP001	USG Guided Intervention- Diagnostic	900	Interventional Radiological Procedure
+525	RP002	USG Guided Intervention -Therapeutic	1800	Interventional Radiological Procedure
+526	RP003	USG Guided Intervention - Specialized Procedures excluding cost of Catheter or biopsy gun	2700	Interventional Radiological Procedure
+527	RP004	CT Guided biopsy including all the consumables	8280	Interventional Radiology Procedure
+528	RP005	CT Guided Intervention -Percutaneous catheter drainage/tube placement excluding the cost of tube /catheter	3150	Interventional Radiological Procedure
+529	RP006	Percutaneous transhepatic cholangiography (PTC)	1620	Interventional Radiological Procedure
+530	RP007	Transarterial Chemoembolization (TACE)	47700	Interventional Radiological Procedure
+531	CA001	A, B, DR Molecular Typing PCR - SSP	9284	Oncology Investigations
+532	CA002	ABL Kinase Domain Mutation Chronic Myeloid leukemia (TKI Resistance, Imatinib Resistance	7290	Oncology Investigations
+533	CA003	ABL Kinase Domain Mutation Ph Positive Acute Lymphoblastic leukemia (TKI Resistance, I	7290	Oncology Investigations
+534	CA004	Acute Leukemia karyotyping	4991	Oncology Investigations
+535	CA005	Acute Leukemia mutation detection (per gene)ASXL1 /c-KIT/DNMT3A/ IDH1 and IDH2 /K RAS and N RAS mutation detection	4851	Oncology Investigations
+536	CA006	Acute Leukemia RUNX1 mutation detection	4851	Oncology Investigations
+537	CA007	Acute Leukemia TET2 mutation detection	20718	Oncology Investigations
+538	CA008	Acute Leukemia TP53 mutation detection	20718	Oncology Investigations
+539	CA009	Acute Lymphoblastic leukemia karyotyping	4991	Oncology Investigations
+540	CA010	Acute Lymphoblastic Leukemia Mutation Detection	9936	Oncology Investigations
+541	CA011	Acute Lymphoblastic Leukemia Transcript Identification	2718	Oncology Investigations
+542	CA012	Acute Myeloid Leukemia (AML) Panel	12033	Oncology Investigations
+543	CA013	ALK -1	4221	Oncology Investigations
+544	CA014	ALK rearrangement: 2p23	4221	Oncology Investigations
+545	CA015	B-cell Acute Lymphoblastic Leukemia (B-ALL) Panel	10413	Oncology Investigations
+546	CA016	BCL3 rearrangement 19q13.3 / BCL6 rearrangement: 3q27	3137	Oncology Investigations
+547	CA017	BCOR alteration	5445	Oncology Investigations
+548	CA018	BCR/ABL (Ph) duplication, trisomy 8, trisomy 21, TP53 deletion	5486	Oncology Investigations
+549	CA019	BCR/ABL Ph: t(9;22)	3137	Oncology Investigations
+550	CA020	BCR-ABL by PCR-Quantitative	3600	Oncology Investigations
+551	CA021	BRAF	8100	Oncology Investigations
+552	CA022	BRCA1 & BRCA2	18000	Oncology Investigations
+553	CA023	C3d Single Allele Antibody HLA Class I (C3dLSA Class I) /C3d Single Allele Antibody for HLA Class II (C3dLSA Class II)	15750	Oncology Investigations
+554	CA024	CAN ASSIST	45000	Oncology Investigations
+555	CA025	CCND1/IgH: t(11;14)	4221	Oncology Investigations
+556	CA026	CD 19 and CD 20	1350	Oncology Investigations
+557	CA027	Cell line karyotyping	9990	Oncology Investigations
+558	CA028	Chimerism Analysis	1386	Oncology Investigations
+559	CA029	Chromosomal breakage (fragility) studies in Fanconi's Anemia/Aplastic Anemia	4991	Oncology Investigations
+560	CA030	Chronic Lymphocytic Leukemia (CLL) Panel	10413	Oncology Investigations
+561	CA031	Chronic Lymphocytic Leukemia Comprehensive Mutation Profile (IGVH Gene Mutation & Usage, T	29988	Oncology Investigations
+562	CA032	Chronic Lymphocytic Leukemia IGVH Mutation Detection	5715	Oncology Investigations
+563	CA033	Chronic Lymphoproliferative disorder IGVH Mutation Detection	5715	Oncology Investigations
+564	CA034	Chronic Lymphoproliferative disorder NOTCH1 mutation / NOTCH2 mutation	4851	Oncology Investigations
+565	CA035	Chronic Lymphoproliferative disorder SF3B1 mutation	4851	Oncology Investigations
+566	CA036	Chronic Lymphoproliferative disorder TP53 mutation	20718	Oncology Investigations
+567	CA037	CLINICAL EXOME SEQUENCING	13500	Oncology Investigations
+568	CA038	CLL PANEL FISH	9000	Oncology Investigations
+569	CA039	CML Blast Crisis karyotyping	4991	Oncology Investigations
+570	CA040	Combined High Sensitivity JAK2 V617F and Exon12 Mutation Detection	6147	Oncology Investigations
+571	CA041	Comprehensive Molecular Testing	17388	Oncology Investigations
+572	CA042	Comprehensive Next Generation sequencing assay Hematolymphoid malignancies	24300	Oncology Investigations
+573	CA043	Constitutional karyotyping	4991	Oncology Investigations
+574	CA044	Custom Sequencing Assay	9936	Oncology Investigations
+575	CA045	DICER1 Mutation	3492	Oncology Investigations
+576	CA046	Donor Specific Antibodies (DSA)	7200	Oncology Investigations
+577	CA047	EGFR Mutation DETECTION	8550	Oncology Investigations
+578	CA048	EGFR Resistance Mutation (T790m Mutation Analysis)	7200	Oncology Investigations
+579	CA049	ER PR Her2 Neu	2835	Oncology Investigations
+580	CA050	ER/PR/Her2neu, Ki67	4500	Oncology Investigations
+581	CA051	Extended Immune subset for Post Allogenic Stem Cell Transplant Monitoring	4500	Oncology Investigations
+582	CA052	Factor V Leiden Mutation Detection	5940	Oncology Investigations
+583	CA053	FISH for 1p33/TAL1 deletion	4482	Oncology Investigations
+584	CA054	FISH FOR HER2 Neu	9000	Oncology Investigations
+585	CA055	FISH for t(10;11)(p12;q14)/MLLT10(AF10)/PICALM	4482	Oncology Investigations
+586	CA056	FISH for t(11;19)(q23;p13.1)/KMT2A/ELL	4482	Oncology Investigations
+587	CA057	FISH for t(5;11)(q35;p15.5) NUP98/NSD1	4482	Oncology Investigations
+588	CA058	FISH for t(6;14)(p21;q32) IGH/CCND3	4482	Oncology Investigations
+589	CA059	FISH on Bone marrow Smear( 1 marker)	3137	Oncology Investigations
+590	CA060	FISH on bone marrow smear( 2 markers)	4928	Oncology Investigations
+591	CA061	FISH on FFPE - Block /Slide (2 markers)	4284	Oncology Investigations
+592	CA062	FISH PANEL FOR MYELOMA	12600	Oncology Investigations
+593	CA063	FISH Test for C19MC amplification	11475	Oncology Investigations
+594	CA064	FISH test for CDKN2A	6705	Oncology Investigations
+595	CA065	FISH test for CEN 10 loss - on Tissue	3735	Oncology Investigations
+596	CA066	FISH test for ETV6 break-apart analysis - On Tissue	6273	Oncology Investigations
+597	CA067	FISH test for MAML2 break-apart analysis - On Tissue	6444	Oncology Investigations
+598	CA068	Fluorescent PCR + fragment length analysis per Amplicon	315	Oncology Investigations
+599	CA069	GeneCORE Somatic 161 Gene Panel (NGS)	27000	Oncology Investigations
+600	CA070	Hairy Cell Leukemia Mutation (BRAF V600E) Detection	3141	Oncology Investigations
+601	CA071	Hematolymphoid Malignancy At Diagnosis- Cancer Cytogenetics Testing	15404	Oncology Investigations
+602	CA072	Hematolymphoid Malignancy Follow-up- Cancer Cytogenetics Testing	13500	Oncology Investigations
+603	CA073	Hereditary Cancer Panel	10800	Oncology Investigations
+604	CA074	High Sensitivity JAK2 Mutation Detection (V617F)	4149	Oncology Investigations
+605	CA075	Histone Mutation Detection Assay	8348	Oncology Investigations
+606	CA076	HLA C, DQB Molecular Typing PCR - SSP	6633	Oncology Investigations
+607	CA077	HLA Disease Association Next Generation Sequencing HLA-A/B/DRB1/G	4230	Oncology Investigations
+608	CA078	HLA Disease Association Sequence based Typing HLA A/B/DRB1	4320	Oncology Investigations
+609	CA079	HLA Drug Hypersensitivity Next Generation Sequencing HLA-A/B/DRB1 HLA- A/B/DRB1/G	4230	Oncology Investigations
+610	CA080	HLA Drug Hypersensitivity Typing HLA-A/B/DRB1	4320	Oncology Investigations
+611	CA081	HLA Loss Chimerism	10800	Oncology Investigations
+612	CA082	HLA-A, B, C, DRB1, DQB1, DPB1 (Sequence Based Typing - SBT)	13500	Oncology Investigations
+613	CA083	HLA-A, B, DRB1 (Sequence Based Typing - SBT)	9000	Oncology Investigations
+614	CA084	HLA-A, B, DRB1(Sequence Specific Oligonucleotide - SSO)	7020	Oncology Investigations
+615	CA085	HLA-C, DQB1(Sequence Specific Oligonucleotide - SSO)	4680	Oncology Investigations
+616	CA086	HRR Gene Test	27900	Oncology Investigations
+617	CA087	IGH Characterization IGH/CCND1:t(11;14), IGH/BCL2:t(14;18),BCL6(3q27), MYC(8q24) (4markers	4770	Oncology Investigations
+618	CA088	IgH/BCL2 :t(14;18)	4221	Oncology Investigations
+619	CA089	IGHV Gene Mutation	6750	Oncology Investigations
+620	CA090	Interphase FISH test for Chr. 1 copy number variations	9630	Oncology Investigations
+621	CA091	IRFA/DUSP22 gene rearrangement by FISH	14022	Oncology Investigations
+622	CA092	JAK2 Exon 12 Mutation Detection	4149	Oncology Investigations
+623	CA093	JAK2V617 MUTATION, WITH REFLEX TO JAK2 EX-12,CALR EX-9 MUTATION AND MPL W515, S505 MUTATION	10350	Oncology Investigations
+624	CA094	KI67	1170	Oncology Investigations
+625	CA095	KIR Typing	5220	Oncology Investigations
+626	CA096	KMT2A Characterization for AML	7106	Oncology Investigations
+627	CA097	KMT2A Characterization for B-ALL	5486	Oncology Investigations
+628	CA098	KRAS + NRAS + BRAF + Mutation Profile	12420	Oncology Investigations
+629	CA099	Lineage specific Chimerism - B Cell, T Cell and NK Cells	6480	Oncology Investigations
+630	CA100	Liquid Biopsy (Onco)	27000	Oncology Investigations
+631	CA101	Lung Basic Panel By NGS	27000	Oncology Investigations
+632	CA102	Lymphoma Panel	6273	Oncology Investigations
+633	CA103	Lymphoplasmacytic Leukemia / Waldenstroms Macroglobulinemia Mutation (MYD88 L265P) Detecti	3141	Oncology Investigations
+634	CA104	MDS Panel	6273	Oncology Investigations
+635	CA105	MECOM (EVI1) rearrangement: inv(3)(q21.3q26.2)/t(3;3)	4221	Oncology Investigations
+636	CA106	MGMT PCR	7326	Oncology Investigations
+637	CA107	Miscellaneous Profile I(1 marker)	3137	Oncology Investigations
+638	CA108	Miscellaneous profile II(2 markers)	4928	Oncology Investigations
+639	CA109	MLPA per gene	3600	Oncology Investigations
+640	CA110	Monosomy 5/deletion 5q	3137	Oncology Investigations
+641	CA111	Monosomy 7/deletion 7q	3137	Oncology Investigations
+642	CA112	MPN (Myelo Proliferative Neoplasm)PANEL	10800	Oncology Investigations
+643	CA113	MSI ( Micro Satellite Instability) and MMR (Mis Match Repair)	5850	Oncology Investigations
+644	CA114	Multigene NGS Germline Panel	16200	Oncology Investigations
+645	CA115	Multiple Myeloma (MM) Panel	13383	Oncology Investigations
+646	CA116	Multiple Myeloma High Risk Markers (4 Markers)	4770	Oncology Investigations
+647	CA117	Multiple Myeloma Screening Panel	7200	Oncology Investigations
+648	CA118	MYD88 L265 Mutation Detection Test	6084	Oncology Investigations
+649	CA119	Myelodysplastic Syndromes karyotyping	4991	Oncology Investigations
+650	CA120	Next generation RNA sequencing assay Chimeric Trancript in Hematolymphod malignancies	15300	Oncology Investigations
+651	CA121	Next Generation sequencing assay Minimal residual disease(MRD) NPM mutated AML	24300	Oncology Investigations
+652	CA122	NGS HLA Typing	9000	Oncology Investigations
+653	CA123	NGS Platform-extended Panel >50 gene	32400	Oncology Investigations
+654	CA124	NGS Platform-limited Panel(10 Genes)	16200	Oncology Investigations
+655	CA125	NRAS (Neuroblastoma RAS ) Gene	3150	Oncology Investigations
+656	CA126	Panel Reactive Antibodies (PRA) class I	2700	Oncology Investigations
+657	CA127	Panel Reactive Antibodies (PRA) class II	2700	Oncology Investigations
+658	CA128	PCR + Sanger Sequencing per Amplicon	765	Oncology Investigations
+659	CA129	PDGFRA (4q12), PDGFRB (5q33), FGFR1 (8p11.2) rearrangement	5486	Oncology Investigations
+660	CA130	PDGFRA rearrangement: 4q12	4221	Oncology Investigations
+661	CA131	PDGFRB rearrangement: 5q33	4221	Oncology Investigations
+662	CA132	PDL 1	4500	Oncology Investigations
+663	CA133	PDL-1-28-8 (FDA Approved)	6750	Oncology Investigations
+664	CA134	Ph: t(9;22) karyotyping	3560	Oncology Investigations
+665	CA135	Ph-like ALL Panel (4 Markers)	4770	Oncology Investigations
+666	CA136	PIK3CA GENE MUTATION	4860	Oncology Investigations
+667	CA137	PIK3CA Mutation Testing	5130	Oncology Investigations
+668	CA138	Ploidy analysis	3560	Oncology Investigations
+669	CA139	PML-RARA t(15;17), variants	4712	Oncology Investigations
+670	CA140	PRA Screen	2700	Oncology Investigations
+671	CA141	PTPRT: Deletion 20q	4221	Oncology Investigations
+672	CA142	RARA Variant - ZBTB16 / RARA : t(11;17) (1 marker)	2727	Oncology Investigations
+673	CA143	RHOA Mutation Detection Assay	6273	Oncology Investigations
+674	CA144	ROS 1	8748	Oncology Investigations
+675	CA145	RQ PCR based assay for MRD monitoring of Acute Leukaemia	8550	Oncology Investigations
+676	CA146	RQ-PCR BCR-ABL (P210)	9864	Oncology Investigations
+677	CA147	RQ-PCR PML-RARA	9864	Oncology Investigations
+678	CA148	RT-PCR Multiplex, Acute Leukaemia Panel	6570	Oncology Investigations
+679	CA149	RT-PCR Multiplex, BCR-ABL (P190, P210)	5715	Oncology Investigations
+680	CA150	RT-PCR Nested, IGH Chain Gene Rearrangement /TCR Gene Rearrangement	4149	Oncology Investigations
+681	CA151	Single Antigen Class I	11700	Oncology Investigations
+682	CA152	Single Antigen Class II	11700	Oncology Investigations
+683	CA153	Slide / Images for Second Opinion- Cancer Cytogenetics	828	Oncology Investigations
+684	CA154	STR Panel studies	4005	Oncology Investigations
+685	CA155	Surface Marker Complete Panel	10949	Oncology Investigations
+686	CA156	Surface Marker Individual	1710	Oncology Investigations
+687	CA157	t(1;22) and Trisomy 21 in Acute Megakaryoblastic Leukemia (AML -M7) (2 Markers)	4284	Oncology Investigations
+688	CA158	T-cell Acute Lymphoblastic Leukemia (T-ALL) Panel	13653	Oncology Investigations
+689	CA159	TCR-A rearrangement: 14q11	4221	Oncology Investigations
+690	CA160	TERT Promoter Mutation Assay	5225	Oncology Investigations
+691	CA161	TFE-3 FISH	10872	Oncology Investigations
+692	CA162	TPMT (Thiopurine Methyl Transferase) Genotyping	4590	Oncology Investigations
+693	CA163	Trisomy 12	2183	Oncology Investigations
+694	CA164	Trisomy 21	2183	Oncology Investigations
+695	CA165	Trisomy 4, 10 & 17	3137	Oncology Investigations
+696	CA166	Trisomy 8	2183	Oncology Investigations
+697	CA167	V Beta Repertoire Analysis by Flow Cytometry for T-Cell Clonality	10949	Oncology Investigations
+698	CA168	XX/XY (Chimerism Studies) in Sex mismatch Bone Marrow Transplantation (BMT)	2183	Oncology Investigations
+699	CT001	Single drug Chemotherapy	1530	Chemotherapy
+700	CT002	Multiple drugs Chemotherapy/Targeted therapy/Immunotherapy	2070	Chemotherapy
+701	CT003	Neoadjuvant Chemotherapy	2430	Chemotherapy
+702	CT004	Adjuvant Chemotherapy	1980	Chemotherapy
+703	CT005	Concurrent-chemoradiation	1710	Chemotherapy
+704	CT006	Intravesical Instillation of BCG excluding the cost of BCG	2700	Chemotherapy
+705	RT001	Level 1- Brachytherapy (Eye Plaque or SIVA or CVS per insertion or application)	6300	Radiotherapy
+706	RT002	Level 2- Brachytherapy (Simple ICA with Xray based 2D planning, ILRT, Endobilliary BCT) Level 3- Brachytherapy	9000	Radiotherapy
+707	RT003	(Surface Mould, Radical Interstitial BCT, Intraoperative Template or interstitial brachytherapy catheter insertion)	22500	Radiotherapy
+708	RT004	Level 4- Brachytherapy (ICA with CT based Planning)	27000	Radiotherapy
+709	RT005	Level 5- Brachytherapy (Complex ICA with interstitial with CT or MR based planning)	36000	Radiotherapy
+710	RT006	Level 1- Radiation Therapy (1-10 fractions on Cobalt)	13500	Radiotherapy
+711	RT007	CT or TPS planning) without IGRT OR Hemibody palliative RT (1-2 fractions weekly))	25200	Radiotherapy
+712	RT008	(LA 3D with conventional fractionation of 2-5 Gy OR Weekly hypofractionation of >5 Gy with 3D CRT plan in 1-2 fractions. No IGRT allowed.) Level 4- Radiation therapy	45000	Radiotherapy
+713	RT009	(LA 3D with IGRT conventional fractionation of 2- 5 Gy OR Weekly hypofractionation >5 Gy with 3D CRT plan in 1-2 fractions. with IGRT)	56700	Radiotherapy
+714	RT010	MVCT or EPID) OR Cobalt Radical with LA boost including electron boost OR TSET OR TBI)	135000	Radiotherapy
+715	RT011	treatment outside one FOV or one plan OR SBRT OR SRS OR SRT (per fraction dose >5Gy))	162000	Radiotherapy
+716	IT001	Radiosynovectomy with Yttrium	22500	Radio-Isotope Therapy
+717	IT002	131-Iodine Therapy 51-100mCi	12888	Radio-Isotope Therapy
+718	IT003	131-Iodine Therapy >100mCi	17798	Radio-Isotope Therapy
+719	IT004	Samarium-153 therapy for metastatic bone pain palliation	18045	Radio-Isotope Therapy
+720	IT005	131-Iodine Therapy <15mCi	6669	Radio-Isotope Therapy
+721	IT006	131-Iodine Therapy 15-50mCi	10044	Radio-Isotope Therapy
+722	IT007	Phosphorus-32 therapy for metastatic bone pain palliation	12749	Radio-Isotope Therapy
+723	PT001	Cervical Traction (per session)	270	Physiotherapy
+724	PT002	Lumbar Traction (per session) Exercises /Post Natal Exercises/Prenatal Exercises/Therapeutic	270	Physiotherapy
+725	PT003	Exercises/Orthopaedic Rehabilitation (Joint Replacement/Post Surgery)/Hand Rehab (per session) Chest Physiotherapy/ Breathing Exercise &Postural Drainage per Session/Post	270	Physiotherapy
+726	PT004	Covid Rehabilitation /Pulmonary Rehabilitation/Cardiac Rehabilitation (per session)	270	Physiotherapy
+727	PT005	Ultra Sonic Therapy /Short Wave Diathermy / Microwave/ Long Wave Diathermy /Infrared/IFT) (per session)	270	Physiotherapy
+728	PT006	Electrical Muscle Stimulation/Cryotherapy/TENS (per session)	360	Physiotherapy
+729	PT007	Hot Pack / Cold Pack/Wax Bath/Moist Heat (per session)	270	Physiotherapy
+730	PT008	Shock Wave Therapy/Matrix Rhythm Therapy/Laser/ PEMF -Pulse Electro Magnetic Therapy (per session)	360	Physiotherapy
+731	PT009	Gait Assessment (per session)	540	Physiotherapy
+732	PT010	Gait Training (per session)	270	Physiotherapy
+733	PT011	Tilt Training/Neuro-Rehab Basic (per session)	270	Physiotherapy
+734	PT012	Neuro Rehabilitation Advanced (per session)	720	Physiotherapy
+735	PT013	Paediatric Rehabilitation (per session)	270	Physiotherapy
+736	BT001	Speech Therapy per session of at least 40 minutes	360	Behavioural Therapy
+737	BT002	Occupational Therapy per session of at least 40 minutes	360	Behavioural therapy
+738	BT003	Applied Behaviour Analysis based behaviour therapy (ABA based Behaviour therapy) per session of at least 40 minutes	360	Behavioural therapy
+739	BT004	Special education per session of at least 40 minutes	360	Behavioural therapy
+740	BT005	Biofeedback per session	2700	Behavioural therapy
+741	DI001	Intraoral Periapical (IOPA) Radiograph X-ray/RVG(Single Film)	180	Dental Investigation
+742	DI002	Intraoral Occlusal/Bite Wing X-Ray	270	Dental Investigation
+743	DI003	Digital OPG with X ray film/ CD	450	Dental Investigation
+744	DI004	Biopsy of Oral tissue- Soft	1080	Dental Biopsy
+745	DI005	Biopsy of Oral tissue - Hard (bone, tooth)	1800	Dental Biopsy
+746	DP001	Abscess - Drainage-Dental	1350	Dental Procedure
+747	DP002	Scaling	900	Dental Procedure
+748	DP003	Curettage and Root Planning - Per Tooth	315	Dental Procedure
+749	DP004	Curettage and Root Planning - Per Arch	1800	Dental Procedure
+750	DP005	Gingivoplasty - Per Quadrant	900	Dental Procedure
+751	DP006	Gingivectomy - Per Quadrant	1080	Dental Procedure
+752	DP007	Flap Surgery- Per Tooth	405	Dental Procedure
+753	DP008	Flap Surgery- Per Quadrant	1800	Dental Procedure
+754	DP009	Flap Surgery and Bone Graft per quadrant	2700	Dental Procedure
+755	DP010	Extraction - Normal Tooth	360	Dental Procedure
+756	DP011	Complicated Extraction per tooth under LA	720	Dental Procedure
+757	DP012	Extraction Impacted - Soft tissue/ 3rd Molar/wisdom tooth extraction	1800	Dental Procedure
+758	DP013	Systemic Diseases, Patient with Special Needs Which Requires Admission and Treatment Under GA	5400	Dental Procedure
+759	DP014	Extraction - Orthodontic Extraction	675	Dental Procedure
+760	DP015	Operculectomy- Pericoronal flap excision	1800	Dental Procedure
+761	DP016	Extraction Impacted – Bony	4500	Dental Procedure
+762	DP017	Alveoloplasty - Per Tooth	270	Dental Procedure
+763	DP018	Alveoloplasty - Per Quadrant	1080	Dental Procedure
+764	DP019	Frenectomy	2250	Dental Procedure
+765	DP020	Excision of hyperplastic tissue - per arch	1080	Dental Procedure
+766	DP021	Surgical Augmentation/Alveolectomy per Arch	3150	Dental Procedure
+767	DP022	Bone replacement graft for ridge preservation - per site	1800	Dental Procedure
+768	DP023	Minor oral surgery, cyst, granuloma, residual infection, mucocele, epulis under LA	1800	Dental Procedure
+769	DP024	Application of Desensitizing Medicament	450	Dental Procedure
+770	DP025	Fluoride Application for Children	900	Dental Procedure
+771	DP026	Temporary restoration	135	Dental Procedure
+772	DP027	Glass ionomer Cement Restoration	540	Dental Procedure
+773	DP028	Composite - Occlusal Pit/Class I	450	Dental Procedure
+774	DP029	Composite -Class I with buccal extension/Class Class III/Class IV/Class VI/Diastema Closure/MOD	900	Dental Procedure
+775	DP030	RCT-Single Rooted tooth	1800	Dental Procedure
+776	DP031	RCT Multiple root and/ canal tooth	2700	Dental Procedure
+777	DP032	Re-RCT - Anterior	2250	Dental Procedure
+778	DP033	Re-RCT - Posterior	2700	Dental Procedure
+779	DP034	Medication -intracanal medicament (only lesion cases)	450	Dental Procedure
+780	DP035	Apicectomy-Single tooth	1800	Dental Procedure
+781	DP036	Apicectomy-Multiple tooth	2700	Dental Procedure
+782	DP037	Apexification with any bio-compatible material	1800	Dental Procedure
+783	DP038	Root end resection and Retro grade filling	2700	Dental Procedure
+784	DP039	Surgical - Apicectomy/ Periapical surgery without bone grafting	630	Dental Procedure
+785	DP040	Tissue Conditioning, Maxillary/Mandibular	270	Dental Procedure
+786	DP041	Core build-up/ Post and Core - Custom made /Inlay/onlay	1350	Dental Procedure
+787	DP042	Crown lengthening - Per Tooth	450	Dental Procedure
+788	DP043	Crown - PMMA Crown	900	Dental Procedure
+789	DP044	Crown - All Metal-Nickel Free	1800	Dental Procedure
+790	DP045	Crown - Metal with Ceramic Facing	2700	Dental Procedure
+791	DP046	Crown - Recementation	540	Dental Procedure
+792	DP047	Crown - Removal	450	Dental Procedure
+793	DP048	Odontoplasty/Enameloplasty	450	Dental Procedure
+794	DP049	Pulpectomy (Anterior Tooth)	1800	Dental Procedure
+795	DP050	Pulpectomy (Posterior Tooth)	2700	Dental Procedure
+796	DP051	Pulpotomy	900	Dental Procedure
+797	DP052	Veneer - Ceramic paediatric	2700	Dental Procedure
+798	DP053	Interceptive Orthodontic Treatment of the Primary Dentition/Transition Dentition	6300	Dental Procedure
+799	DP054	Limited Orthodontic Treatment of the Primary Dentition	4500	Dental Procedure
+800	DP055	Occlusion Analysis/Adjustment/Occlusal Equilibration	450	Dental Procedure
+801	DP056	Tooth Splinting -General	1350	Dental Procedure
+802	DP057	Splinting - Periodontally weak teeth	1620	Dental Procedure
+803	DP058	Night Guard	1800	Dental Procedure
+804	DP059	Bridge/ Fixed Partial denture (per missing/ extracted tooth) metal crown	1800	Dental Procedure
+805	DP060	Bridge/ Fixed Partial denture (per missing/ extracted tooth) metal crown with Ceramic facing	2700	Dental Procedure
+806	DP061	Removable Partial Denture - Flexible Per Arch	6750	Dental Procedure
+807	DP062	Removable Partial Denture - Cast Metal Up to 3 Teeth	3600	Dental Procedure
+808	DP063	Removable Partial Denture - Cast Metal (additional Per tooth)	270	Dental Procedure
+809	DP064	Removable Partial Denture - Acrylic Up to 3 teeth	1800	Dental Procedure
+810	DP065	Removable Partial Denture - Tooth Addition (per tooth)	270	Dental Procedure
+811	DP066	Add Clasp to existing Partial Denture	450	Dental Procedure
+812	DP067	Add Tooth to existing Partial Denture	360	Dental Procedure
+813	DP068	Tooth Supported Overdenture Per Arch	6750	Dental Procedure
+814	DP069	Complete Denture - Per Arch	9000	Dental Procedure
+815	DP070	Removable orthodontic appliance / Post Orthodontic R O A -per arch	2250	Dental Procedure
+816	DP071	Fixed orthodontic per arch	13500	Dental Procedure
+817	DP072	Space Maintainers - Fixed	3600	Dental Procedure
+818	DP073	Minor Treatment to Control Habits-Removable Appliance Therapy	2250	Dental Procedure
+819	DP074	Minor Treatment to Control Habits-Fixed Appliance Therapy	3600	Dental Procedure
+820	DP075	Functional orthodontic appliance	5400	Dental Procedure
+821	DP076	Feeding appliance for Cleft Palate	4500	Dental Procedure
+822	DP077	Expansion plate	5850	Dental Procedure
+823	DP078	Maxillofacial Prosthesis -Sal/auricular/orbital/Nasal/Palatal/facial lost/ Speech Aid	6300	Dental Procedure
+824	DP079	Obturator Prosthesis - Surgical/Definitive/Modification	4500	Dental Procedure
+825	DP080	Removal of - Lateral Exostosis/Torus Mandibularis/Torus Palatines/Surgical reduction of Osseous Tuberosity	2700	Dental Procedure
+826	DP081	Sialolithotomy/Sialodocotomy/ Closure of Salivary Fistula	1800	Dental Procedure
+827	DP082	Excision of Salivary gland	13500	Dental Procedure
+828	DP083	Release of fibrous bands & grafting in (OSMF) treatment under GA	18000	Dental Procedure
+829	DP084	Facial Space Abscess	4500	Dental Procedure
+830	DP085	Partial Ostectomy / sequestrectomy for removal of non-vital bone	1800	Dental Procedure
+831	DP086	Alveolus – Closed Reduction stabilization of Teeth	3600	Dental Procedure
+832	DP087	Alveolus – Open Reduction stabilization of Teeth	5400	Dental Procedure
+833	DP088	Arch bar fixation	4500	Dental Procedure
+834	DP089	Oroantral Fistula closure	4500	Dental Procedure
+835	DP090	Osseous, Osteoperiosteal, or Cartilage graft of the Mandible or Maxilla - autogenous or non-autogenous bone graft	2700	Dental Procedure
+836	DP091	Osteoplasty - for Orthognathic deformities/ Mandibular Rami/ Body of Mandible	27000	Dental Procedure
+837	DP092	Maxilla - Closed Reduction	5400	Dental Procedure
+838	DP093	Maxilla - Open Reduction	9000	Dental Procedure
+839	DP094	Mandible - Closed Reduction	5400	Dental Procedure
+840	DP095	Mandible – Open Reduction	9000	Dental Procedure
+841	DP096	Cyst of Maxilla/mandible by enucleation/excision/marsupialization upto 4 cms under LA	4500	Dental Procedure
+842	DP097	Cyst of Maxilla/mandible by enucleation/excision/marsupialization more than 4 cms under LA	5400	Dental Procedure
+843	DP098	Cyst of Maxilla/mandible by enucleation/excision/marsupialization more than 4 cms under GA and admission	22500	Dental Procedure
+844	DP099	Temporomandibular(TM) joint ankylosis- under GA/Open /Closed Reduction	18000	Dental Procedure
+845	DP100	Segmental / Hemi Mandibulectomy with graft	22500	Dental Procedure
+846	DP101	Segmental /Hemi Mandibulectomy without graft	18000	Dental Procedure
+847	DP102	Sub-Total mandibulectomy with graft	31500	Dental Procedure
+848	DP103	Sub-Total mandibulectomy without graft	27000	Dental Procedure
+849	DP104	Maxillectomy/Mandibulectomy- Total with graft	31500	Dental Procedure
+850	DP105	Maxillectomy/Mandibulectomy- Total without graft	27000	Dental Procedure
+851	DP106	Maxillectomy- partial with graft	22500	Dental Procedure
+852	DP107	Maxillectomy- partial without graft	18000	Dental Procedure
+853	DP108	Malar and/or Zygomatic arch - Closed Reduction	5400	Dental Procedure
+854	DP109	Malar and/or Zygomatic arch - Open Reduction	9000	Dental Procedure
+855	DP110	Distraction osteogenesis of mandible or maxilla under GA	27000	Dental Procedure
+856	DP111	Facial bones - Complicated Reduction with fixation	40500	Dental Procedure
+857	OI001	Refraction with auto refraction - Both Eyes	180	Ophthalmology Investigation
+858	OI002	Indirect Ophthalmoscopy (Fundoscopy) - Both Eyes	270	Ophthalmology Investigation
+859	OI003	Orthoptic check-up- with synoptophore- Both Eyes	180	Ophthalmology Investigation
+860	OI004	Lees’ charting or Hess’ charting- Both Eyes	270	Ophthalmology Investigation
+861	OI005	Perimetry (Visual Field Testing) -Goldman- Both Eyes	450	Ophthalmology Investigation
+862	OI006	Perimetry /Humphrey Visual Field (HVF ) test- Automated- Both Eyes	720	Ophthalmology Investigation
+863	OI007	Fluorescein angiography for fundus or iris- Both Eyes	1800	Ophthalmology Investigation
+864	OI008	Indocyanine green angiography - Both Eyes	1800	Ophthalmology Investigation
+865	OI009	Ultrasound A- Scan/optical biometry[lenstar, IOL master] - Both Eyes	900	Ophthalmology Investigation
+866	OI010	Ultrasound B- Scan - Both Eyes	450	Ophthalmology Investigation
+867	OI011	Fundus Photo Test /disc photo for glaucoma- Both Eyes	450	Ophthalmology Investigation
+868	OI012	Corneal endothelial cell count with specular microscopy- Both Eyes	540	Ophthalmology Investigation
+869	OI013	Corneal topography /pentacam- Both Eyes	1800	Ophthalmology Investigation
+870	OI014	Corneal pachymetry (corneal thickness)/ CCT - Both Eyes	477	Ophthalmology Investigation
+871	OI015	OCT (Optical Coherence Tomography) /Ocular OCT Angiography - Both Eyes	1890	Ophthalmology Investigation
+872	OI016	UBM- Ultrasound bio microscopy- Both Eyes	900	Ophthalmology Investigation
+873	OI017	Non Contact tonometry (NCT) - Both Eyes	135	Ophthalmology Investigation
+874	OI018	IOP measurement with Schiotz - Both Eyes	90	Ophthalmology Investigation
+875	OI019	IOP measurement with applanation tonometry - Both Eyes	180	Ophthalmology Investigation
+876	OI020	Diurnal variation of IOP - Both Eyes	1350	Ophthalmology Investigation
+877	OI021	90 D lens examination/Three mirror examination for retina - Both Eyes	135	Ophthalmology Investigation
+878	OI022	Gonioscopy- Both Eyes	270	Ophthalmology Investigation
+879	OI023	EOG- Electrooculogram - Both Eyes	1863	Ophthalmology Investigation
+880	OI024	ERG- Electroretinogram- Both Eyes	1620	Ophthalmology Investigation
+881	OI025	VEP- visually evoked potential - Both Eyes	1620	Ophthalmology Investigation
+882	OI026	X Ray orbit -Bilateral	315	Ophthalmology Investigation
+883	OI027	Dacryocystography - Bilateral	1800	Ophthalmology Investigation
+884	OI028	Orbital Angiographical Studies - Bilateral	4500	Ophthalmology Investigation
+885	OI029	Neostigmine test - Both Eyes	4500	Ophthalmology Investigation
+886	OI030	Lipi View One Eye	810	Ophthalmology Investigation
+887	OI031	Lipi View Both Eyes	1350	Ophthalmology Investigation
+888	OI032	Schirmer Test	270	Ophthalmology Investigation
+889	OI033	Vitreous biopsy per eye	4500	Ophthalmology Biopsy
+890	OP001	Subconjunctival/sub-tenon’s injections in one eye	450	Ophthalmology Procedure
+891	OP002	Subconjunctival/sub-tenon’s injections in both eyes	720	Ophthalmology Procedure
+892	OP003	Pterygium surgery with auto conjunctival graft per eye	12060	Ophthalmology Procedure
+893	OP004	Conjunctival Peritomy per eye	1350	Ophthalmology Procedure
+894	OP005	Conjunctival wound repair or exploration following blunt trauma per eye	7650	Ophthalmology Procedure
+895	OP006	Removal of corneal foreign body	360	Ophthalmology Procedure
+896	OP007	Cauterization of ulcer/subconjunctival injection in one eye	450	Ophthalmology Procedure
+897	OP008	Cauterization of ulcer/subconjunctival injection in both eyes	720	Ophthalmology Procedure
+898	OP009	Corneal grafting—Penetrating keratoplasty per eye	18000	Ophthalmology Procedure
+899	OP010	Bandage contact lenses for corneal perforation/PED per eye	1800	Ophthalmology Procedure
+900	OP011	Scleral grafting or conjunctival flap for corneal perforation per eye	7650	Ophthalmology Procedure
+901	OP012	Keratoconus correction with therapeutic contact lenses - Both Eyes	7650	Ophthalmology Procedure
+902	OP013	Ultraviolet (UV) radiation cross-linking keratoconus /C3R/KXL - Both Eyes	18000	Ophthalmology Procedure
+903	OP014	EDTA for band shaped keratopathy - Both Eyes	2700	Ophthalmology Procedure
+904	OP015	Arcuate keratotomy for astigmatism /Limbal Relaxing Incision - Both Eyes	6120	Ophthalmology Procedure
+905	OP016	Re-suturing (Primary suturing) of corneal wound per eye	4500	Ophthalmology Procedure
+906	OP017	Penetrating keratoplasty with glaucoma surgery per eye	31500	Ophthalmology Procedure
+907	OP018	Penetrating keratoplasty with vitrectomy per eye	31500	Ophthalmology Procedure
+908	OP019	Penetrating keratoplasty with IOL implantation per eye	31500	Ophthalmology Procedure
+909	OP020	DALK- Deep anterior lamellar keratoplasty per eye	38700	Ophthalmology Procedure
+910	OP021	Keratoprosthesis stage I and II per eye	38700	Ophthalmology Procedure
+911	OP022	DSAEK Descemet’s stripping automated endothelial keratoplasty/DMEK- Descemet membrane endothelial keratoplasty per eye	38700	Ophthalmology Procedure
+912	OP023	ALTK- Automated lamellar therapeutic keratoplasty per eye	38700	Ophthalmology Procedure
+913	OP024	Bleb repair with conjunctival autograft per eye	13500	Ophthalmology Procedure
+914	OP025	Bleb compression sutures per eye	6300	Ophthalmology Procedure
+915	OP026	Bleb needling with MMC/5-FU per eye	7200	Ophthalmology Procedure
+916	OP027	Probing and Syringing of lacrimal sac- in one eye	900	Ophthalmology Procedure
+917	OP028	Probing and Syringing of lacrimal sac- in both eye	1350	Ophthalmology Procedure
+918	OP029	Dacryocystorhinostomy-Plain	12060	Ophthalmology Procedure
+919	OP030	Dacryocystorhinostomy-Plain with intubation and/or with lacrimal implants excluding the cost of implant per eye	18000	Ophthalmology Procedure
+920	OP031	Dacryocystorhinostomy-conjunctival with implant excluding the cost of implant per eye	18000	Ophthalmology Procedure
+921	OP032	Canaliculoplasty per eye	4761	Ophthalmology Procedure
+922	OP033	Dacryocystectomy per eye	8280	Ophthalmology Procedure
+923	OP034	Punctal plugs for dry eyes - Both Eyes	405	Ophthalmology Procedure
+924	OP035	Chalazion incision and curettage in one eye	1800	Ophthalmology Procedure
+925	OP036	Chalazion incision and curettage in both eyes	2700	Ophthalmology Procedure
+926	OP037	Ptosis surgery with Fasanella-Servat procedure /Ptosis surgery with LPS resection one lid Ptosis surgery with Sling surgery one lid	18000	Ophthalmology Procedure
+927	OP038	Ectropion surgery- one lid	7650	Ophthalmology Procedure
+928	OP039	Ectropion surgery- both lids	12060	Ophthalmology Procedure
+929	OP040	Epicanthus correction - Both Eyes	7650	Ophthalmology Procedure
+930	OP041	Cantholysis and canthotomy- Both Eyes	3150	Ophthalmology Procedure
+931	OP042	Entropion surgery- one lid	7650	Ophthalmology Procedure
+932	OP043	Entropion surgery- both lids	12060	Ophthalmology Procedure
+933	OP044	Tarsorrhaphy- Both Eyes	2700	Ophthalmology Procedure
+934	OP045	Suturing of lid lacerations- Both Eyes	4500	Ophthalmology Procedure
+935	OP046	Lid retraction repair per eye	7650	Ophthalmology Procedure
+936	OP047	Concretions removal- Both Eyes	450	Ophthalmology Procedure
+937	OP048	Bucket handle procedure for lid tumours per eye (for non-malignant conditions)	12060	Ophthalmology Procedure
+938	OP049	Eyelid reconstruction with flap one eye	18000	Ophthalmology Procedure
+939	OP050	Eyelid reconstruction with flap both eyes	22500	Ophthalmology Procedure
+940	OP051	Cheek rotation flap for lid tumours per eye (for non-malignant conditions)	18000	Ophthalmology Procedure
+941	OP052	Orbitotomy per eye	24750	Ophthalmology Procedure
+942	OP053	Enucleation per eye(for non-malignant conditions)	12060	Ophthalmology Procedure
+943	OP054	Enucleation with orbital implants and artificial (Cost of implants included) per eye	18000	Ophthalmology Procedure
+944	OP055	Evisceration per eye	12060	Ophthalmology Procedure
+945	OP056	Evisceration with orbital implants and artificial (Cost of implants included) prosthesis per eye	18000	Ophthalmology Procedure
+946	OP057	Telecanthus correction- Both Eyes	12060	Ophthalmology Procedure
+947	OP058	Orbital decompression /with incision or excision biopsy per eye	31500	Ophthalmology Procedure
+948	OP059	Exenteration per eye	18000	Ophthalmology Procedure
+949	OP060	Exenteration with skin grafting per eye	31500	Ophthalmology Procedure
+950	OP061	Fracture orbital repair per eye	31500	Ophthalmology Procedure
+951	OP062	Retinal laser procedures -green laser for PRP,retinal tears, ROP,endolaser per eye	3150	Ophthalmology Procedure
+952	OP063	Retinal detachment surgery (RDS) per eye	24750	Ophthalmology Procedure
+953	OP064	Retinal detachment surgery (RDS) with scleral buckling per eye	31500	Ophthalmology Procedure
+954	OP065	Buckle removal per eye	7650	Ophthalmology Procedure
+955	OP066	Silicone oil removal per eye	8280	Ophthalmology Procedure
+956	OP067	Anterior retinal cryopexy per eye	4500	Ophthalmology Procedure
+957	OP068	Squint correction for one eye	12060	Ophthalmology Procedure
+958	OP069	Squint correction for both eyes	18000	Ophthalmology Procedure
+959	OP070	Trabeculectomy per eye	18000	Ophthalmology Procedure
+960	OP071	Trabeculotomy /kahook dual blade goniotomy excluding blade cost per eye	18000	Ophthalmology Procedure
+961	OP072	Trabeculectomy with Trabeculotomy- Both Eyes	31500	Ophthalmology Procedure
+962	OP073	Microincisional trabeculectomy(MIT) per eye	22500	Ophthalmology Procedure
+963	OP074	Surgical posterior capsulotomy one eye	9000	Ophthalmology Procedure
+964	OP075	Goniotomy per eye	4500	Ophthalmology Procedure
+965	OP076	Glaucoma surgery with Glaucoma valves (Cost of Valve extra) per eye	18000	Ophthalmology Procedure
+966	OP077	Cost of the Glaucoma valve/Glaucoma Ahmed valve per eye	15000	Ophthalmology Procedure
+967	OP078	AC wash per eye	4500	Ophthalmology Procedure
+968	OP079	Endocyclophotocoagulation per eye	16200	Ophthalmology Procedure
+969	OP080	Cyclocryotherapy /Trans scleral cyclophotocoagulation TSCPC per eye	4500	Ophthalmology Procedure
+970	OP081	YAG Laser iridotomy / Hyaloidotomy/Laser suture lysis post trabeculectomy per eye	4500	Ophthalmology Procedure
+971	OP082	YAG Laser capsulotomy per eye	4500	Ophthalmology Procedure
+972	OP083	ALT-Argon laser trabeculoplasty per eye	4500	Ophthalmology Procedure
+973	OP084	TTT- Transpupillary thermal therapy per eye	7650	Ophthalmology Procedure
+974	OP085	PTK- Phototherapeutic keratectomy /PRK for keratoconus per eye	12060	Ophthalmology Procedure
+975	OP086	Argon/diode laser for retinal detachment per eye	7650	Ophthalmology Procedure
+976	OP087	Intralase application keratoconus /CAIRS Corneal allogenic intrastromal ring segments per eye excluding the cost of the rings	18000	Ophthalmology Procedure
+977	OP088	Vitrectomy- pars plana including Fluid air exchange (per eye)	31500	Ophthalmology Procedure
+978	OP089	Vitrectomy +membrane peeling +fluid air exchange+endolaser+ gas/silicon oil tamponade per eye	36000	Ophthalmology Procedure
+979	OP090	Macular hole surgery- Vitrectomy +membrane peeling + ILM peeling+ fluid air exchange+endolaser+ gas/silicon oil tamponade per eye	36900	Ophthalmology Procedure
+980	OP091	Vitrectomy +phaco fragmentation/ IOL drop +/- secondary IOL per eye	22500	Ophthalmology Procedure
+981	OP092	Anterior vitrectomy per eye	7200	Ophthalmology Procedure
+982	OP093	Membranectomy one eye	10800	Ophthalmology Procedure
+983	OP094	Membranectomy both eyes	13500	Ophthalmology Procedure
+984	OP095	Intravitreal injections of antibiotics excluding the cost of the antibiotic per eye	4500	Ophthalmology Procedure
+985	OP096	Intravitreal Injection of drugs (Ranibizumab/ Aflibercept etc) excluding the cost of the drug per eye	4500	Ophthalmology Procedure
+986	OP097	Intravitreal Insertion of Drug Implant excluding cost of the Drug Implant (Ozurdex,...etc) per eye	5400	Ophthalmology Procedure
+987	OP098	Extracapsular cataract extraction (ECCE) with IOL excluding the cost of IOL per eye	12060	Ophthalmology Procedure
+988	OP099	Small Incision Cataract Surgery (SICS) with IOL excluding the cost of IOL per eye	12060	Ophthalmology Procedure
+989	OP100	Phaco with foldable IOL (silicone and acrylic)/PMMA IOL / MICS surgery excluding the cost of IOL per eye	15300	Ophthalmology Procedure
+990	OP101	Pars plana lensectomy with/without IOL excluding the cost of IOL per eye	15300	Ophthalmology Procedure
+991	OP102	Secondary IOL implantation- AC IOL PC IOL or scleral fixated IOL excluding the cost of IOL per eye	18000	Ophthalmology Procedure
+992	OP103	Cataract extraction with IOL with capsular tension rings (Cionni’s ring)(cost of the ring included) excluding the cost of IOL per eye	31500	Ophthalmology Procedure
+993	OP104	Paediatric cataract surgery +parsplana capsulotomy + anterior vitrectomy excluding the cost of IOL - one eye	18000	Ophthalmology Procedure
+994	OP105	Paediatric cataract surgery +parsplana capsulotomy + anterior vitrectomy excluding the cost of IOL - Both Eyes	22500	Ophthalmology Procedure
+995	OP106	IOL exchange [excluding IOL cost] per eye	9000	Ophthalmology Procedure
+996	OP107	IOL reposition per eye	5400	Ophthalmology Procedure
+997	OP108	IOL explantation per eye	7200	Ophthalmology Procedure
+998	OP109	Iridodialysis repair or pupillary reconstruction /Cyclodialysis repair per eye	12060	Ophthalmology Procedure
+999	OP110	Iris cyst removal /synechiolysis/surgical iridectomy per eye	4500	Ophthalmology Procedure
+1000	OP111	Lid Abscess incision and Drainage per eye	4500	Ophthalmology Procedure
+1001	OP112	Orbital Abscess incision and Drainage per eye	7650	Ophthalmology Procedure
+1002	OP113	Excision Biopsy of lid, conjunctiva, cornea per eye	8280	Ophthalmology Procedure
+1003	OP114	Paracentesis (eye) per eye	4500	Ophthalmology Procedure
+1004	OP115	Scleral graft for scleral melting or perforation per eye	12060	Ophthalmology Procedure
+1005	OP116	Amniotic membrane grafting /symblepharon release with AMG per eye	12060	Ophthalmology Procedure
+1006	OP117	Intraocular foreign body removal per eye	7650	Ophthalmology Procedure
+1007	OP118	Electrolysis (eye) - Both Eyes	900	Ophthalmology Procedure
+1008	OP119	Perforating injury repair (eye) per eye	12060	Ophthalmology Procedure
+1009	OP120	Botulinum injection blepharospasm or squint /epiphora/entropion/lid retraction (excluding cost of drug) per eye	4500	Ophthalmology Procedure
+1010	OP121	C3F8 GAS Injection intravitreal descemetopexy/retinopexy/pneumatopexy (per eye)	4500	Ophthalmology Procedure
+1011	OP122	Silicone Oil injection (per eye)	4500	Ophthalmology Procedure
+1012	OP123	Epiretinal Membrane (ERM) Peeling (per eye)	6300	Ophthalmology Procedure
+1013	OP124	Epiretinal Membrane (ERM) Removal (per eye)	2700	Ophthalmology Procedure
+1014	OP125	Internal limiting membrane (ILM) peeling (per eye)	2700	Ophthalmology Procedure
+1015	OP126	Punctoplasty (per eye)	5850	Ophthalmology Procedure
+1016	OP127	Punctal plug(Collagen/silicone) per eye	3600	Ophthalmology Procedure
+1017	OP128	Laser Trabeculoplasty Gonioplasty - Both Eyes	14400	Ophthalmology Procedure
+1018	OP129	Eye laser pulse therapy /Lipiflow/IPL [Intense pulse light] per eye	3150	Ophthalmology Procedure
+1019	OP130	Malyugin Ring /pupil dilator/iris expander per eye	9000	Ophthalmology Procedure
+1020	OP131	Globe exploration per eye	9000	Ophthalmology Procedure
+1021	OP132	Scleral Fixation Tissue glue /fibrin glue per eye	7560	Ophthalmology Procedure
+1022	OP133	PFCL Injection Per Eye Including Cost of The Drug	2457	Ophthalmology Procedure
+1023	OP134	Methylprednisolone Injection IV Infusion per day Excluding the cost of the drug	2250	Ophthalmology Procedure
+1024	OP135	Retinoblastoma[RB] EUA both eyes	2700	Ophthalmology Procedure
+1025	OP136	RB intravitreal/intravenous/subtenons chemotherapy affected eye excluding the cost of the chemotherapy drug	3150	Ophthalmology Procedure
+1026	OP137	RB TTT/ Cryotherapy affected eye	4050	Ophthalmology Procedure
+1027	OP138	Plaque brachytherapy-surface affected eye	13500	Ophthalmology Procedure
+1028	OP139	Plaque brachytherapy-intraocular affected eye	18000	Ophthalmology Procedure
+1029	OP140	Simple limbal stem cell transplant SLET per eye	18000	Ophthalmology Procedure
+1030	OP141	Mucous membrane grafting MMG one eyelid	18000	Ophthalmology Procedure
+1031	OP142	Mucous membrane grafting MMG two eyelids	22500	Ophthalmology Procedure
+1032	OP143	iStent Inject per eye including the cost of consumables and implant	72000	Ophthalmology Procedure
+1033	OP144	Orthoptic exercises per session	225	Ophthalmology Physiotherapy
+1034	OP145	Pleoptic exercises per session	225	Ophthalmology Physiotherapy
+1035	EI001	Impedance with stapedial reflex / Impedance Audiometry	540	ENT Investigation
+1036	EI002	Pure Tone Audiogram / Pure Tone Audiometry / PTA	405	ENT Investigation
+1037	EI003	Short Increment Sensitivity Index (SISI) Tone Decay	360	ENT Investigation
+1038	EI004	Speech Assessment	360	ENT Investigation
+1039	EI005	Speech Discrimination Score	360	ENT Investigation
+1040	EI006	Multiple hearing assessment test to Adults	360	ENT Investigation
+1041	EI007	BERA (Brain stem evoked response audiometry)	2250	ENT Investigation
+1042	EI008	OAE (Otoacoustic Emission Test)	1134	ENT Investigation
+1043	EI009	Hearing Aid Trail	180	ENT Investigation
+1044	EI010	Vestibular Evoked Myogenic Potential (VEMP)	2475	ENT Investigation
+1045	EI011	Cold Calorie Test for Vestibular function	540	ENT Investigation
+1046	EI012	Electronystagmography (ENG)	1350	ENT Investigation
+1047	EI013	Videonystagmography(VNG)	2250	ENT Investigation
+1048	EI014	Video Laryngoscopy	5400	ENT investigation
+1049	EI015	Videostroboscopy	4950	ENT Investigation
+1050	EI016	Fibreoptic examination of Larynx (FOL) under LA	4500	ENT Investigation
+1051	EI017	Fibro optic Nasal Endoscopy	2070	ENT Investigation
+1052	EP001	Removal of foreign body From Nose	630	ENT Procedure
+1053	EP002	Removal of foreign body From Ear/otoscopy diagnostic or therapeutic	630	ENT Procedure
+1054	EP003	Syringing (Ear)	450	ENT Procedure
+1055	EP004	Polyp removal under LA (Larynx)	4500	ENT Procedure
+1056	EP005	Polyp removal under GA (Larynx)	8280	ENT Procedure
+1057	EP006	Peritonsillar abscess Drainage under LA	7650	ENT Procedure
+1058	EP007	Myringoplasty	24750	ENT Procedure
+1059	EP008	Stapedectomy	24750	ENT Procedure
+1060	EP009	Myringotomy with Grommet Insertion	12060	ENT Procedure
+1061	EP010	Tympanotomy	24750	ENT Procedure
+1062	EP011	Tympanoplasty	31500	ENT Procedure
+1063	EP012	Mastoidectomy	31500	ENT Procedure
+1064	EP013	Otoplasty	31500	ENT Procedure
+1065	EP014	Labyrinthectomy	31500	ENT Procedure
+1066	EP015	Skull Base Surgery	47700	ENT Procedure
+1067	EP016	Facial Nerve Decompression	38700	ENT Procedure
+1068	EP017	Septoplasty	24750	ENT Procedure
+1069	EP018	Submucous Resection	12060	ENT Procedure
+1070	EP019	Septo-Rhinoplasty	38700	ENT Procedure
+1071	EP020	Rhinoplasty- Non-cosmetic	31500	ENT Procedure
+1072	EP021	Fracture Reduction of Nasal Bone	12060	ENT Procedure
+1073	EP022	Intra Nasal Diathermy	5400	ENT Procedure
+1074	EP023	Turbinectomy	12060	ENT Procedure
+1075	EP024	Endoscopic Dacryocystorhinostomy (DCR)	31500	ENT Procedure
+1076	EP025	Endoscopic Surgery (ENT)	31500	ENT Procedure
+1077	EP026	Septal Perforation Repair	24750	ENT Procedure
+1078	EP027	Antrum Puncture	2700	ENT Procedure
+1079	EP028	Lateral Rhinotomy	18000	ENT Procedure
+1080	EP029	Cranio-Facial resection	38700	ENT Procedure
+1081	EP030	Angiofibroma Excision	38700	ENT Procedure
+1082	EP031	Endoscopic Hypophysectomy	47700	ENT Procedure
+1083	EP032	Endoscopic Optic Nerve Decompression	47700	ENT Procedure
+1084	EP033	Tonsillectomy	24750	ENT Procedure
+1085	EP034	Uvulo-palatoplasty	31500	ENT Procedure
+1086	EP035	Functional Endoscopic Sinus Surgery (FESS) for Antrochoanal polyp	31500	ENT Procedure
+1087	EP036	Functional Endoscopic Sinus Surgery (FESS) for Ethmoidal polyp	31500	ENT Procedure
+1088	EP037	Polyp removal ear	4500	ENT Procedure
+1089	EP038	Polyp removal Nose (Septal polyp)	7650	ENT Procedure
+1090	EP039	Mastoidectomy plus Ossiculoplasty including TORP (Total Ossicular Replacement Prosthesis) or PORP (Partial Ossicular Replacement Prosthesis)	31500	ENT Procedure
+1091	EP040	Endolymphatic sac decompression	38700	ENT Procedure
+1092	EP041	Diagnostic endoscopy under GA	4500	ENT Procedure
+1093	EP042	Young's operation for Atrophic rhinitis	18000	ENT Procedure
+1094	EP043	Vidian neurectomy for vasomotor Rhinitis	24750	ENT Procedure
+1095	EP044	Nasal Packing-anterior	2250	ENT Procedure
+1096	EP045	Nasal Packing-Posterior	2700	ENT Procedure
+1097	EP046	Ranula Excision	18000	ENT Procedure
+1098	EP047	Tongue Tie excision	7650	ENT Procedure
+1099	EP048	Sub Mandibular Duct Lithotomy	6120	ENT Procedure
+1100	EP049	Adenoidectomy	18000	ENT Procedure
+1101	EP050	Palatopharyngoplasty	31500	ENT Procedure
+1102	EP051	Pharyngoplasty	38700	ENT Procedure
+1103	EP052	Styloidectomy	18000	ENT Procedure
+1104	EP053	Direct Laryngoscopy including Biopsy under GA	12060	ENT Procedure
+1105	EP054	Oesophagoscopy with foreign body removal from Oesophagus	12060	ENT Procedure
+1106	EP055	Bronchoscopy with foreign body (FB) removal	12060	ENT Procedure
+1107	EP056	Ear Lobe Repair one side	3600	ENT Procedure
+1108	EP057	Excision of Pinna for non-cancerous Growth/Injuries - Skin Only	8280	ENT Procedure
+1109	EP058	Excision of Pinna for non-cancerous/ Injuries - Skin and Cartilage	12060	ENT Procedure
+1110	EP059	Partial Amputation of Pinna	12060	ENT Procedure
+1111	EP060	Total Amputation of Pinna	18000	ENT Procedure
+1112	EP061	Total Amputation & Excision of External Auditory Meatus	18000	ENT Procedure
+1113	EP062	Excision of Cystic Hygroma	18000	ENT Procedure
+1114	EP063	Excision of Cystic Hygroma Extensive	24750	ENT Procedure
+1115	EP064	Excision of Branchial Cyst	24750	ENT Procedure
+1116	EP065	Excision of Branchial Sinus	24750	ENT Procedure
+1117	EP066	Excision of Pharyngeal Diverticulum	24750	ENT Procedure
+1118	EP067	Excision of Carotid Body / Carotid Body Tumours	38700	ENT Procedure
+1119	EP068	Operation for Cervical Rib	31500	ENT Procedure
+1120	EP069	Estlander Operation (Estlander flap in plastic surgery of lips)	31500	ENT Procedure
+1121	EP070	Abbe Operation (Abbe flap in plastic surgery of lips)	24750	ENT Procedure
+1122	EP071	Cheek Advancement	31500	ENT Procedure
+1123	EP072	Excision of the Maxilla	38700	ENT Procedure
+1124	EP073	Excision of mandible-segmental	31500	ENT Procedure
+1125	EP074	Parotidectomy - Superficial	31500	ENT Procedure
+1126	EP075	Parotidectomy - Total	38700	ENT Procedure
+1127	EP076	Repair of Parotid Duct	24750	ENT Procedure
+1128	EP077	Removal of Submandibular Salivary gland	24750	ENT Procedure
+1129	EP078	Hemithyroidectomy	31500	ENT Procedure
+1130	EP079	Partial Thyroidectomy (lobectomy)	31500	ENT Procedure
+1131	EP080	Subtotal Thyroidectomy	38700	ENT Procedure
+1132	EP081	Total Thyroidectomy	47700	ENT Procedure
+1133	EP082	Resection Enucleation of thyroid Adenoma	24750	ENT Procedure
+1134	EP083	Excision of Lingual Thyroid	31500	ENT Procedure
+1135	EP084	Excision of Thyroglossal Cyst/Duct/Fistula	31500	ENT Procedure
+1136	EP085	Laryngectomy	47700	ENT Procedure
+1137	EP086	Hyoid Suspension	24750	ENT Procedure
+1138	EP087	Genioplasty	31500	ENT Procedure
+1139	EP088	Phonosurgery	24750	ENT Procedure
+1140	EP089	Microlaryngeal Surgery	24750	ENT Procedure
+1141	EP090	Laryngofissure	38700	ENT Procedure
+1142	EP091	Tracheal Stenosis Excision	38700	ENT Procedure
+1143	EP092	Tracheostomy	12060	ENT Procedure
+1144	CC001	ICU/CCU/PICU/MICU/HDU (For all categories of ward entitlement, inclusive of Room Rent)	5400	Critical Care
+1145	CC002	Compressed Air / Piped Oxygen per hour	90	Critical Care
+1146	CC003	Ventilator charges (Per day) inclusive of associated disposables	2700	Critical Care
+1147	CC004	Non invasive Ventilator charges (Per day)( inclusive of associated disposables)	540	Critical Care
+1148	CC005	Pneupac Ventilator in Nursery (Per day)	2340	Critical Care
+1149	CC006	Incubator charges (Per day)	1350	Critical Care
+1150	CC007	Neonatal ICU charges (Per day) inclusive of incubator	5400	Critical Care
+1151	CC008	Exchange Transfusion	3150	Critical Care
+1152	CC009	Phototherapy per session (up to 6 Hours)	360	Critical Care
+1153	CC010	Resuscitation/CPR/Intubation	1350	Critical Care
+1154	CC011	PICC line (peripherally inserted Central Cannulisation)	4500	Critical Care
+1155	CC012	Nebulization Per Session	45	Critical Care
+1156	CC013	PICC Line Removal	900	Critical Care
+1157	CC014	Ryles Tube Insertion	810	Critical Care
+1158	BC001	Blood Component Charges - Whole Blood per Unit	1550	Blood Component Charges
+1159	BC002	Blood Component Charges - Packed Red Cell per Unit	1550	Blood Component Charges
+1160	BC003	Blood Component Charges - Fresh Frozen Plasma	400	Blood Component Charges
+1161	BC004	Platelet Concentrate- Random Donor Platelet (RDP)	400	Blood Component Charges
+1162	BC005	Blood Component Charges - Cryoprecipitate	250	Blood Component Charges
+1163	BC006	Platelet Concentrate – Single Donor Platelet (SDP)- Apheresis per unit	11000	Blood Component Charges
+1164	GP001	Dressings of wounds	270	General Procedure
+1165	GP002	Aspiration Pleural Effusion - Diagnostic	630	General Procedure
+1166	GP003	Aspiration Pleural Effusion - Therapeutic	630	General Procedure
+1167	GP004	Abdominal / Peritoneal Aspiration – Diagnostic/Ascitic tapping / Paracentesis - Diagnostic	630	General Procedure
+1168	GP005	Abdominal / Peritoneal Aspiration – Therapeutic/Ascitic tapping / Paracentesis - Therapeutic	675	General Procedure
+1169	GP006	Removal of Sutures (All)	180	General Procedure
+1170	GP007	Venesection	630	General Procedure
+1171	GP008	Sternal puncture	1800	General Procedure
+1172	GP009	Urinary bladder Catheterisation	630	General Procedure
+1173	GP010	Incision & Drainage under local Anaesthesia (Large)	2070	General Procedure
+1174	GP011	Intercostal Drainage	3150	General Procedure
+1175	GP012	Drainage of abscess with anaesthesia	12060	General Procedure
+1176	GP013	Excision of lumps under anaesthesia	12060	General Procedure
+1177	HN001	Temporal Bone Subtotal Resection	38700	Head and Neck Surgery
+1178	HN002	Benign Tumour Excisions of Head and Neck	24750	Head and Neck Surgery
+1179	SK001	Excision of Moles	900	Skin Procedure
+1180	SK002	Excision of Warts	900	Skin Procedure
+1181	SK003	Excision of Molluscum Contagiosum	900	Skin Procedure
+1182	SK004	Excision of Venereal Warts	900	Skin Procedure
+1183	SK005	Excision of Corns	900	Skin Procedure
+1184	SK006	Intradermal (ID) Injection Keloid (Intralesional Injection) including the cost of the drug	900	Skin Procedure
+1185	SK007	Chemical Cautery (s)/Cryotherapy	900	Skin Procedure
+1186	CI001	Electrocardiogram (ECG)	158	Cardiology Investigation
+1187	CI002	Treadmill Test (TMT)	1008	Cardiology Investigation
+1188	CI003	Holter analysis per day	2250	Cardiology Investigation
+1189	CI004	Ambulatory BP monitoring per day	900	Cardiology Investigation
+1190	CI005	Head Up Tilt Test (HUTT)	8280	Cardiology Investigation
+1191	CI006	External Loop/event recording -first day Rs.1500	1350	Cardiology Investigation
+1192	CI007	External Loop/event recording - subsequent Days 1000/day (Maximum up to 6 days)	900	Cardiology Investigation
+1193	CI008	Diagnostic Electrophysiological studies conventional (Including catheter)	65340	Cardiology Investigation
+1194	CI009	Stress Thallium / Myocardial Perfusion Scintigraphy	12060	Cardiology Investigation
+1195	CI010	Rest Thallium / Myocardial Perfusion Scintigraphy	8640	Cardiology Investigation
+1196	CI011	Venography	4500	Cardiology Investigation
+1197	CI012	Lymphangiography	4500	Cardiology Investigation
+1198	CI013	Sinogram	1800	Cardiology Investigation
+1199	CI014	Digital Subtraction Angiography-Peripheral artery	13149	Cardiology Investigation
+1200	CI015	Digital Subtraction Angiography- venogram	13149	Cardiology Investigation
+1201	CI016	Coronary Angiography	12060	Cardiology Investigation
+1202	CI017	Cardiac Catheterization (CATH)	13410	Cardiology Investigation
+1203	CP001	(VCD) excluding the cost of Stent. Cost of Drug Eluting Balloon allowed in lieu of Stent	87300	Cardiology Procedure
+1204	CP002	device (VCD) excluding the cost of Stent. Cost of Drug Eluting Stent allowed in lieu of Stent	75353	Cardiology Procedure
+1205	CP003	Rotablation excluding the cost of Rotablator Burr/Advancer	55644	Cardiology Procedure
+1206	CP004	Balloon Mitral Valvotomy / Percutaneous Transvenous Mitral Commissurotomy (PTMC)	87300	Cardiology Procedure
+1207	CP005	Temporary Pacemaker Implantation (TPI) (Temporary Cardiac Pacing) Single Chamber	19008	Cardiology Procedure
+1208	CP006	Permanent pacemaker implantation (PPI)- Single Chamber excluding the cost of Pacemaker	31680	Cardiology Procedure
+1209	CP007	Permanent pacemaker implantation- Dual Chamber excluding the cost of Pacemaker	42570	Cardiology Procedure
+1210	CP008	Permanent pacemaker implantation (PPI)- Biventricular excluding the cost of pacemaker	49129	Cardiology Procedure
+1211	CP009	Automatic implantable cardioverter defibrillator (AICD) Single Chamber - excluding the cost of Device	49500	Cardiology Procedure
+1212	CP010	Automatic implantable cardioverter defibrillator (AICD) Dual Chamber excluding the cost of Device	51827	Cardiology Procedure
+1213	CP011	Combo Device Implantation excluding the cost of Device	58410	Cardiology Procedure
+1214	CP012	Radiofrequency (RF) Ablation Conventional	87300	Cardiology Procedure
+1215	CP013	Radiofrequency (RF) Ablation Atrial Tachycardia/CARTO	162000	Cardiology Procedure
+1216	CP014	Intra-aortic balloon pump (IABP) excluding the cost of the balloon	31500	Cardiology Procedure
+1217	CP015	Intra vascular coiling excluding cost of the coils	68400	Cardiology Procedure
+1218	CP016	Balloon Septostomy	29700	Cardiology Procedure
+1219	CP017	Aortic Valve Balloon Dilatation (AVBD) / Pulmonary Valve Balloon Dilatation (PVBD)	55836	Cardiology Procedure
+1220	CP018	Peripheral Angioplasty with Vascular Closure Device (VCD) excluding the cost of Stent	54945	Cardiology Procedure
+1221	CP019	Peripheral Angioplasty without Vascular Closure Device (VCD) excluding the cost of Stent	47700	Cardiology Procedure
+1222	CP020	Renal Angioplasty excluding the cost of Stent	54450	Cardiology Procedure
+1223	CP021	consultation with Special Technical Committee (STC) is required this procedure)	90000	Cardiology Procedure
+1224	CP022	TAVI / TAVR Implant (cost of implant only)	1284000	Cardiology Implant(Valve)
+1225	CP023	Cost of Intravascular ultrasound (IVUS) Catheter excluding GST(Procedure Charge included in PTCA)	55000	Cardiology Add on Procedure
+1226	CP024	Cost of Fractional flow reserve (FFR) Catheter excluding GST (Procedure Charge included in PTCA)	33000	Cardiology Add on Procedure
+1227	CP025	Intravascular optical coherence tomography (IVOCT) / Intravascular Ventricular Assist System excluding GST(Procedure cost is included in PTCA)	65000	Cardiology Add on Procedure
+1228	CP026	GST (Approval of Director, in consultation with Special Technical Committee (STC) is required for this procedure)	268000	Cardiology Add on Procedure
+1229	CV001	Varicose vein Surgery-Trendelenburg Operation with Suturing or Ligation	22770	Cardiovascular And Cardiac Surgery Procedure
+1230	CV002	Radio Ablation of Varicose Veins (RFA Ablation) excluding the cost of RFA Catheter	8415	Cardiovascular And Cardiac Surgery Procedure
+1231	CV003	Laser Ablation of Varicose Veins	39600	Cardiovascular And Cardiac Surgery Procedure
+1232	CV004	Atrial Septal Defect (ASD) closure excluding the cost of the Device	99000	Cardiovascular And Cardiac Surgery Procedure
+1233	CV005	Ventricular Septal Defect (VSD) with Graft / VSD Device Closure excluding the cost of the Device	108000	Cardiovascular And Cardiac Surgery Procedure
+1234	CV006	Tetralogy of Fallot (TOF)/TAPVC/TCPC/REV/RSOV repair	162000	Cardiovascular And Cardiac Surgery Procedure
+1235	CV007	BD Glenn/Left Atrium Myxoma	162000	Cardiovascular And Cardiac Surgery Procedure
+1236	CV008	Senning/Arterial Switch Operation (ASO) with graft	162000	Cardiovascular And Cardiac Surgery Procedure
+1237	CV009	Double Switch Operation (DSO)	212400	Cardiovascular And Cardiac Surgery Procedure
+1238	CV010	Atrioventricular(AV) Canal Repair	212400	Cardiovascular And Cardiac Surgery Procedure
+1239	CV011	Fontan Procedure	246600	Cardiovascular And Cardiac Surgery Procedure
+1240	CV012	Conduit Repair	212400	Cardiovascular And Cardiac Surgery Procedure
+1241	CV013	Coronary Artery Bypass Graft surgery (CABG)	162000	Cardiovascular And Cardiac Surgery Procedure
+1242	CV014	Coronary Artery Bypass Graft surgery (CABG) + Intra-Aortic Balloon Pump (IABP)	212400	Cardiovascular And Cardiac Surgery Procedure
+1243	CV015	Coronary Artery Bypass Graft surgery (CABG) + Valve Replacement excluding the cost of the valve	246600	Cardiovascular And Cardiac Surgery Procedure
+1244	CV016	CABG without bypass.	212400	Cardiovascular And Cardiac Surgery Procedure
+1245	CV017	Ascending Aorta Replacement	246600	Cardiovascular And Cardiac Surgery Procedure
+1246	CV018	Double Valve Replacement (DVR)	212400	Cardiovascular And Cardiac Surgery Procedure
+1247	CV019	Mitral valve Replacement(MVR)/ Aortic valve Replacement (AVR)/ Tricuspid Valve Replacement (TVR) / Pulmonary valve replacement (PVR)	162000	Cardiovascular And Cardiac Surgery Procedure
+1248	CV020	Mitral valve (MV) Repair + Aortic valve (AV) Repair / Tricuspid Valve (TV) Repair + Pulmonary valve (PV) repair	162000	Cardiovascular And Cardiac Surgery Procedure
+1249	CV021	Aorta Femoral Bypass	116100	Cardiovascular And Cardiac Surgery Procedure
+1250	CV022	Blalock-Taussig Shunt (BT Shunt) / Coarctation	136800	Cardiovascular And Cardiac Surgery Procedure
+1251	CV023	Pulmonary Artery Banding (PA Banding) Septostomy	136800	Cardiovascular And Cardiac Surgery Procedure
+1252	CV024	Pericardiocentesis	9000	Cardiovascular And Cardiac Surgery Procedure
+1253	CV025	Pericardiectomy	136800	Cardiovascular And Cardiac Surgery Procedure
+1254	CV026	Patent Ductus Arteriosus (PDA)-Device Closure	99000	Cardiovascular And Cardiac Surgery Procedure
+1255	CV027	Heart Transplant Surgery (As per Guidelines mentioned in OM.No. Z- 42011/11/2021-MG/EHS Dated 1st December, 2023)	1350000	Cardiovascular And Cardiac Surgery Procedure
+1256	CV028	Aortic Arch Replacement	246600	Cardiovascular And Cardiac Surgery Procedure
+1257	CV029	Aortic Dissection	246600	Cardiovascular And Cardiac Surgery Procedure
+1258	CV030	Thoraco Abdominal Aneurysm Repair	212400	Cardiovascular And Cardiac Surgery Procedure
+1259	CV031	Embolectomy	68400	Cardiovascular And Cardiac Surgery Procedure
+1260	CV032	Vascular Repair	68400	Cardiovascular And Cardiac Surgery Procedure
+1261	CV033	Bentall Repair with Prosthetic Valve	246600	Cardiovascular And Cardiac Surgery Procedure
+1262	CV034	Bentall Repair with Biologic Valve	212400	Cardiovascular And Cardiac Surgery Procedure
+1263	CV035	Coarctation dilatation / Balloon dilatation of Aortic coarctation -Excluding the cost of Balloon	70884	Cardiovascular And Cardiac Surgery Procedure
+1264	CV036	Coarctation dilatation with Stenting	56700	Cardiovascular And Cardiac Surgery Procedure
+1265	CV037	Septostomy- Blade	56700	Cardiovascular And Cardiac Surgery Procedure
+1266	CV038	Aortic stent grafting for aortic aneurysm	162000	Cardiovascular And Cardiac Surgery Procedure
+1267	CV039	Inferior Vena Cava (IVC) filter implantation- excluding the cost of filter	29700	Cardiovascular And Cardiac Surgery Procedure
+1268	CV040	Video Assisted Thoracoscopic Surgery (VATS) Decortication of Lungs/Thymectomy/Other Major Surgeries	162000	Cardiovascular And Cardiac Surgery Procedure
+1269	GS001	Sclerotherapy Injection / Banding of Haemorrhoids (cost of drug/sclerotherapy agent/band extra)	630	General Surgery
+1270	GS002	Injection for Varicose Veins (cost of drug/sclerotherapy agent extra)	630	General Surgery
+1271	GS003	Suturing of small wounds	1238	General Surgery
+1272	GS004	Secondary suture of wounds	3960	General Surgery
+1273	GS005	Debridement of wounds - Small	1485	General Surgery
+1274	GS006	Phimosis Under LA	5400	General Surgery
+1275	GS007	Removal Of Foreign Bodies -without C-ARM	1350	General Surgery
+1276	GS008	Toe Nail Removal	900	General Surgery
+1277	GS009	Excision of Cervical Lymph Node under Local Anaesthesia	2790	General Surgery
+1278	GS010	Excision of Axillary Lymph Node under General Anaesthesia	7650	General Surgery
+1279	GS011	Excision of Inguinal Lymph Node under Local Anaesthesia	2700	General Surgery
+1280	GS012	Excision of Sebaceous Cysts	4500	General Surgery
+1281	GS013	Excision of Superficial Lipoma	4500	General Surgery
+1282	GS014	Excision of Superficial Neurofibroma	4500	General Surgery
+1283	GS015	Excision of Dermoid Cysts	4500	General Surgery
+1284	GS016	Excision of Keloid	8280	General Surgery
+1285	GS017	Excision of mammary fistula	24750	General Surgery
+1286	GS018	Haemorrhoidectomy	29700	General Surgery
+1287	GS019	Stapler haemorrhoidectomy excluding the cost of Stapler	31500	General Surgery
+1288	GS020	Debridement of Large wounds including Diabetic Wound under Anaesthesia	24750	General Surgery
+1289	GI001	Gastro Oesophageal Reflux Study (GER Study)	2700	Gastro and Hepatobiliary Investigation
+1290	GI002	Meckel's Scan	2700	Hepatobiliary/Nuclear Medicine Investigation Gastro and
+1291	GI003	Hepatobiliary Scintigraphy.	3600	Hepatobiliary/Nuclear Medicine Investigation Gastro and
+1292	GI004	Gastrointestinal Bleed (GloB.) Study with Technetium 99m labeled RBCs.	5400	Hepatobiliary/Nuclear Medicine Investigation Gastro and
+1293	GI005	Gastric Emptying	2250	Hepatobiliary/Nuclear Medicine Investigation Gastro and
+1294	GI006	Hepatosplenic scintigraphy with Technetium-99m radiopharmaceuticals	4500	Hepatobiliary/Nuclear Medicine Investigation
+1295	GI007	Diagnostic Angiography	8280	Gastroenterology/Interventional Radiology Investigation
+1296	GI008	Oesophageal pH metry	8280	Gastroenterology / Endoscopic Procedures
+1297	GI009	Oesophageal Manometry	8280	Gastroenterology / Endoscopic Procedures
+1298	GI010	Small Bowel Manometry	9000	Gastroenterology / Endoscopic Procedures
+1299	GI011	Anorectal manometry	38700	Gastroenterology / Endoscopic Investigation
+1300	GI012	Colonic manometry	31500	Gastroenterology / Endoscopic Investigation
+1301	GI013	Biliary Manometry	38700	Gastroenterology / Endoscopic Investigation
+1302	GI014	Breath Tests (Urea breath test/ H. pylori breath test)/RUT	2601	Gastroenterology / Endoscopic Investigation
+1303	MG001	Gastroscopy/Upper GI Endoscopy with or without Biopsy	3600	Gastroenterology / Endoscopic Procedures
+1304	MG002	Lower GI Endoscopy(Colonoscopy/Sigmoidoscopy) with or without Biopsy	5400	Gastroenterology / Endoscopic Procedures
+1305	MG003	Endoscopic mucosal resection	12060	Gastroenterology / Endoscopic Procedures
+1306	MG004	Endoscopic Polypectomy - GIT	18000	Gastroenterology / Endoscopic Procedures
+1307	MG005	Oesophageal Stricture dilatation	8280	Gastroenterology / Endoscopic Procedures
+1308	MG006	Balloon dilatation of achalasia cardia	12060	Gastroenterology / Endoscopic Procedures
+1309	MG007	Gastrointestinal (GIT) Foreign body removal	18000	Gastroenterology / Endoscopic Procedures
+1310	MG008	Oesophageal stenting excluding the cost of stent	12060	Gastroenterology / Endoscopic Procedures
+1311	MG009	Band ligation of oesophageal varices	7650	Gastroenterology / Endoscopic Procedures
+1312	MG010	Sclerotherapy of oesophageal varices	7650	Gastroenterology / Endoscopic Procedures
+1313	MG011	Glue injection of varices	12060	Gastroenterology / Endoscopic Procedures
+1314	MG012	Argon plasma coagulation	8280	Gastroenterology / Endoscopic Procedures
+1315	MG013	Pyloric balloon dilatation	7650	Gastroenterology / Endoscopic Procedures
+1316	MG014	Enteral stenting excluding cost of the stent	18000	Gastroenterology / Endoscopic Procedures
+1317	MG015	Duodenal stricture dilation	7650	Gastroenterology / Endoscopic Procedures
+1318	MG016	Single balloon enteroscopy	12060	Gastroenterology / Endoscopic Procedures
+1319	MG017	Double balloon enteroscopy	18000	Gastroenterology / Endoscopic Procedures
+1320	MG018	Capsule endoscopy excluding the cost of capsule	12060	Gastroenterology / Endoscopic Procedures
+1321	MG019	Piles banding	4500	Gastroenterology / Endoscopic Procedures
+1322	MG020	Colonic stricture dilatation	7650	Gastroenterology / Endoscopic Procedures
+1323	MG021	Hot biopsy forceps procedures	7650	Gastroenterology / Endoscopic Procedures
+1324	MG022	Colonic stenting excluding cost of the stent	12060	Gastroenterology / Endoscopic Procedures
+1325	MG023	Junction biopsy	4500	Gastroenterology / Endoscopic Procedures
+1326	MG024	Conjugal microscopy	7650	Gastroenterology / Endoscopic Procedures
+1327	MG025	ERCP (Endoscopic Retrograde Cholangio – Pancreatography) Diagnostic	12060	Gastro and Hepatobiliary Investigation
+1328	MG026	Endoscopic sphincterotomy by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1329	MG027	Common Bile Duct (CBD) stone extraction by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1330	MG028	Common Bile Duct (CBD) stricture dilatation by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1331	MG029	Biliary stenting (plastic and metallic) by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1332	MG030	Mechanical lithotripsy of CBD stones by ERCP	31500	Gastroenterology / Endoscopic Procedures
+1333	MG031	Pancreatic sphincterotomy by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1334	MG032	Pancreatic stricture dilatation by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1335	MG033	Pancreatic stone extraction by ERCP	18000	Gastroenterology / Endoscopic Procedures
+1336	MG034	Mechanical lithotripsy of pancreatic stones	31500	Gastroenterology / Endoscopic Procedures
+1337	MG035	Endoscopic cysto gastrostomy	18000	Gastroenterology / Endoscopic Procedures
+1338	MG036	Balloon dilatation of papilla	18000	Gastroenterology / Endoscopic Procedures
+1339	MG037	Percutaneous Transhepatic Biliary Drainage (PTBD)	18000	Gastroenterology/Interventional Radiology Procedures
+1340	MG038	Vascular Embolization	38700	Gastroenterology/Interventional Radiology Procedures
+1341	MG039	Transjugular Intrahepatic Portosystemic Shunt (TIPS)	47700	Gastroenterology/Interventional Radiology Procedures
+1342	MG040	Inferior Vena Cava (IVC) Venography and Hepatic Vein (HV Venography)	38700	Gastroenterology/Interventional Radiology Procedures
+1343	MG041	Muscular Stenting	47700	Gastroenterology / Endoscopic Procedures
+1344	MG042	Balloon-Occluded Retrograde Intravenous Obliteration (BRTO)	47700	Gastroenterology/Interventional Radiology Procedures
+1345	MG043	Portal Haemodynamic Studies	7650	Gastroenterology/Interventional Radiology Procedures
+1346	MG044	Sengstaken Blakemore (SB) Tube Tamponade	8280	Gastroenterology / Endoscopic Procedures
+1347	MG045	Lintas Machles Tube Tempode	5400	Gastroenterology / Endoscopic Procedures
+1348	MG046	EUS (Endoscopic Ultrasound) guided FNAC Excluding the cost of the Needle	14850	Gastroenterology / Endoscopic Procedures
+1349	AG001	Atresia of Oesophagus and Tracheo Oesophageal Fistula	47700	Abdomen/GI Surgery Procedure
+1350	AG002	Operations Replacement of Oesophagus by Colon / Colon-Inter position or Replacement of Oesophagus	47700	Abdomen/GI Surgery Procedure
+1351	AG003	Heller’s Operation	38700	Abdomen/GI Surgery Procedure
+1352	AG004	Oesophageal Intubation (Mousseau Barbin Tube)	24750	Abdomen/GI Surgery Procedure
+1353	AG005	Achalasia Cardia Transthoracic	38700	Abdomen/GI Surgery Procedure
+1354	AG006	Achalasia Cardia Abdominal	38700	Abdomen/GI Surgery Procedure
+1355	AG007	Pyloromyotomy	24750	Abdomen/GI Surgery Procedure
+1356	AG008	Gastrostomy	24750	Abdomen/GI Surgery Procedure
+1357	AG009	Simple Closure of Perforated peptic Ulcer	31500	Abdomen/GI Surgery Procedure
+1358	AG010	Vagotomy Pyloroplasty / Gastro Jejunostomy	38700	Abdomen/GI Surgery Procedure
+1359	AG011	Duodenojejunostomy	47700	Abdomen/GI Surgery Procedure
+1360	AG012	Partial/Subtotal Gastrectomy for Ulcer	47700	Abdomen/GI Surgery Procedure
+1361	AG013	Operation for Bleeding Peptic Ulcer	38700	Abdomen/GI Surgery Procedure
+1362	AG014	Operation for Gastrojejunal Ulcer	38700	Abdomen/GI Surgery Procedure
+1363	AG015	Highly Selective Vagotomy	47700	Abdomen/GI Surgery Procedure
+1364	AG016	Selective Vagotomy & Drainage	47700	Abdomen/GI Surgery Procedure
+1365	AG017	Exploratory Laparotomy (Open)	24750	Abdomen/GI Surgery Procedure
+1366	AG018	Congenital Diaphragmatic Hernia	38700	Abdomen/GI Surgery Procedure
+1367	AG019	Hiatus Hernia Repair- Abdominal (excluding cost of mesh and tacker if used)	32670	Abdomen/GI Surgery Procedure
+1368	AG020	Hiatus Hernia Repair- Transthoracic (excluding cost of mesh and tacker if used)	32670	Abdomen/GI Surgery Procedure
+1369	AG021	Epigastric Hernia Repair - excluding the cost of mesh and tacker	24750	Abdomen/GI Surgery Procedure
+1370	AG022	Umbilical Hernia Repair - excluding the cost of mesh and tacker	31500	Abdomen/GI Surgery Procedure
+1371	AG023	Ventral /incisional Hernia Repair - excluding the cost of mesh and tacker	31500	Abdomen/GI Surgery Procedure
+1372	AG024	Inguinal Hernia Herniorrhaphy	25740	Abdomen/GI Surgery Procedure
+1373	AG025	Inguinal Hernia - Hernioplasty excluding the cost of mesh and tacker	31500	Abdomen/GI Surgery Procedure
+1374	AG026	Femoral Hernia Repair - excluding the cost of mesh and tacker	31500	Abdomen/GI Surgery Procedure
+1375	AG027	Rare Hernias Repair (Spigelian, Obturator, Lumbar, Sciatic) - excluding the cost of mesh and tacker	38700	Abdomen/GI Surgery Procedure
+1376	AG028	Splenectomy - For Trauma	47700	Abdomen/GI Surgery Procedure
+1377	AG029	Splenectomy - For Hypersplenism	56700	Abdomen/GI Surgery Procedure
+1378	AG030	Splenorenal Anastomosis	47700	Abdomen/GI Surgery Procedure
+1379	AG031	Portocaval Anastomosis	56700	Abdomen/GI Surgery Procedure
+1380	AG032	Direct Operation on Oesophagus Portal Hypertension	47700	Abdomen/GI Surgery Procedure
+1381	AG033	Mesentericocaval Anastomosis	38700	Abdomen/GI Surgery Procedure
+1382	AG034	Warren Shunt (Distal Splenorenal Shunt)	47700	Abdomen/GI Surgery Procedure
+1383	AG035	Pancreaticoduodenectomy (Whipple's procedure)	47700	Abdomen/GI Surgery Procedure
+1384	AG036	Cystojejunostomy or Cystogastrostomy	38700	Abdomen/GI Surgery Procedure
+1385	AG037	Cholecystectomy	31500	Abdomen/GI Surgery Procedure
+1386	AG038	Cholecystectomy & Exploration of CBD	32670	Abdomen/GI Surgery Procedure
+1387	AG039	Repair of Common Bile Duct (CBD)	38700	Abdomen/GI Surgery Procedure
+1388	AG040	Cholecystostomy	23760	Abdomen/GI Surgery Procedure
+1389	AG041	Operation for Hydatid Cyst of Liver	26730	Abdomen/GI Surgery Procedure
+1390	AG042	Hepatic Resections (Lobectomy /Hepatectomy)	32670	Abdomen/GI Surgery Procedure
+1391	AG043	Operation on Adrenal Glands - Bilateral	56700	Abdomen/GI Surgery Procedure
+1392	AG044	Operation on Adrenal Glands - Unilateral	38700	Abdomen/GI Surgery Procedure
+1393	AG045	Appendicectomy	18810	Abdomen/GI Surgery Procedure
+1394	AG046	Appendicular Abscess – Drainage	31500	Abdomen/GI Surgery Procedure
+1395	AG047	Mesenteric Cyst- Excision	31500	Abdomen/GI Surgery Procedure
+1396	AG048	Diagnostic Peritonioscopy/Laparoscopy	18000	Abdomen/GI Surgery Procedure
+1397	AG049	Jejunostomy	31500	Abdomen/GI Surgery Procedure
+1398	AG050	Ileostomy	31500	Abdomen/GI Surgery Procedure
+1399	AG051	Resection & Anastomosis of Small Intestine	47025	Abdomen/GI Surgery Procedure
+1400	AG052	Duodenal Diverticulum	47700	Abdomen/GI Surgery Procedure
+1401	AG053	Operation Intestinal Obstruction including resection , anastomosis ,Adhesiolysis	47700	Abdomen/GI Surgery Procedure
+1402	AG054	Operation Intestinal perforation including resection ,anastomosis , Adhesiolysis	47700	Abdomen/GI Surgery Procedure
+1403	AG055	Operations for Benign Tumours of Small Intestine	47700	Abdomen/GI Surgery Procedure
+1404	AG056	Excision of Small Intestine Fistula	44550	Abdomen/GI Surgery Procedure
+1405	AG057	Operations for GI Bleed	47700	Abdomen/GI Surgery Procedure
+1406	AG058	Operations for Haemorrhage of Small Intestines	47700	Abdomen/GI Surgery Procedure
+1407	AG059	Operations of the Duplication of the Intestines – including Exploratory Laparotomy	40590	Abdomen/GI Surgery Procedure
+1408	AG060	Operations Recurrent Intestinal Obstruction (Noble Plication & Other Operations for Adhesions)	47700	Abdomen/GI Surgery Procedure
+1409	AG061	Ileosigmoidostomy and related resection	47700	Abdomen/GI Surgery Procedure
+1410	AG062	Ileotransverse Colostomy and related resection	47700	Abdomen/GI Surgery Procedure
+1411	AG063	Caecostomy	31500	Abdomen/GI Surgery Procedure
+1412	AG064	Loop Colostomy Transverse Sigmoid	38700	Abdomen/GI Surgery Procedure
+1413	AG065	Terminal Colostomy	29700	Abdomen/GI Surgery Procedure
+1414	AG066	Closure of Colostomy	29700	Abdomen/GI Surgery Procedure
+1415	AG067	Right Hemicolectomy	31680	Abdomen/GI Surgery Procedure
+1416	AG068	Left Hemicolectomy	31680	Abdomen/GI Surgery Procedure
+1417	AG069	Total Colectomy	39600	Abdomen/GI Surgery Procedure
+1418	AG070	Operations for Volvulus of Large Bowel	47700	Abdomen/GI Surgery Procedure
+1419	AG071	Operations for Sigmoid Diverticulitis	38700	Abdomen/GI Surgery Procedure
+1420	AG072	Fissure in Ano with Internal sphincterotomy with fissurectomy.	31500	Abdomen/GI Surgery Procedure
+1421	AG073	Fissure in Ano - Fissurectomy	24750	Abdomen/GI Surgery Procedure
+1422	AG074	Rectal Polyp-Excision	13563	Abdomen/GI Surgery Procedure
+1423	AG075	Fistula in Ano - High Fistulectomy	31500	Abdomen/GI Surgery Procedure
+1424	AG076	Fistula in Ano - Low Fistulectomy	22770	Abdomen/GI Surgery Procedure
+1425	AG077	Prolapse Rectum - Thiersch Wiring	24750	Abdomen/GI Surgery Procedure
+1426	AG078	Prolapse Rectum - Rectopexy	13860	Abdomen/GI Surgery Procedure
+1427	AG079	Excision of Pilonidal Sinus (open)	21780	Abdomen/GI Surgery Procedure
+1428	AG080	Excision of Pilonidal Sinus with closure	24750	Abdomen/GI Surgery Procedure
+1429	AG081	Abdomino-Perineal Excision of Rectum	47700	Abdomen/GI Surgery Procedure
+1430	AG082	Anterior Resection of Rectum	56700	Abdomen/GI Surgery Procedure
+1431	AG083	Pull Through Abdominal Resection	47700	Abdomen/GI Surgery Procedure
+1432	AG084	Retro Peritoneal Tumour Removal	47700	Abdomen/GI Surgery Procedure
+1433	AG085	Laparoscopic Fundoplication	56700	Abdomen/GI Surgery Procedure
+1434	AG086	Laparoscopic Splenectomy	56700	Abdomen/GI Surgery Procedure
+1435	AG087	Laparoscopic Removal of hydatid cyst	56700	Abdomen/GI Surgery Procedure
+1436	AG088	Laparoscopic Treatment of Pseudo Pancreatic cyst	56700	Abdomen/GI Surgery Procedure
+1437	AG089	Laparoscopic Whipple's operation (Laparoscopic Pancreaticoduodenectomy	47700	Abdomen/GI Surgery Procedure
+1438	AG090	Laparoscopic GI bypass operation	56700	Abdomen/GI Surgery Procedure
+1439	AG091	Laparoscopic Total Colectomy	56700	Abdomen/GI Surgery Procedure
+1440	AG092	Laparoscopic Hemicolectomy	47700	Abdomen/GI Surgery Procedure
+1441	AG093	Laparoscopic Anterior Resection (of Intestine/ Rectum)	56700	Abdomen/GI Surgery Procedure
+1442	AG094	Laparoscopic Cholecystectomy	32670	Abdomen/GI Surgery Procedure
+1443	AG095	Laparoscopic Appendectomy	29700	Abdomen/GI Surgery Procedure
+1444	AG096	Laparoscopic Hernia – Inguinoplasty (excluding the cost of Tacker and Mesh)	34650	Abdomen/GI Surgery Procedure
+1445	AG097	Laparoscopic Ventral Hernia Repair (excluding the cost of Tacker and Mesh)	34650	Abdomen/GI Surgery Procedure
+1446	AG098	Laparoscopic Paraumbilical Hernia Repair (excluding the cost of Tacker and Mesh)	34650	Abdomen/GI Surgery Procedure
+1447	AG099	Laparoscopic Adrenalectomy	56700	Abdomen/GI Surgery Procedure
+1448	PS001	Diaphragmatic Hernia Repair (Thoracic or Abdominal Approach)	47700	Paediatric Surgery Procedure
+1449	PS002	Tracheoesophageal Fistula (Correction Surgery)	47700	Paediatric Surgery Procedure
+1450	PS003	Colon Replacement of Oesophagus	38700	Paediatric Surgery Procedure
+1451	PS004	Omphalomesenteric Cyst Excision	38700	Paediatric Surgery Procedure
+1452	PS005	Omphalomesenteric Duct- Excision	38700	Paediatric Surgery Procedure
+1453	PS006	Omphalocele 1st Stage (Hernia Repair)	31500	Paediatric Surgery Procedure
+1454	PS007	Omphalocele 2nd Stage (Hernia Repair)	31500	Paediatric Surgery Procedure
+1455	PS008	Gastroschisis Repair	38700	Paediatric Surgery Procedure
+1456	PS009	Inguinal Herniotomy	31500	Paediatric Surgery Procedure
+1457	PS010	Congenital Hydrocele	31500	Paediatric Surgery Procedure
+1458	PS011	Hydrocele of Cord	24750	Paediatric Surgery Procedure
+1459	PS012	Torsion Testis Operation	31500	Paediatric Surgery Procedure
+1460	PS013	Congenital Pyloric Stenosis- operation	31500	Paediatric Surgery Procedure
+1461	PS014	Duodenal Atresia Operation	38700	Paediatric Surgery Procedure
+1462	PS015	Pancreatic Ring Operation	47700	Paediatric Surgery Procedure
+1463	PS016	Meconium Ileus Operation	38700	Paediatric Surgery Procedure
+1464	PS017	Malrotation of Intestines Operation	38700	Paediatric Surgery Procedure
+1465	PS018	Rectal Biopsy (Megacolon)	18000	Paediatric Surgery Procedure
+1466	PS019	Colostomy Transverse	38700	Paediatric Surgery Procedure
+1467	PS020	Colostomy Left Iliac	38700	Paediatric Surgery Procedure
+1468	PS021	Abdominal Perineal Pull Through (Hirschsprung's Disease)	47700	Paediatric Surgery Procedure
+1469	PS022	Imperforate Anus Low Anomaly -Cut Back Operation	24750	Paediatric Surgery Procedure
+1470	PS023	Imperforate Anus Low Anomaly - Perineal Anoplasty	31500	Paediatric Surgery Procedure
+1471	PS024	Imperforate Anus High Anomaly -Sacroabdomino Perineal Pull Through	47700	Paediatric Surgery Procedure
+1472	PS025	Imperforate Anus High Anomaly - Closure of Colostomy	31500	Paediatric Surgery Procedure
+1473	PS026	Intussusception Operation	38700	Paediatric Surgery Procedure
+1474	PS027	Choledochoduodenostomy for Atresia of Extra Hepatic Biliary Duct	47700	Paediatric Surgery Procedure
+1475	PS028	Operation of Choledochal Cyst	47700	Paediatric Surgery Procedure
+1476	PS029	Nephrectomy for -Pyonephrosis	38700	Paediatric Surgery Procedure
+1477	PS030	Nephrectomy for - Hydronephrosis	38700	Paediatric Surgery Procedure
+1478	PS031	Sacro-Coccygeal Teratoma Excision	38700	Paediatric Surgery Procedure
+1479	PS032	Congenital Atresia & Stenosis of Small Intestine	47700	Paediatric Surgery Procedure
+1480	PS033	Malrotation & Volvulus of the Midgut	38700	Paediatric Surgery Procedure
+1481	PS034	Excision of Meckel’s Diverticulum	38700	Paediatric Surgery Procedure
+1482	OG001	Non Stress Test	1350	Obstetrics Investigation
+1483	OG002	repair/ forceps delivery /Vacuum delivery/assisted breech delivery including Routine New Born Care Normal Delivery of High Risk	31500	Obstetrics And Gynaecology Procedure
+1484	OG003	Pregnancy(Preeclampsia/Eclapsia/GDM/Cardiac/Vascular/Renal/Pulmonary/Twin Pregnancy/RA/SLE/IVF Conception/Severe Anaemia,)	38700	Obstetrics And Gynaecology Procedure
+1485	OG004	Caesarean Section(CS) with or without Sterilization including Routine New Born Care Caesarian Delivery of High Risk	47700	Obstetrics And Gynaecology Procedure
+1486	OG005	Pregnancy(Preeclampsia/Eclapsia/GDM/Cardiac/Vascular/Renal/Pulmonary/Twin Pregnancy/RA/SLE/IVF Conception/Severe Anaemia)	56700	Obstetrics And Gynaecology Procedure
+1487	OG006	Rupture Uterus Closure & Repair with Tubal Ligation	38700	Obstetrics And Gynaecology Procedure
+1488	OG007	Perforation of Uterus after D/E Laparotomy & Closure	18000	Obstetrics And Gynaecology Procedure
+1489	OG008	Laparotomy for Ectopic Pregnancy	31500	Obstetrics And Gynaecology Procedure
+1490	OG009	Laparotomy peritonitis Lavage and Drainage	31500	Obstetrics And Gynaecology Procedure
+1491	OG010	Ovarian Cystectomy - Laparoscopic.	38700	Obstetrics And Gynaecology Procedure
+1492	OG011	Ovarian Cystectomy - Laparotomy.	31500	Obstetrics And Gynaecology Procedure
+1493	OG012	Laparoscopic Broad Ligament Hematoma Drainage with repair	12060	Obstetrics And Gynaecology Procedure
+1494	OG013	Exploration of perineal Haematoma & Repair	12060	Obstetrics And Gynaecology Procedure
+1495	OG014	Exploration of abdominal Haematoma (after laparotomy/ LSCS)	24750	Obstetrics And Gynaecology Procedure
+1496	OG015	Manual Removal of Placenta	8280	Obstetrics And Gynaecology Procedure
+1497	OG016	Examination under anaesthesia (EUA)	4500	Obstetrics And Gynaecology Procedure
+1498	OG017	Burst-Abdomen Repair	31500	Obstetrics And Gynaecology Procedure
+1499	OG018	Gaping Perineal Wound Secondary Suturing	4500	Obstetrics And Gynaecology Procedure
+1500	OG019	Gaping Abdominal Wound Secondary Suturing	7650	Obstetrics And Gynaecology Procedure
+1501	OG020	Complete Perineal Tear-Repair	8280	Obstetrics And Gynaecology Procedure
+1502	OG021	Pelvic Floor Repair(Rectocele +/- Cystocele +/- Enterocele)	31500	Obstetrics And Gynaecology Procedure
+1503	OG022	Suction Evacuation Vesicular Mole	24750	Obstetrics And Gynaecology Procedure
+1504	OG023	Colpotomy/Post-Coital Tear Repair	8280	Obstetrics And Gynaecology Procedure
+1505	OG024	Excision of urethral carbuncle	12060	Obstetrics And Gynaecology Procedure
+1506	OG025	Shirodkar/ McDonald stitch//Cervical Stitch(Cerclage)	12060	Obstetrics And Gynaecology Procedure
+1507	OG026	Abdominal Hysterectomy with or without salpingo- oophorectomy	38700	Obstetrics And Gynaecology Procedure
+1508	OG027	Non-descent Vaginal Hysterectomy (NDVH) with or without BSO	38700	Obstetrics And Gynaecology Procedure
+1509	OG028	Vaginal Hysterectomy ( including of BSO) with or without repairs	38700	Obstetrics And Gynaecology Procedure
+1510	OG029	Myomectomy -laparotomy	31500	Obstetrics And Gynaecology Procedure
+1511	OG030	Myomectomy -laparoscopic	38700	Obstetrics And Gynaecology Procedure
+1512	OG031	Vaginoplasty	38700	Obstetrics And Gynaecology Procedure
+1513	OG032	Vulvectomy -Simple	31500	Obstetrics And Gynaecology Procedure
+1514	OG033	Rectovaginal Fistula (RVF) Repair	38700	Obstetrics And Gynaecology Procedure
+1515	OG034	Manchester/Fothergill’s operation	31500	Obstetrics And Gynaecology Procedure
+1516	OG035	Shirodkar’s sling Operation or other sling operations for prolapse uterus	18000	Obstetrics And Gynaecology Procedure
+1517	OG036	Laparoscopic sling operations for prolapse uterus	38700	Obstetrics And Gynaecology Procedure
+1518	OG037	Dilatation and Curettage(diagnostic/therapeutic) with or without Polypectomy	12060	Obstetrics And Gynaecology Procedure
+1519	OG038	Cervical Biopsy	8280	Obstetrics And Gynaecology Procedure
+1520	OG039	Transcervical/Hysteroscopic Polypectomy	12060	Obstetrics And Gynaecology Procedure
+1521	OG040	Excision of Vaginal Cyst/Bartholin Cyst/Gartner Cyst	8280	Obstetrics And Gynaecology Procedure
+1522	OG041	Excision of Vaginal/Uterus Septum	18000	Obstetrics And Gynaecology Procedure
+1523	OG042	Diagnostic hysterolaparoscopy (DHL) with or without chromopertubation/Adhesiolysis/ovarian drilling	18000	Obstetrics And Gynaecology Procedure
+1524	OG043	Laparoscopy Sterilization/Laparoscopic tubal occlusion(LTO)	24750	Obstetrics And Gynaecology Procedure
+1525	OG044	Laparoscopically Assisted Vaginal Hysterectomy (LAVH) with or without BSO	56700	Obstetrics And Gynaecology Procedure
+1526	OG045	Balloon Tamponade Post Partum Haemorrhage/Conservative management of PPH(Atonic/traumatic PPH)	7650	Obstetrics And Gynaecology Procedure
+1527	OG046	Total Laparoscopic Hysterectomy with or without BSO	56700	Obstetrics And Gynaecology Procedure
+1528	OG047	Laparoscopic Treatment of Ectopic Pregnancy- Milking/Salpingotomy/Salpingectomy	38700	Obstetrics And Gynaecology Procedure
+1529	OG048	Conisation of cervix/Chemical Cautery of Cervical Ectopy/Erosion	8280	Obstetrics And Gynaecology Procedure
+1530	OG049	Diagnostic hysteroscopy with or without polypectomy/endometrial curettage	18000	Obstetrics And Gynaecology Procedure
+1531	OG050	Laparotomy recanalization of Fallopian tubes- (Tuboplasty)	47700	Obstetrics And Gynaecology Procedure
+1532	OG051	Laparoscopic recanalization of Fallopian tubes- (Tuboplasty)	47700	Obstetrics And Gynaecology Procedure
+1533	OG052	Colposcopy	4500	Obstetrics And Gynaecology Procedure
+1534	OG053	Inversion of Uterus – Vaginal Reposition	5400	Obstetrics And Gynaecology Procedure
+1535	OG054	Inversion of Uterus – Abdominal Reposition	5400	Obstetrics And Gynaecology Procedure
+1536	OG055	Vaginal Vesicovaginal Fistula (VVF) Repair	56700	Obstetrics And Gynaecology Procedure
+1537	OG056	Interventional Ultrasonography- Chorionic villus sampling (CVS)	4500	Obstetrics And Gynaecology Procedure
+1538	OG057	Amniocentesis	12060	Obstetrics And Gynaecology Procedure
+1539	OG058	Thermal balloon ablation.	31500	Obstetrics And Gynaecology Procedure
+1540	OG059	Ultrasonographic myolysis	24750	Obstetrics And Gynaecology Procedure
+1541	OG060	Vaginal/Cervical Myomectomy	38700	Obstetrics And Gynaecology Procedure
+1542	OG061	Intra Uterine Insemination	4500	Obstetrics And Gynaecology Procedure
+1543	OG062	Intracytoplasmic sperm injection (ICSI)	18000	Obstetrics And Gynaecology Procedure
+1544	OG063	Laparotomy abdominal sacro-colpopexy	47700	Obstetrics And Gynaecology Procedure
+1545	OG064	Vaginal Colpopexy/colpopexy-abdominal	38700	Obstetrics And Gynaecology Procedure
+1546	OG065	Laparoscopic abdominal colpopexy/sacro-colpopexy	47700	Obstetrics And Gynaecology Procedure
+1547	OG066	Endometrial aspiration cytology/biopsy (including Pipelle Charges)	2700	Obstetrics And Gynaecology Procedure
+1548	OG067	Laparoscopic treatment for stress incontinence	38700	Obstetrics And Gynaecology Procedure
+1549	OG068	Transvaginal tapes for Stress incontinence	31500	Obstetrics And Gynaecology Procedure
+1550	OG069	Trans-obturator tapes for Stress incontinence	38700	Obstetrics And Gynaecology Procedure
+1551	OG070	Interventional radiographic arterial embolization/Uterine artery embolization(UAE)	31500	Obstetrics And Gynaecology Procedure
+1552	OG071	Internal Iliac Artery ligation	7650	Obstetrics And Gynaecology Procedure
+1553	OG072	Surgical management of PPH (Uterine compression stitches/stepwise devascularisation)/peripartum hysterectomy	18000	Obstetrics And Gynaecology Procedure
+1554	OG073	Intra-uterine fetal blood transfusion	47700	Obstetrics And Gynaecology Procedure
+1555	OG074	Hysteroscopy Transcervical Resection of Endometrium (TCRE)	31500	Obstetrics And Gynaecology Procedure
+1556	OG075	Hysteroscopy Removal of Intra-Uterine Contraceptive Device (IUCD)	18000	Obstetrics And Gynaecology Procedure
+1557	OG076	hysteroscopic resection of uterine septum	31500	Obstetrics And Gynaecology Procedure
+1558	OG077	Diagnostic Hysteroscopy with or without endometrial Biopsy	18000	Obstetrics And Gynaecology Procedure
+1559	OG078	Sterilization (minilap)-post partum/post abortion	8280	Obstetrics And Gynaecology Procedure
+1560	OG079	Interval Sterilization(minilap)-BAT / Male Sterilization(Vasectomy)	18000	Obstetrics And Gynaecology Procedure
+1561	OG080	Medical Termination of Pregnancy (MTP)- 1st Trimester with Medicine /Manual Vacuum Aspiration /Check Curettage	12060	Obstetrics And Gynaecology Procedure
+1562	OG081	Medical Termination of Pregnancy (MTP) - 2nd Trimester /Suction and Evacuation/Dilatation and Curettage/Dilatation and expulsion	18000	Obstetrics And Gynaecology Procedure
+1563	OG082	Insertion of IUD/IUCD/Pessary	3600	Obstetrics And Gynaecology Procedure
+1564	OG083	Removal of IUD/IUCD/Pessary	900	Obstetrics And Gynaecology Procedure
+1565	NU001	Ultrasound guided kidney Biopsy	8280	Nephrology And Urology - Biopsy
+1566	NU002	Testicular Biopsy	12060	Nephrology And Urology - Biopsy
+1567	NU003	Transrectal Ultrasound (TRUS) guided prostate biopsy	8280	Nephrology And Urology - Biopsy
+1568	NU004	Uroflow Study (Uroflowmetry)	900	Nephrology And Urology Investigation
+1569	NU005	Urodynamic Study (Cystometry)	2700	Nephrology And Urology Investigation
+1570	NU006	Voiding-cysto-urethrogram and retrograde urethrogram (Nephrostogram)	7650	Nephrology And Urology Investigation
+1571	NU007	Fistulogram for Arteriovenous Fistula	8280	Nephrology And Urology Investigation
+1572	NU008	Partial Nephrectomy -open	38700	Nephrology And Urology Procedure
+1573	NU009	Partial Nephrectomy-Laparoscopic/Endoscopic	47700	Nephrology And Urology Procedure
+1574	NU010	Nephrectomy Simple -Open	56700	Nephrology And Urology Procedure
+1575	NU011	Laparoscopic Nephrectomy	56700	Nephrology And Urology Procedure
+1576	NU012	Nephrolithotomy -open	38700	Nephrology And Urology Procedure
+1577	NU013	Nephrolithotomy -Laparoscopic/endoscopic	47700	Nephrology And Urology Procedure
+1578	NU014	Pyelolithotomy-open	56700	Nephrology And Urology Procedure
+1579	NU015	Pyelolithotomy -Laparoscopic/endoscopic	47700	Nephrology And Urology Procedure
+1580	NU016	Operations for Hydronephrosis -pyeloplasty open	47700	Nephrology And Urology Procedure
+1581	NU017	Operations for Hydronephrosis -pyeloplasty Lap/endoscopic	56700	Nephrology And Urology Procedure
+1582	NU018	Operations for Hydronephrosis Endopyelotomy antegrade	38700	Nephrology And Urology Procedure
+1583	NU019	Operations for Hydronephrosis Endopyelotomy retrograde	38700	Nephrology And Urology Procedure
+1584	NU020	Operations for Hydronephrosis ureterocalicostomy	38700	Nephrology And Urology Procedure
+1585	NU021	Operations for Hydronephrosis-Ileal ureter	47700	Nephrology And Urology Procedure
+1586	NU022	Open Drainage of Perinephric Abscess	31500	Nephrology And Urology Procedure
+1587	NU023	Percutaneous Drainage of Perinephric Abscess -Ultrasound guided	12060	Nephrology And Urology Procedure
+1588	NU024	Cavernostomy	24750	Nephrology And Urology Procedure
+1589	NU025	Operations for Cyst of the Kidney -open	38700	Nephrology And Urology Procedure
+1590	NU026	Operations for Cyst of the Kidney Lap/endoscopic	47700	Nephrology And Urology Procedure
+1591	NU027	Ureterolithotomy -open	38700	Nephrology And Urology Procedure
+1592	NU028	Ureterolithotomy-Lap/Endoscopic	47700	Nephrology And Urology Procedure
+1593	NU029	Nephroureterectomy open	47700	Nephrology And Urology Procedure
+1594	NU030	Operations for Ureter for -Double Ureters	47700	Nephrology And Urology Procedure
+1595	NU031	Operations for Ureter -for Ectopia of Single Ureter	38700	Nephrology And Urology Procedure
+1596	NU032	Operations for Vesicoureteral Reflux (VUR) -Open	38700	Nephrology And Urology Procedure
+1597	NU033	Operations for Vesicoureteral Reflux (VUR)-Lap/Endoscopic	47700	Nephrology And Urology Procedure
+1598	NU034	Operations Vesicoureteral Reflux (VUR)/ Urinary incontinence with bulking agents	38700	Nephrology And Urology Procedure
+1599	NU035	Ureterostomy - Cutaneous	31500	Nephrology And Urology Procedure
+1600	NU036	Uretero-Colic anastomosis	38700	Nephrology And Urology Procedure
+1601	NU037	Formation of an Ileal Conduit	47700	Nephrology And Urology Procedure
+1602	NU038	Ureteric Catheterisation/DJ Stenting	18000	Nephrology And Urology Procedure
+1603	NU039	DJ stent removal	8613	Nephrology And Urology Procedure
+1604	NU040	Biopsy of Bladder (Cystoscopic) including (Cold Cup Biopsy)	12060	Nephrology And Urology Procedure
+1605	NU041	Cysto-Litholapaxy	31500	Nephrology And Urology Procedure
+1606	NU042	Operations for Injuries of the Bladder	38700	Nephrology And Urology Procedure
+1607	NU043	Suprapubic Drainage (Cystostomy/vesicostomy)	18000	Nephrology And Urology Procedure
+1608	NU044	Simple Cystectomy	38700	Nephrology And Urology Procedure
+1609	NU045	Diverticulectomy -open	38700	Nephrology And Urology Procedure
+1610	NU046	Diverticulectomy- Lap/Endoscopic	47700	Nephrology And Urology Procedure
+1611	NU047	Diverticulectomy -Endoscopic incision of neck	31500	Nephrology And Urology Procedure
+1612	NU048	Augmentation Cystoplasty	47700	Nephrology And Urology Procedure
+1613	NU049	Operations for Exstrophy of the Bladder- Single stage repair	38700	Nephrology And Urology Procedure
+1614	NU050	Operations for Exstrophy of the Bladder- Multistage repair	38700	Nephrology And Urology Procedure
+1615	NU051	Operations Exstrophy of the Bladder- simple cystectomy with urinary diversion	56700	Nephrology And Urology Procedure
+1616	NU052	Repair of Ureterocele -Open	38700	Nephrology And Urology Procedure
+1617	NU053	Repair of Ureterocele -Lap/Endoscopic	38700	Nephrology And Urology Procedure
+1618	NU054	Repair of Ureterocele -Endoscopic incision	31500	Nephrology And Urology Procedure
+1619	NU055	Vesicovaginal Fistula (VVF) Repair (Open)	38700	Nephrology And Urology Procedure
+1620	NU056	Vesicovaginal Fistula (VVF) Repair (Laparoscopic)	47700	Nephrology And Urology Procedure
+1621	NU057	Open Suprapubic Prostatectomy	38700	Nephrology And Urology Procedure
+1622	NU058	Open Retropubic Prostatectomy	38700	Nephrology And Urology Procedure
+1623	NU059	Transurethral Resection of Prostate (TURP)	56700	Nephrology And Urology Procedure
+1624	NU060	Urethroscopy/ Cystopanendoscopy	12060	Nephrology And Urology Procedure
+1625	NU061	Internal urethrotomy -optical	24750	Nephrology And Urology Procedure
+1626	NU062	Internal urethrotomy -Core through urethroplasty	38700	Nephrology And Urology Procedure
+1627	NU063	Urethral Reconstruction -End to end anastomosis	38700	Nephrology And Urology Procedure
+1628	NU064	Urethral Reconstruction - substitution urethroplasty (Transpubic urethroplasty)	47700	Nephrology And Urology Procedure
+1629	NU065	Abdomino Perineal urethroplasty	47700	Nephrology And Urology Procedure
+1630	NU066	Posterior Urethral Valve fulguration.	31500	Nephrology And Urology Procedure
+1631	NU067	Operations for Incontinence of Urine - Male -Open	38700	Nephrology And Urology Procedure
+1632	NU068	Operations for Incontinence of Urine - Male -Sling	47700	Nephrology And Urology Procedure
+1633	NU069	Operations for Incontinence of Urine - Male-Bulking agent	38700	Nephrology And Urology Procedure
+1634	NU070	Operations for Incontinence of Urine - Female -Open	38700	Nephrology And Urology Procedure
+1635	NU071	Operations for Incontinence of Urine - Female-Sling	47700	Nephrology And Urology Procedure
+1636	NU072	Operations for Incontinence of Urine - Female-Bulking agent	38700	Nephrology And Urology Procedure
+1637	NU073	Reduction of Paraphimosis	5400	Nephrology And Urology Procedure
+1638	NU074	Circumcision	12060	Nephrology And Urology Procedure
+1639	NU075	Meatotomy	7650	Nephrology And Urology Procedure
+1640	NU076	Meatoplasty	12060	Nephrology And Urology Procedure
+1641	NU077	Operations for Hypospadias + Chordee Correction	31500	Nephrology And Urology Procedure
+1642	NU078	Operations for Hypospadias - Second Stage	38700	Nephrology And Urology Procedure
+1643	NU079	Operations for Hypospadias - One Stage Repair	38700	Nephrology And Urology Procedure
+1644	NU080	Operations for Crippled Hypospadias	38700	Nephrology And Urology Procedure
+1645	NU081	Operations for Epispadias -primary repair	38700	Nephrology And Urology Procedure
+1646	NU082	Operations for Epispadias-crippled epispadias	47700	Nephrology And Urology Procedure
+1647	NU083	Partial Amputation of the Penis	31500	Nephrology And Urology Procedure
+1648	NU084	Total amputation of the Penis	38700	Nephrology And Urology Procedure
+1649	NU085	Orchidectomy-Simple	24750	Nephrology And Urology Procedure
+1650	NU086	Epididymectomy	18000	Nephrology And Urology Procedure
+1651	NU087	Operations for Hydrocele - Unilateral	24750	Nephrology And Urology Procedure
+1652	NU088	Operations for Hydrocele - Bilateral	31500	Nephrology And Urology Procedure
+1653	NU089	Operation for Torsion of Testis	24750	Nephrology And Urology Procedure
+1654	NU090	Micro-surgical Vasovasostomy /Vaso epididymal anastomosis .	24750	Nephrology And Urology Procedure
+1655	NU091	Operations for Varicocele Unilateral Microsurgical	31500	Nephrology And Urology Procedure
+1656	NU092	Operations for Varicocele Palomo’s Unilateral -Laparoscopic	31500	Nephrology And Urology Procedure
+1657	NU093	Operations for Varicocele Bilateral --Microsurgical	38700	Nephrology And Urology Procedure
+1658	NU094	Operations for Varicocele Palomo’s Bilateral - Laparoscopic	38700	Nephrology And Urology Procedure
+1659	NU095	Excision of Filarial Scrotum	24750	Nephrology And Urology Procedure
+1660	NU096	Kidney Transplantation (related)	336600	Nephrology And Urology Procedure
+1661	NU097	Kidney Transplantation (Spousal/ unrelated) Including immunosuppressant therapy	382500	Nephrology And Urology Procedure
+1662	NU098	Kidney Transplantation (Cadaver)	315000	Nephrology And Urology Procedure
+1663	NU099	ABO incompatible Transplantation	540000	Nephrology And Urology Procedure
+1664	NU100	Kidney Transplant Graft Nephrectomy	73800	Nephrology And Urology Procedure
+1665	NU101	Donor Nephrectomy (Open)	56700	Nephrology And Urology Procedure
+1666	NU102	Donor Nephrectomy (Laparoscopic)	99000	Nephrology And Urology Procedure
+1667	NU103	Post-Transplant Collection drainage Lymphocele (open)	8280	Nephrology And Urology Procedure
+1668	NU104	Post-Transplant Collection drainage for Lymphocele (percutaneous)	12060	Nephrology And Urology Procedure
+1669	NU105	Post-Transplant Collection drainage for Lymphocele (Laparoscopic)	18000	Nephrology And Urology Procedure
+1670	NU106	Arteriovenous Fistula for Haemodialysis	18000	Nephrology And Urology Procedure
+1671	NU107	Arteriovenous Shunt for Haemodialysis	18000	Nephrology And Urology Procedure
+1672	NU108	Jugular Catheterization for Haemodialysis	5400	Nephrology And Urology Procedure
+1673	NU109	Subclavian Catheterization for Haemodialysis	5400	Nephrology And Urology Procedure
+1674	NU110	One Sided (single Lumen) Femoral Catheterization for Haemodialysis	3600	Nephrology And Urology Procedure
+1675	NU111	Bilateral (single Lumen) Femoral Catheterization for Haemodialysis	5400	Nephrology And Urology Procedure
+1676	NU112	Double Lumen Femoral Catheterization for Haemodialysis	12060	Nephrology And Urology Procedure
+1677	NU113	Permcath Insertion excluding the cost of the catheter	7650	Nephrology And Urology Procedure
+1678	NU114	Arterio Venous Prosthetic Graft	38700	Nephrology And Urology Procedure
+1679	NU115	Single lumen Jugular Catheterization	4500	Nephrology And Urology Procedure
+1680	NU116	Single lumen Subclavian Catheterization	4500	Nephrology And Urology Procedure
+1681	NU117	Plasma Exchange/ Plasmapheresis	18000	Nephrology And Urology Procedure
+1682	NU118	Continuous Ambulatory Peritoneal Dialysis (CAPD) catheter insertion- Open method	18000	Nephrology And Urology Procedure
+1683	NU119	Continuous Ambulatory Peritoneal Dialysis (CAPD) catheter insertion- Schlendinger/ Seldinger method	18000	Nephrology And Urology Procedure
+1684	NU120	Sustained low efficiency haemodialysis /haemodialysis	8280	Nephrology And Urology Procedure
+1685	NU121	Continuous Veno venous/Arteriovenous Haemofiltration /Haemofiltration/CRRT per day	15300	Nephrology And Urology Procedure
+1686	NU122	Haemodialysis / Haemodialysis Sero negative cases including Dialyser and all other Consumables	2250	Nephrology And Urology Procedure
+1687	NU123	Haemodialysis / Haemodialysis Sero Positive cases including Dialyser and all other Consumables	2700	Nephrology And Urology Procedure
+1688	NU124	Acute Peritoneal Dialysis	4770	Nephrology And Urology Procedure
+1689	NU125	Peritoneal Dialysis	3240	Nephrology And Urology Procedure
+1690	NU126	Fistula stenosis dilation	12060	Nephrology And Urology Procedure
+1691	NU127	Slow continuous Ultrafiltration	7650	Nephrology And Urology Procedure
+1692	NU128	Percutaneous Nephrolithotomy (PCNL) - Unilateral	47700	Nephrology And Urology Procedure
+1693	NU129	Percutaneous Nephrolithotomy (PCNL) - Bilateral	56700	Nephrology And Urology Procedure
+1694	NU130	Endoscopic Bulking agent Inject (including cost of bulking agent)	31500	Nephrology And Urology Procedure
+1695	NU131	Nephrostomy -Open	31500	Nephrology And Urology Procedure
+1696	NU132	Nephrostomy -Lap/Endoscopic	31500	Nephrology And Urology Procedure
+1697	NU133	Ureteric Reimplant for Megaureter/ Vesicoureteric reflux/ureterocele (Open)	38700	Nephrology And Urology Procedure
+1698	NU134	Ureteric Reimplant Megaureter / Vesicoureteric reflux/ ureterocele (Laparoscopic)	38700	Nephrology And Urology Procedure
+1699	NU135	Partial Cystectomy	47700	Nephrology And Urology Procedure
+1700	NU136	Transurethral Resection of Prostate (TURP) with Cystolithotripsy	56700	Nephrology And Urology Procedure
+1701	NU137	Closure of Urethral Fistula	31500	Nephrology And Urology Procedure
+1702	NU138	Orchidopexy - Unilateral -Open	31500	Nephrology And Urology Procedure
+1703	NU139	Orchidopexy - Unilateral- Lap/Endoscopic	38700	Nephrology And Urology Procedure
+1704	NU140	Orchidopexy - Bilateral -Open	38700	Nephrology And Urology Procedure
+1705	NU141	Orchidopexy - Bilateral -Lap/Endoscopic	47700	Nephrology And Urology Procedure
+1706	NU142	Cystolithotomy -Suprapubic	24750	Nephrology And Urology Procedure
+1707	NU143	Endoscopic Removal of Stone in Bladder	31500	Nephrology And Urology Procedure
+1708	NU144	Resection Bladder Neck Endoscopic / Bladder neck incision / transurethral incision on prostrate	38700	Nephrology And Urology Procedure
+1709	NU145	Ureteroscopic Surgery	31500	Nephrology And Urology Procedure
+1710	NU146	Urethroplasty 1st Stage	38700	Nephrology And Urology Procedure
+1711	NU147	Scrotal Exploration	24750	Nephrology And Urology Procedure
+1712	NU148	Perineal Urethrostomy	31500	Nephrology And Urology Procedure
+1713	NU149	Dilatation of Stricture Urethra under G.A.	4500	Nephrology And Urology Procedure
+1714	NU150	Laparoscopic pyelolithotomy	56700	Nephrology And Urology Procedure
+1715	NU151	Laparoscopic Pyeloplasty	56700	Nephrology And Urology Procedure
+1716	NU152	Laparoscopic surgery for Renal cyst	56700	Nephrology And Urology Procedure
+1717	NU153	Laparoscopic ureterolithotomy	56700	Nephrology And Urology Procedure
+1718	NU154	Laparoscopic Nephroureterectomy	47700	Nephrology And Urology Procedure
+1719	NU155	Extracorporeal Shock Wave Lithotripsy (ESWL)	38700	Nephrology And Urology Procedure
+1720	NU156	Diagnostic Cystoscopy	7650	Nephrology And Urology Procedure
+1721	NU157	Cystoscopy with Retrograde Catheter -Unilateral/RGP	18000	Nephrology And Urology Procedure
+1722	NU158	Cystoscopy with Retrograde Catheter - Bilateral/RGP	24750	Nephrology And Urology Procedure
+1723	NU159	Retrograde Intrarenal Surgery (RIRS)/ Flexible Ureteroscopy	56700	Nephrology And Urology Procedure
+1724	NU160	Holmium YAG Prostate Surgery	68400	Nephrology And Urology Procedure
+1725	NU161	Holmium YAG Optical Internal Urethrotomy (OIU)	38700	Nephrology And Urology Procedure
+1726	NU162	Holmium YAG Core through internal Urethrotomy	47700	Nephrology And Urology Procedure
+1727	NU163	Holmium YAG Stone Lithotripsy	68400	Nephrology And Urology Procedure
+1728	NU164	Green Light Laser for Prostate	68400	Nephrology And Urology Procedure
+1729	NU165	Cystoscopic Botulinum Toxin Injection ( Over active bladder/ Neurogenic bladder) -excluding cost of drug	12060	Nephrology And Urology Procedure
+1730	NU166	Peyronie’s Disease – Plaque excision with grafting	31500	Nephrology And Urology Procedure
+1731	NU167	Prosthetic Surgery for urinary incontinence	38700	Nephrology And Urology Procedure
+1732	NU168	Ultrasound Guided Percutaneous Nephrostomy (PCN)	18000	Nephrology And Urology Procedure
+1733	NI001	Electroencephalogram (EEG)/ Video EEG	900	Neurology Investigation
+1734	NI002	Electromyography (EMG)	1350	Neurology Investigation
+1735	NI003	Nerve conduction velocity (NCV), -two or more limbs	1350	Neurology Investigation
+1736	NI004	Repetitive nerve stimulation (RNS)-Decremental response (before and after neostigmine)	1350	Neurology Investigation
+1737	NI005	Repetitive nerve stimulation (RNS)-Incremental response	1350	Neurology Investigation
+1738	NI006	Somatosensory evoked potentials (SSEP)	1350	Neurology Investigation
+1739	NI007	Polysomnography (PSG) / Level I Sleep study including Room Rent and Titration	8100	Neurology Investigation
+1740	NI008	Brachial plexus study	1350	Neurology Investigation
+1741	NI009	RNS( Repetitive Nerve stimulation)	1440	Neurology Investigation
+1742	NS001	Lumbar Pressure Monitoring	8280	Neuro-Surgery Investigation
+1743	NS002	Brain Mapping	24750	Neuro-Surgery Investigation
+1744	NS003	Nerve Biopsy	18000	Neuro-Surgery Biopsy
+1745	NS004	Brain Biopsy	38700	Neuro-Surgery Biopsy
+1746	NS005	Craniotomy and Evacuation of Haematoma -Subdural	73800	Neuro-Surgery Procedure
+1747	NS006	Craniotomy and Evacuation of Haematoma - Extradural	73800	Neuro-Surgery Procedure
+1748	NS007	Evacuation /Excision of Brain Abscess by craniotomy	73800	Neuro-Surgery Procedure
+1749	NS008	Excision of Lobe (Frontal Temporal Cerebellum etc.)	73800	Neuro-Surgery Procedure
+1750	NS009	Twist Drill Craniostomy	38700	Neuro-Surgery Procedure
+1751	NS010	Subdural Tapping	12060	Neuro-Surgery Procedure
+1752	NS011	Ventricular Tapping	31500	Neuro-Surgery Procedure
+1753	NS012	Brain Abscess Tapping	24750	Neuro-Surgery Procedure
+1754	NS013	Placement of Intracranial pressure (ICP) Monitor	24750	Neuro-Surgery Procedure
+1755	NS014	Skull Traction Application	8280	Neuro-Surgery Procedure
+1756	NS015	Vascular Malformations	87300	Neuro-Surgery Procedure
+1757	NS016	Meningoencephalocele excision and repair	68400	Neuro-Surgery Procedure
+1758	NS017	Meningomyelocele Repair	56700	Neuro-Surgery Procedure
+1759	NS018	CSF Rhinorrhoea Repair	56700	Neuro-Surgery Procedure
+1760	NS019	Cranioplasty	56700	Neuro-Surgery Procedure
+1761	NS020	Anterior Cervical Discectomy	56700	Neuro-Surgery Procedure
+1762	NS021	Brachial Plexus Exploration and neurotization	56700	Neuro-Surgery Procedure
+1763	NS022	Median Nerve Decompression	38700	Neuro-Surgery Procedure
+1764	NS023	Peripheral Nerve Surgery – Major	56700	Neuro-Surgery Procedure
+1765	NS024	Peripheral Nerve Surgery Minor	47700	Neuro-Surgery Procedure
+1766	NS025	Ventriculoatrial /Ventriculoperitoneal Shunt	47700	Neuro-Surgery Procedure
+1767	NS026	Anterior Cervical Spine Surgery with fusion	68400	Neuro-Surgery Procedure
+1768	NS027	Anterio Lateral Decompression of spine	73800	Neuro-Surgery Procedure
+1769	NS028	Cervical or Dorsal or Lumbar Laminectomy	47700	Neuro-Surgery Procedure
+1770	NS029	Combined Trans-Oral Surgery & Craniovertebral (CV) Junction Fusion	56700	Neuro-Surgery Procedure
+1771	NS030	Craniovertebral Junction (CVJ) Fusion procedures	68400	Neuro-Surgery Procedure
+1772	NS031	Depressed Fracture Elevation	47700	Neuro-Surgery Procedure
+1773	NS032	Lumbar Discectomy	56700	Neuro-Surgery Procedure
+1774	NS033	Endarterectomy (Carotid)	56700	Neuro-Surgery Procedure
+1775	NS034	Radiofrequency (RF) Lesion for Trigeminal Neuralgia	47700	Neuro-Surgery Procedure
+1776	NS035	Spasticity Surgery	47700	Neuro-Surgery Procedure
+1777	NS036	Spinal Fusion Procedure	68400	Neuro-Surgery Procedure
+1778	NS037	Spinal Bifida Surgery Major	56700	Neuro-Surgery Procedure
+1779	NS038	Spinal Bifida Surgery Minor	47700	Neuro-Surgery Procedure
+1780	NS039	Stereotaxic Procedures- biopsy/aspiration of cyst	38700	Neuro-Surgery Procedure
+1781	NS040	Trans Sphenoidal Surgery	47700	Neuro-Surgery Procedure
+1782	NS041	Trans Oral Surgery	47700	Neuro-Surgery Procedure
+1783	NS042	Implantation of Deep Brain Stimulation (DBS) -One electrode (as per guidelines mentioned in OM.No.Z15025/44/2023/DIR/CGHS/EHS Dated 09.09.2024)	56700	Neuro-Surgery Procedure
+1784	NS043	Implantation of Deep Brain Stimulation (DBS) -two electrodes (as per guidelines mentioned in OM.No.Z15025/44/2023/DIR/CGHS/EHS Dated 09.09.2024)	68400	Neuro-Surgery Procedure
+1785	NS044	Endoscopic aqueductoplasty	47700	Neuro-Surgery Procedure
+1786	NS045	Facial nerve reconstruction	68400	Neuro-Surgery Procedure
+1787	NS046	Carotid Stenting excluding the cost of Stent	56700	Neuro-Surgery Procedure
+1788	NS047	Cervical disc arthroplasty	56700	Neuro-Surgery Procedure
+1789	NS048	Lumbar disc arthroplasty	47700	Neuro-Surgery Procedure
+1790	NS049	Corpus callostomy for Epilepsy	73800	Neuro-Surgery Procedure
+1791	NS050	Hemispherotomy for Epilepsy	73800	Neuro-Surgery Procedure
+1792	NS051	Endoscopic CSF rhinorrhoea repair	47700	Neuro-Surgery Procedure
+1793	NS052	Burr hole evacuation of chronic subdural haematoma	56700	Neuro-Surgery Procedure
+1794	NS053	Epilepsy surgery other than at Code No. NS049 and NS050	87300	Neuro-Surgery Procedure
+1795	NS054	Radiofrequency (RF) lesion for facet joint pain syndrome	56700	Neuro-Surgery Procedure
+1796	NS055	Cervical Laminoplasty	68400	Neuro-Surgery Procedure
+1797	NS056	Lateral mass C1-C2 screw fixation	68400	Neuro-Surgery Procedure
+1798	NS057	Microsurgical decompression for Trigeminal nerve	56700	Neuro-Surgery Procedure
+1799	NS058	Microsurgical decompression for hemifacial spasm	56700	Neuro-Surgery Procedure
+1800	NS059	Extracranial-Intracranial Bypass Procedures (EC-IC) bypass procedures	56700	Neuro-Surgery Procedure
+1801	NS060	Image Guided Craniotomy	73800	Neuro-Surgery Procedure
+1802	NS061	Baclofen pump implantation lesioning movement disorder including Parkinsonism/Spinal Cord Stimulator Implantation	68400	Neuro-Surgery Procedure
+1803	NS062	Programmable Ventriculo-Peritoneal (VP) shunt excluding the cost of the Device	56700	Neuro-Surgery Procedure
+1804	NS063	Endoscopic Sympathectomy	56700	Neuro-Surgery Procedure
+1805	NS064	Lumbar Puncture	2700	Neuro-Surgery Procedure
+1806	NS065	External Ventricular Drainage (EVD)	24750	Neuro-Surgery Procedure
+1807	NS066	Endoscopic 3rd ventriculostomy	47700	Neuro-Surgery Procedure
+1808	NS067	Endoscopic cranial surgery/Biopsy/aspiration	56700	Neuro-Surgery Procedure
+1809	NS068	Endoscopic discectomy (Lumbar, Cervical)	56700	Neuro-Surgery Procedure
+1810	NS069	Aneurysm coiling (Endovascular)	56700	Neuro-Surgery Procedure
+1811	NS070	Surgery for Skull Fractures	68400	Neuro-Surgery Procedure
+1812	NS071	Carpel Tunnel decompression	38700	Neuro-Surgery Procedure
+1813	NS072	Clipping of intracranial aneurysm	73800	Neuro-Surgery Procedure
+1814	NS073	Surgery for intracranial Arteriovenous malformations (AVM)	87300	Neuro-Surgery Procedure
+1815	NS074	Foramen magnum decompression for Chiari Malformation	116100	Neuro-Surgery Procedure
+1816	NS075	Dorsal column stimulation for backache in failed back syndrome	56700	Neuro-Surgery Procedure
+1817	NS076	Surgery for recurrent disc prolapse/epidural fibrosis	56700	Neuro-Surgery Procedure
+1818	NS077	Decompressive craniotomy hemispherical acute subdural haematoma/ brain swelling/large infarct	73800	Neuro-Surgery Procedure
+1819	NS078	Intra-arterial thrombolysis with Tissue Plasminogen Activator (TPA) (for ischemic stroke )	31500	Neuro-Surgery Procedure
+1820	NS079	Stereotactic aspiration of intracerebral haematoma	68400	Neuro-Surgery Procedure
+1821	NS080	Endoscopic aspiration of intracerebellar haematoma	68400	Neuro-Surgery Procedure
+1822	NS081	Stereotactic Radiosurgery for brain pathology (X knife/Gamma) - ONE session	47700	Neuro-Surgery Procedure
+1823	NS082	Stereotactic Radiosurgery brain pathology (X knife / Gamma knife -Two or more sessions)	68400	Neuro-Surgery Procedure
+1824	NS083	Battery Placement for Deep Brain Stimulation (DBS)	31500	Neuro-Surgery Procedure
+1825	NS084	Baclofen pump implantation for spasticity/Intra-thecal Pump Implantation	31500	Neuro-Surgery Procedure
+1826	NS085	Surgery for Scalp Arteriovenous Malformations (AVMs)	56700	Neuro-Surgery Procedure
+1827	NS086	Kyphoplasty excluding the cost of implants	47700	Neuro-Surgery Procedure
+1828	NS087	Balloon Kyphoplasty	56700	Neuro-Surgery Procedure
+1829	NS088	Lesioning procedures for Parkinson’s disease,Dystonia etc.	47700	Neuro-Surgery Procedure
+1830	OR001	Joints Aspiration	1440	Orthopaedics Procedure
+1831	OR002	Plaster Work	4500	Orthopaedics Procedure
+1832	OR003	Fingers (post slab)	900	Orthopaedics Procedure
+1833	OR004	Fingers full plaster	1350	Orthopaedics Procedure
+1834	OR005	Colles Fracture - Below elbow	5400	Orthopaedics Procedure
+1835	OR006	Colles Fracture - Full plaster	4050	Orthopaedics Procedure
+1836	OR007	Colles fracture Ant. Or post. slab	2700	Orthopaedics Procedure
+1837	OR008	Above elbow full plaster	3600	Orthopaedics Procedure
+1838	OR009	Above Knee post-slab	2700	Orthopaedics Procedure
+1839	OR010	Below Knee full plaster	3600	Orthopaedics Procedure
+1840	OR011	Below Knee post-slab	4500	Orthopaedics Procedure
+1841	OR012	Tube Plaster (or plaster cylinder)	4500	Orthopaedics Procedure
+1842	OR013	Above knee full plaster	4500	Orthopaedics Procedure
+1843	OR014	Above knee full slab	3150	Orthopaedics Procedure
+1844	OR015	Minerva Jacket	8280	Orthopaedics Procedure
+1845	OR016	Plaster Jacket	5400	Orthopaedics Procedure
+1846	OR017	Shoulder spica	7650	Orthopaedics Procedure
+1847	OR018	Single Hip spica	6300	Orthopaedics Procedure
+1848	OR019	Double Hip spica	7650	Orthopaedics Procedure
+1849	OR020	Strapping of Finger	450	Orthopaedics Procedure
+1850	OR021	Strapping of Toes	540	Orthopaedics Procedure
+1851	OR022	Strapping of Wrist	675	Orthopaedics Procedure
+1852	OR023	Strapping of Elbow	1350	Orthopaedics Procedure
+1853	OR024	Strapping of Knee	900	Orthopaedics Procedure
+1854	OR025	Strapping of Ankle	720	Orthopaedics Procedure
+1855	OR026	Strapping of Chest	1350	Orthopaedics Procedure
+1856	OR027	Strapping of Shoulder	1350	Orthopaedics Procedure
+1857	OR028	Figure of 8 bandage	900	Orthopaedics Procedure
+1858	OR029	Collar and cuff sling	450	Orthopaedics Procedure
+1859	OR030	Ball bandage	720	Orthopaedics Procedure
+1860	OR031	Application of POP Casts for Upper & Lower Limbs	5400	Orthopaedics Procedure
+1861	OR032	Application of Functional Cast Brace	3600	Orthopaedics Procedure
+1862	OR033	Application of Skin Traction	2250	Orthopaedics Procedure
+1863	OR034	Application of Skeletal Tractions	5400	Orthopaedics Procedure
+1864	OR035	Bandage & Strappings for Fractures	1800	Orthopaedics Procedure
+1865	OR036	Aspiration & Intra Articular Injections	4500	Orthopaedics Procedure
+1866	OR037	Application of POP Spices & Jackets	5400	Orthopaedics Procedure
+1867	OR038	Close Reduction of Fractures of Limb & POP	12060	Orthopaedics Procedure
+1868	OR039	Open Reduction & Internal Fixation (ORIF) of Fingers & Toes	18000	Orthopaedics Procedure
+1869	OR040	Open Reduction of fracture of Long Bones of Upper / Lower Limb -Nailing & External Fixation	38700	Orthopaedics Procedure
+1870	OR041	Open Reduction of fracture of Long Bones of Upper /Lower Limb -AO Procedures	38700	Orthopaedics Procedure
+1871	OR042	Tension Band Wirings	24750	Orthopaedics Procedure
+1872	OR043	Bone Grafting	24750	Orthopaedics Procedure
+1873	OR044	Excision or other Operations for Scaphoid Fractures	31500	Orthopaedics Procedure
+1874	OR045	Sequestrectomy & Saucerisation	31500	Orthopaedics Procedure
+1875	OR046	Sequestrectomy & Saucerizations -Arthrotomy	31500	Orthopaedics Procedure
+1876	OR047	Multiple Pinning Fracture Neck Femur	47700	Orthopaedics Procedure
+1877	OR048	Plate Fixations for Fracture Neck Femur	47700	Orthopaedics Procedure
+1878	OR049	AO Compression Procedures for Fracture Neck Femur	47700	Orthopaedics Procedure
+1879	OR050	Open Reduction of Fracture Neck Femur Muscle Pedicle Graft and Internal Fixations	47700	Orthopaedics Procedure
+1880	OR051	Close Reduction of Dislocations	18000	Orthopaedics Procedure
+1881	OR052	Open Reduction of Dislocations	31500	Orthopaedics Procedure
+1882	OR053	Open Reduction & Internal Fixation (ORIF) of Fracture Dislocation	38700	Orthopaedics Procedure
+1883	OR054	Neurolysis/Nerve repair	38700	Orthopaedics Procedure
+1884	OR055	Nerve Repair with Grafting	56700	Orthopaedics Procedure
+1885	OR056	Tendon with Transplant or Graft	38700	Orthopaedics Procedure
+1886	OR057	Tendon Lengthening/Tendon repair	24750	Orthopaedics Procedure
+1887	OR058	Tendon Transfer	31500	Orthopaedics Procedure
+1888	OR059	Split Osteotomy and Internal Fixations	47700	Orthopaedics Procedure
+1889	OR060	Anterolateral decompression for tuberculosis/ Costo-Transversectomy	38700	Orthopaedics Procedure
+1890	OR061	Anterolateral Decompression and Spine Fusion	56700	Orthopaedics Procedure
+1891	OR062	Corrective Osteotomy & Internal Fixation- short bones	31500	Orthopaedics Procedure
+1892	OR063	Corrective Osteotomy & Internal Fixation- long bones	38700	Orthopaedics Procedure
+1893	OR064	Arthrodesis of - Minor Joints	31500	Orthopaedics Procedure
+1894	OR065	Arthrodesis of - Major Joints	38700	Orthopaedics Procedure
+1895	OR066	Soft Tissue Operations for Congenital Talipes Equinovarus (CTEV)	31500	Orthopaedics Procedure
+1896	OR067	Hemiarthroplasty- Hip	56700	Orthopaedics Procedure
+1897	OR068	Hemiarthroplasty- Shoulder	47700	Orthopaedics Procedure
+1898	OR069	Operations for Brachial Plexus & Cervical Rib	68400	Orthopaedics Procedure
+1899	OR070	Amputations - Below Knee	38700	Orthopaedics Procedure
+1900	OR071	Amputations - Below Elbow	31500	Orthopaedics Procedure
+1901	OR072	Amputations - Above Knee	47700	Orthopaedics Procedure
+1902	OR073	Amputations - Above Elbow	38700	Orthopaedics Procedure
+1903	OR074	Amputations - Forequarter	56700	Orthopaedics Procedure
+1904	OR075	Amputations -Hind Quarter and Hemipelvectomy	68400	Orthopaedics Procedure
+1905	OR076	Disarticulations - Major joint	38700	Orthopaedics Procedure
+1906	OR077	Disarticulations - Minor joint	31500	Orthopaedics Procedure
+1907	OR078	Arthrography	18000	Orthopaedics Investigation
+1908	OR079	Arthroscopy - Diagnostic	31500	Orthopaedics Procedure
+1909	OR080	Arthroscopy-therapeutic: without implant	38700	Orthopaedics Procedure
+1910	OR081	Arthroscopy-therapeutic: with implant	47700	Orthopaedics Procedure
+1911	OR082	Soft Tissue Operation on Joints -Small	24750	Orthopaedics Procedure
+1912	OR083	Soft Tissue Operation on Joints -Large	38700	Orthopaedics Procedure
+1913	OR084	Myocutaneous and Fasciocutaneous Flap Procedures for Limbs	47700	Orthopaedics Procedure
+1914	OR085	Removal of Wires & Screw	12060	Orthopaedics Procedure
+1915	OR086	Removal of Plates	24750	Orthopaedics Procedure
+1916	OR087	Total Hip Replacement (THR)	116100	Orthopaedics Procedure
+1917	OR088	Total Ankle Joint Replacement (TAR) - Unilateral	116100	Orthopaedics Procedure
+1918	OR089	Total Knee Joint Replacement (TKR) - Unilateral	136800	Orthopaedics Procedure
+1919	OR090	Total Shoulder Joint Replacement - Unilateral	116100	Orthopaedics Procedure
+1920	OR091	Total Elbow Joint Replacement - Unilateral	99000	Orthopaedics Procedure
+1921	OR092	Total Wrist Joint Replacement - Unilateral	116100	Orthopaedics Procedure
+1922	OR093	Total Finger Joint Replacement	56700	Orthopaedics Procedure
+1923	OR094	Tubular external fixator	31500	Orthopaedics Procedure
+1924	OR095	Ilizarov's External Fixator	47700	Orthopaedics Procedure
+1925	OR096	Pelvi-acetabular fracture -Internal fixation	56700	Orthopaedics Procedure
+1926	OR097	Meniscectomy	47700	Orthopaedics Procedure
+1927	OR098	Meniscus Repair	56700	Orthopaedics Procedure
+1928	OR099	Anterior Cruciate Ligament (ACL) Reconstruction	56700	Orthopaedics Procedure
+1929	OR100	Posterior Cruciate Ligament (PCL) Reconstruction	68400	Orthopaedics Procedure
+1930	OR101	Knee Collateral Ligament Reconstruction	68400	Orthopaedics Procedure
+1931	OR102	Bankart Repair Shoulder	56700	Orthopaedics Procedure
+1932	OR103	Rotator cuff repair / RC repair	56700	Orthopaedics Procedure
+1933	OR104	Biceps Tenodesis	47700	Orthopaedics Procedure
+1934	OR105	Distal biceps tendon repair	47700	Orthopaedics Procedure
+1935	OR106	Arthrolysis of knee	47700	Orthopaedics Procedure
+1936	OR107	Capsulotomy of Shoulder	47700	Orthopaedics Procedure
+1937	OR108	Conservative Plaster of Paris (POP)	3600	Orthopaedics Procedure
+1938	OR109	Application for CTEV per sitting	7650	Orthopaedics Procedure
+1939	OR110	Total Hip Replacement (THR) Revision Stage-I	87300	Orthopaedics Procedure
+1940	OR111	Total Hip Replacement (THR) Revision Stage-II	116100	Orthopaedics Procedure
+1941	OR112	Total Knee Replacement (TKR) Revision Stage-I	87300	Orthopaedics Procedure
+1942	OR113	Total Knee Replacement (TKR) Revision Stage-II	116100	Orthopaedics Procedure
+1943	OR114	Illizarov/ external fixation for limb lengthening/deformity correction	56700	Orthopaedics Procedure
+1944	OR115	Discectomy/ Micro Discectomy	73800	Orthopaedics Procedure
+1945	OR116	Spinal Fixation Cervical/dorsolumbar/ lumbosacral	136800	Orthopaedics Procedure
+1946	OR117	Fusion Surgery Cervical/ Lumbar Spine up to 2 Level	56700	Orthopaedics Procedure
+1947	OR118	Spinal Fusion Surgery Cervical/ Lumbar Spine -More than 2 Level	73800	Orthopaedics Procedure
+1948	OR119	Scoliosis Surgery/ Deformity Correction of Spine	87300	Orthopaedics Procedure
+1949	OR120	Vertebroplasty	68400	Orthopaedics Procedure
+1950	OR121	Spinal Injections	4500	Orthopaedics Procedure
+1951	OR122	Dynamic Hip Screw (DHS) for Fracture Neck Femur	47700	Orthopaedics Procedure
+1952	OR123	Proximal Femur Nail (PFN) for IT fracture (Intertrochanteric Fractures)	47700	Orthopaedics Procedure
+1953	OR124	Spinal Osteotomy	47700	Orthopaedics Procedure
+1954	OR125	Illizarov’s / External Fixation for Trauma	47700	Orthopaedics Procedure
+1955	OR126	Soft Tissue Operations for Polio/ Cerebral Palsy	31500	Orthopaedics Procedure
+1956	OR127	Mini Fixator for Hand/Foot	31500	Orthopaedics Procedure
+1957	BP001	Injection of Keloids - Ganglion	3600	Burns And Plastic Surgery Procedure
+1958	BP002	Injection of Keloids - Haemangioma	3600	Burns And Plastic Surgery Procedure
+1959	BP003	Free Grafts - Wolfe Grafts	18000	Burns And Plastic Surgery Procedure
+1960	BP004	Free Grafts - Thiersch- Small Area 5%	18000	Burns And Plastic Surgery Procedure
+1961	BP005	Free Grafts - Large Area 10%	31500	Burns And Plastic Surgery Procedure
+1962	BP006	Free Grafts - Very Large Area 20% and above.	38700	Burns And Plastic Surgery Procedure
+1963	BP007	Skin Flaps - Rotation Flaps	24750	Burns And Plastic Surgery Procedure
+1964	BP008	Skin Flaps - Advancement Flaps	31500	Burns And Plastic Surgery Procedure
+1965	BP009	Skin Flaps - Direct- cross Leg Flaps- Cross Arm Flap	38700	Burns And Plastic Surgery Procedure
+1966	BP010	Skin Flaps - Cross Finger	31500	Burns And Plastic Surgery Procedure
+1967	BP011	Skin Flaps - Abdominal	31500	Burns And Plastic Surgery Procedure
+1968	BP012	Skin Flaps - Thoracic	24750	Burns And Plastic Surgery Procedure
+1969	BP013	Skin Flaps - Arm Etc.	24750	Burns And Plastic Surgery Procedure
+1970	BP014	Subcutaneous Pedicle Flaps Raising	24750	Burns And Plastic Surgery Procedure
+1971	BP015	Subcutaneous Pedicle Flaps Delay	24750	Burns And Plastic Surgery Procedure
+1972	BP016	Subcutaneous Pedicle Flaps Transfer	24750	Burns And Plastic Surgery Procedure
+1973	BP017	Cartilage Grafting	38700	Burns And Plastic Surgery Procedure
+1974	BP018	Cleft Lip - Repair.	31500	Burns And Plastic Surgery Procedure
+1975	BP019	Cleft Palate Repair	38700	Burns And Plastic Surgery Procedure
+1976	BP020	Primary Bone Grafting for Alveolar Cleft in Cleft Lip	38700	Burns And Plastic Surgery Procedure
+1977	BP021	Secondary Surgery for Cleft Lip Deformity	38700	Burns And Plastic Surgery Procedure
+1978	BP022	Secondary Surgery for Cleft Palate	38700	Burns And Plastic Surgery Procedure
+1979	BP023	Reconstruction of Eyelid Defects - Minor	24750	Burns And Plastic Surgery Procedure
+1980	BP024	Reconstruction of Eyelid Defects - Major	31500	Burns And Plastic Surgery Procedure
+1981	BP025	Plastic Surgery of Different Regions of the Ear -Minor	31500	Burns And Plastic Surgery Procedure
+1982	BP026	Plastic Surgery of Different Regions of the Ear -Major	38700	Burns And Plastic Surgery Procedure
+1983	BP027	Plastic Surgery of the Nose - Minor	24750	Burns And Plastic Surgery Procedure
+1984	BP028	Plastic Surgery of the Nose - Major	38700	Burns And Plastic Surgery Procedure
+1985	BP029	Plastic Surgery for Facial Paralysis (Support with Reanimation)	38700	Burns And Plastic Surgery Procedure
+1986	BP030	After Mastectomy (Reconstruction) Mammoplasty	38700	Burns And Plastic Surgery Procedure
+1987	BP031	Syndactyly Repair	31500	Burns And Plastic Surgery Procedure
+1988	BP032	Dermabrasion Face	38700	Burns And Plastic Surgery Procedure
+1989	BP033	Flap Reconstructive Surgery - Head and Neck	56700	Burns and Plastic Surgery
+1990	BP034	up to 30% Burns 1st Dressing	2700	Burns And Plastic Surgery Procedure
+1991	BP035	up to 30% Burns Subsequent Dressing	2250	Burns And Plastic Surgery Procedure
+1992	BP036	30% to 50% Burns 1st Dressing	4500	Burns And Plastic Surgery Procedure
+1993	BP037	30% to 50% Burns Subsequent Dressing	3150	Burns And Plastic Surgery Procedure
+1994	BP038	Extensive Burn -above 50% Frist Dressing	5400	Burns And Plastic Surgery Procedure
+1995	BP039	Extensive Burn -above 50% Subsequent dressing	3150	Burns And Plastic Surgery Procedure
+1996	BP040	VAC Therapy/Dressing including all Consumables	9000	Burns And Plastic Surgery Procedure
+1997	HC001	Annual Health Check-up - CCS Group A Officer of above 40 years of age / Pensioner primary card holder 75 years of age and above–Male,	2000	Annual Health Check-up
+1998	HC002	Annual Health Check-up - CCS Group A Officer of above 40 years of age / Pensioner primary card holder 75 years of age and above - Female	2200	Annual Health Check-up
