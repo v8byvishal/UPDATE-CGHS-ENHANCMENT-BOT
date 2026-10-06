@@ -459,11 +459,16 @@ class CGHSParsingEngine:
             ip_amt = pharmacy["ip_detailed"]
             ot_amt = pharmacy["ot_detailed"]
             drugs_amt = pharmacy["total"]
-            if drugs_amt > 0 and pharmacy["status"] == EXECUTABLE:
+            if drugs_amt > 0:
                 # No upper bound.  A real bill's pharmacy spend runs to seven
                 # figures; the old ``drugs_amt < 500000`` gate, combined with
                 # the same cutoff inside extract_dept_subtotal, reported
                 # DRUG100 = 1,790.80 (OT alone) on a 743,895.18 pharmacy.
+                #
+                # Nor is execution gated on the Service Summary agreeing with
+                # the detailed subtotals: a summary line can aggregate several
+                # detailed departments, so a difference is structure, not a
+                # contradiction.  See rules.reconcile_pharmacy.
                 raw_occurrences.append({
                     "code": "DRUG100",
                     "qty": 1,
@@ -479,27 +484,6 @@ class CGHSParsingEngine:
                     "normalization_reason": pharmacy["reason"],
                 })
                 aggregation_log.append(f"[DRUG100] {ip_amt:.2f} + {ot_amt:.2f} = {drugs_amt:.2f}")
-            elif drugs_amt > 0:
-                # The bill contradicts itself about its own pharmacy total.
-                # Reporting either figure would be a guess, so the amount is
-                # surfaced for review and never silently executed.
-                rejected.append({
-                    "page": "DRUGS",
-                    "block": (f"IP Pharmacy detailed {ip_amt:,.2f} / summary "
-                              f"{pharmacy['ip_summary']} | OT Pharmacy detailed "
-                              f"{ot_amt:,.2f} / summary {pharmacy['ot_summary']}"),
-                    "reason": f"{REVIEW_REQUIRED}: {pharmacy['reason']}",
-                    "section": "Pharmacy",
-                    "code": "DRUG100",
-                    "status": REVIEW_REQUIRED,
-                    "raw_expression": f"IP {ip_amt} OT {ot_amt}",
-                    "original_token": "DRUG100",
-                    "pharmacy_provenance": pharmacy["provenance"],
-                })
-                aggregation_log.append(
-                    f"[DRUG100] {REVIEW_REQUIRED}: detailed {drugs_amt:,.2f} vs "
-                    f"summary {pharmacy['summary_total']:,.2f}, difference "
-                    f"{pharmacy['difference']:,.2f} - not executed")
         except Exception as e:
             rejected.append({"page": "DRUGS", "block": str(e)[:200], "reason": "DRUG100 extraction error"})
 

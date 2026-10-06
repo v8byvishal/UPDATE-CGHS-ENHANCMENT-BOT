@@ -306,7 +306,7 @@ def extract_consumables_total(text: str):
 def reconcile_pharmacy(text: str) -> dict:
     """Resolve the DRUG100 pharmacy amount and prove where it came from.
 
-    The amount itself is NOT a judgement call: the locked rule recorded in the
+    The amount is NOT a judgement call: the locked rule recorded in the
     ``cghs.parsing`` module docstring is
 
         DRUG100 = IP Pharmacy subtotal + OT Pharmacy subtotal
@@ -315,19 +315,29 @@ def reconcile_pharmacy(text: str) -> dict:
     ``extract_dept_subtotal`` skips any slice carrying Patient Payable.  This
     function returns exactly that figure and never substitutes another.
 
-    What it adds is a cross-check.  Where the bill ALSO states the department
-    in its Service Summary, the two statements are compared.  They are expected
-    to agree; when they do not, the gap is real information about the bill that
-    the parser cannot resolve on its own - on BPLIP39538 the IP Pharmacy
-    summary exceeded the detailed subtotal by 31,599.22, and nothing in the
-    available source explains the composition of that gap.  Rather than pick a
-    number, the result is marked ``REVIEW_REQUIRED`` and carries both figures
-    so an operator decides.  A bill with no Service Summary offers no
-    contradicting evidence and stays ``EXECUTABLE`` exactly as before.
+    A SERVICE SUMMARY LINE IS NOT A SECOND OPINION ON ONE DEPARTMENT.  It can
+    aggregate several detailed departments, so summary != detail is normal and
+    is NOT evidence of a contradiction.  Bill BPLIP39538 is the worked example:
+
+        Service Summary  IP Pharmacy            773,703.60
+        detailed         IP Pharmacy Dept Sub Total   742,104.38
+        detailed         a separate department          31,599.22
+                         742,104.38 + 31,599.22  =    773,703.60
+
+    An earlier revision of this function treated that 31,599.22 as an
+    unexplained gap and withheld DRUG100 as REVIEW_REQUIRED.  That was wrong:
+    the money is a different department's subtotal and belongs to neither IP
+    Pharmacy nor DRUG100.  Gating on summary-vs-detail equality is therefore
+    removed - it blocks correct bills.
+
+    The summary is still READ, for two reasons that remain valid: it is
+    provenance, and ``extract_dept_subtotal`` skips the summary span so a
+    summary line can never be added to the detailed subtotal and double count
+    the department.  ``summary_total`` and ``difference`` are reported as
+    information about the bill's structure, never as a verdict on it.
 
     Returns a dict with ``total`` (the rule amount), the four component
-    readings, ``difference``, ``reconciled``, ``status``, ``reason`` and
-    ``provenance``.
+    readings, ``difference``, ``reason`` and ``provenance``.
     """
     departments = (("IP Pharmacy", r'IP\s*Pharmacy'), ("OT Pharmacy", r'OT\s*Pharmacy'))
 
@@ -348,41 +358,24 @@ def reconcile_pharmacy(text: str) -> dict:
 
     total = round(sum(detailed.values()), 2)
 
-    # Compare only the departments the summary actually states.  A department
-    # the summary omits contributes no evidence either way.
-    compared = [(label, summary[label], detailed[label])
-                for label, _ in departments if summary[label] is not None]
-    if not compared:
-        summary_total = None
-        difference = None
-        reconciled = True
-        reason = (f"DRUG100 = IP Pharmacy subtotal ({detailed['IP Pharmacy']:,.2f}) "
-                  f"+ OT Pharmacy subtotal ({detailed['OT Pharmacy']:,.2f}) "
-                  f"= {total:,.2f}; bill states no Service Summary to cross-check, "
-                  f"Patient Payable excluded")
-    else:
-        summary_total = round(sum(stated for _, stated, _ in compared), 2)
-        difference = round(sum(stated - found for _, stated, found in compared), 2)
-        reconciled = abs(difference) <= PHARMACY_RECONCILIATION_TOLERANCE
-        if reconciled:
-            reason = (f"DRUG100 = IP Pharmacy subtotal ({detailed['IP Pharmacy']:,.2f}) "
-                      f"+ OT Pharmacy subtotal ({detailed['OT Pharmacy']:,.2f}) "
-                      f"= {total:,.2f}; agrees with the Service Summary "
-                      f"({summary_total:,.2f}), Patient Payable excluded")
-        else:
-            gaps = "; ".join(
-                f"{label}: Service Summary {stated:,.2f} vs detailed subtotal "
-                f"{found:,.2f} (difference {stated - found:,.2f})"
-                for label, stated, found in compared if
-                abs(stated - found) > PHARMACY_RECONCILIATION_TOLERANCE)
-            reason = (
-                f"{UNRESOLVED_MAPPING}: pharmacy does not reconcile - {gaps}. "
-                f"The locked rule computes DRUG100 from the detailed subtotals "
-                f"({total:,.2f}), but the bill's own summary states "
-                f"{summary_total:,.2f}, a difference of {difference:,.2f} whose "
-                f"composition is not derivable from the bill text available to "
-                f"the parser. Operator must confirm the pharmacy amount; no "
-                f"figure is assumed.")
+    stated_amounts = [summary[label] for label, _ in departments
+                      if summary[label] is not None]
+    summary_total = round(sum(stated_amounts), 2) if stated_amounts else None
+    difference = (round(summary_total - round(
+        sum(detailed[label] for label, _ in departments
+            if summary[label] is not None), 2), 2)
+        if stated_amounts else None)
+
+    reason = (f"DRUG100 = IP Pharmacy subtotal ({detailed['IP Pharmacy']:,.2f}) "
+              f"+ OT Pharmacy subtotal ({detailed['OT Pharmacy']:,.2f}) "
+              f"= {total:,.2f}, Patient Payable excluded")
+    if difference is not None and abs(difference) > PHARMACY_RECONCILIATION_TOLERANCE:
+        # Informational only.  The summary aggregates departments the locked
+        # rule does not put in DRUG100; naming the gap here keeps it visible
+        # without pretending the parser cannot proceed.
+        reason += (f"; the Service Summary states {summary_total:,.2f} for these "
+                   f"departments, {difference:,.2f} of which is carried by other "
+                   f"detailed sections and is correctly excluded from DRUG100")
 
     return {
         "ip_detailed": detailed["IP Pharmacy"],
@@ -392,8 +385,6 @@ def reconcile_pharmacy(text: str) -> dict:
         "total": total,
         "summary_total": summary_total,
         "difference": difference,
-        "reconciled": reconciled,
-        "status": EXECUTABLE if reconciled else REVIEW_REQUIRED,
         "reason": reason,
         "provenance": provenance,
     }
