@@ -703,7 +703,7 @@ class BatchRunner:
             if on_patient_status:
                 on_patient_status(index, "IN_PROGRESS")
 
-            completed, failed, review = 0, [], []
+            completed, failed, review, duplicates = 0, [], [], []
             try:
                 self.session.ensure_context()
             except PatientNotSwitched as exc:
@@ -726,8 +726,18 @@ class BatchRunner:
                     stopped_reason = "cancelled by operator"
                     break
                 result = self.orchestrator.process_item(item)
+                # Classification is keyed on result.state - the SAME field the
+                # batch summary counts (``tele.state = result.state``) - so the
+                # per-patient tally and BatchPerformanceSummary cannot disagree.
+                # A duplicate sets ``success = True`` because nothing failed and
+                # the row is genuinely present, but it was SKIPPED, not added:
+                # counting it as a completion reported 48 completions for 47
+                # new rows on bill 39538.  The duplicate guard itself is
+                # untouched; only the accounting is corrected.
                 if result.needs_operator:
                     review.append(result.code)
+                elif result.state == TxState.DUPLICATE_PROVEN.value:
+                    duplicates.append(result.code)
                 elif result.success:
                     completed += 1
                 else:
@@ -773,6 +783,8 @@ class BatchRunner:
             patients.append({
                 "name": name, "status": status, "completed": completed,
                 "failed": failed, "reconciliation_required": review,
+                # Already present and SKIPPED - never a new completion.
+                "duplicates": duplicates,
                 "items_total": len(items),
                 # Items never attempted because a SHARED control died.  They
                 # are NOT failures of their own codes and must not be reported
@@ -782,7 +794,8 @@ class BatchRunner:
             })
             self.logger.info(
                 f"[PATIENT DONE] {name} status={status} completed={completed} "
-                f"failed={failed} review={review} pending={len(pending)}")
+                f"duplicate={len(duplicates)} failed={failed} review={review} "
+                f"pending={len(pending)}")
             if stopped_reason:
                 break
 

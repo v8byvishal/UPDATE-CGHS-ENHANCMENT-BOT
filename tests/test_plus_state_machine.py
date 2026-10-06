@@ -601,7 +601,7 @@ def test_compact_probe_and_python_row_readers_agree_on_every_family():
     assert js, "PROBE_JS no longer declares codeRe"
     probe_re = _re.compile(js.group("body"), _re.IGNORECASE)
 
-    controllers_src = (REPO / "cghs" / "controllers.py").read_text(encoding="utf-8")
+    from cghs.controllers import _ROW_CODE_RE
 
     for code, _qty in PT_WC_CASES + [("LB012", "1"), ("CN002", "1"),
                                      ("C001", "1"), ("CC001", "1"),
@@ -611,9 +611,16 @@ def test_compact_probe_and_python_row_readers_agree_on_every_family():
         assert bool(probe_re.search(cell)) is bool(_CODE_TOKEN_RE.search(cell)), \
             f"{code}: compact probe and Python reader disagree"
 
+    # The Selenium row reader is asserted BEHAVIOURALLY, not by grepping its
+    # source for a family literal: the alternation is now derived from the
+    # canonical registry, so there is no literal to grep - and a substring
+    # check could never prove the regex actually matches the cell text.
     for family in ("PT", "WC"):
-        assert family in controllers_src, \
+        cell = f"{family}001 - portal description"
+        assert _ROW_CODE_RE.search(cell), \
             f"the Selenium row reader still drops the {family} family"
+        assert bool(probe_re.search(cell)) is bool(_ROW_CODE_RE.search(cell)), \
+            f"{family}: browser probe and Selenium reader disagree"
 
 
 @pytest.mark.parametrize("code,qty", PT_WC_CASES)
@@ -680,3 +687,223 @@ def test_table_change_without_the_target_row_still_reconciles():
     assert result.success is False
     assert any(r["code"] == "ZZ999" for r in portal.rows)
     assert not any(r["code"] == "PT004" for r in portal.rows)
+
+
+# ---------------------------------------------------------------------------
+# BILL 39538 - the seven false reconciliations
+#
+# Live run: 55 items, 47 newly completed, 1 duplicate, 7 RECONCILIATION_REQUIRED
+# with TX-ROW-CODE-MISMATCH.  The portal table DID mutate and no second Plus was
+# dispatched, so the safety gate behaved correctly - the row RECOGNISER did not.
+# PROBE_JS carried a hand-typed family alternation
+# (LB|RI|CI|CN|RP|GP|PT|WC|CC|C) that never mentioned AG, BC, EP, MG, NS or NU,
+# so the verifier read code="" from rows that were in fact correct.
+#
+# The families are now derived from the canonical CGHS registry.
+# ---------------------------------------------------------------------------
+
+#: (code, quantity) exactly as the 39538 bill presented them.
+BILL_39538_RECONCILED = [("AG008", "1"), ("BC002", "3"), ("EP092", "1"),
+                         ("MG001", "1"), ("NS064", "1"), ("NU110", "1"),
+                         ("NU122", "1")]
+
+#: Families that already worked and must not regress.
+BILL_39538_PRESERVED = [("CN002", "87"), ("CC002", "108"), ("CC008", "1"),
+                        ("CC010", "1"), ("CC011", "1"), ("CC012", "1"),
+                        ("CC014", "1"), ("CI001", "1"), ("CI003", "1"),
+                        ("GP009", "1"), ("LB001", "1"), ("PT004", "19"),
+                        ("PT005", "53"), ("RI140", "1")]
+
+
+def _probe_code_regex():
+    """The regex the PRODUCTION browser probe actually ships with."""
+    import re as _re
+    from cghs.dom import PROBE_JS
+    found = _re.search(r"var codeRe = /(?P<body>.+?)/[a-z]*;", PROBE_JS)
+    assert found, "PROBE_JS no longer declares codeRe"
+    return _re.compile(found.group("body"), _re.IGNORECASE)
+
+
+@pytest.mark.parametrize("code,qty", BILL_39538_RECONCILED)
+def test_39538_family_is_recognised_by_the_production_browser_probe(code, qty):
+    """The browser-side recogniser, compiled from the shipped PROBE_JS source."""
+    probe_re = _probe_code_regex()
+    cell = f"{code} - portal description"
+    assert probe_re.search(cell), (
+        f"{code}: PROBE_JS drops the code cell -> verifier reads code='' -> "
+        f"TX-ROW-CODE-MISMATCH on a row that is actually correct")
+
+
+@pytest.mark.parametrize("code,qty", BILL_39538_RECONCILED + BILL_39538_PRESERVED)
+def test_all_three_row_readers_agree_on_every_39538_family(code, qty):
+    """Probe, Python reader and Selenium reader are ONE pattern, not three."""
+    from cghs.controllers import _ROW_CODE_RE
+    from cghs.dom import _CODE_TOKEN_RE
+
+    cell = f"{code} - portal description"
+    assert bool(_probe_code_regex().search(cell))
+    assert bool(_CODE_TOKEN_RE.search(cell))
+    assert bool(_ROW_CODE_RE.search(cell))
+
+
+def test_the_row_recogniser_is_derived_from_the_canonical_registry():
+    """No second registry, no duplicated family universe."""
+    from cghs.controllers import _ROW_CODE_RE
+    from cghs.dom import ROW_CODE_PATTERN, _CODE_TOKEN_RE, _ROW_CODE_FAMILIES
+    from cghs.locators import CGHS_CODE_FAMILIES
+
+    # every master family reaches the recogniser
+    assert CGHS_CODE_FAMILIES <= set(_ROW_CODE_FAMILIES)
+    # ...and the three readers share one pattern object/string
+    assert _CODE_TOKEN_RE.pattern == ROW_CODE_PATTERN
+    assert _ROW_CODE_RE.pattern == ROW_CODE_PATTERN
+    assert _probe_code_regex().pattern == ROW_CODE_PATTERN
+    # the special portal targets survive
+    for special in ("DRGU100", "CNSU100", "DRUG100"):
+        assert special in ROW_CODE_PATTERN
+
+
+def test_two_letter_families_still_beat_the_one_letter_c_family():
+    """Alternation order is load-bearing: CC002 must not read as C002."""
+    from cghs.dom import _CODE_TOKEN_RE
+    assert _CODE_TOKEN_RE.findall("CC002 - Compressed Air") == ["CC002"]
+    assert _CODE_TOKEN_RE.findall("CC014 - Ryles Tube") == ["CC014"]
+    assert _CODE_TOKEN_RE.findall("C001 - legacy alias") == ["C001"]
+
+
+@pytest.mark.parametrize("text", ["OR2024 financial year", "Invoice 2025 dated",
+                                  "HSN 998514", "PMIS 12345"])
+def test_the_widened_recogniser_does_not_swallow_foreign_numbers(text):
+    """Forty families is not a licence to read any letters+digits as a code."""
+    from cghs.dom import _CODE_TOKEN_RE
+    assert not _CODE_TOKEN_RE.findall(text)
+
+
+@pytest.mark.parametrize("code,qty", BILL_39538_RECONCILED)
+def test_39538_row_is_recognised_and_verified_after_one_plus(code, qty):
+    """End to end on the REAL extractor: one Plus, exact code, exact quantity."""
+    portal = build_portal([code], latency=Latency.fast())
+    portal.quantity_locked = False
+    # Force production's Selenium row extraction against real <td> text: the
+    # compact-probe emulation returns the row model verbatim and would not
+    # exercise the recogniser at all.
+    portal.config.faults.probe_unsupported = True
+    session, orch = make_orchestrator(portal, commit_timeout=0.6,
+                                      reconcile_grace=0.2)
+
+    result = orch.process_item(item(code, int(qty)))
+
+    assert result.success is True, f"{code}: {result.state} {result.detail}"
+    assert result.state == TxState.COMPLETED.value
+    assert len(portal.plus_clicks) == 1, "exactly one Plus must be dispatched"
+    assert any(r["code"] == code and r["qty"] == qty for r in portal.rows), (
+        f"{code}: exact code AND exact quantity must be verified on the row")
+
+
+@pytest.mark.parametrize("code,qty", BILL_39538_RECONCILED)
+def test_39538_row_already_present_is_seen_by_the_duplicate_guard(code, qty):
+    """An unrecognised row is an invisible row - the guard would re-add it."""
+    portal = build_portal([code], latency=Latency.fast())
+    portal.seed_rows([(code, qty)])
+    portal.config.faults.probe_unsupported = True
+    session, _ = make_orchestrator(portal)
+    session.ensure_context()
+
+    from cghs.controllers import TableReader
+    from cghs.dom import row_matches_code
+    rows = TableReader(session).snapshot().items
+    assert any(row_matches_code(r.get("code", ""), code) for r in rows), \
+        f"{code}: an existing portal row is invisible to the duplicate guard"
+
+
+@pytest.mark.parametrize("code,qty", BILL_39538_RECONCILED)
+def test_39538_duplicate_is_skipped_without_a_plus(code, qty):
+    """Recognising more families must not weaken the duplicate guard."""
+    portal = build_portal([code], latency=Latency.fast())
+    portal.seed_rows([(code, qty)])
+    portal.config.faults.probe_unsupported = True
+    session, orch = make_orchestrator(portal)
+
+    result = orch.process_item(item(code, int(qty)))
+
+    assert result.state == TxState.DUPLICATE_PROVEN.value
+    assert len(portal.plus_clicks) == 0, "a duplicate must never dispatch Plus"
+
+
+def test_a_widened_family_never_turns_a_mismatch_into_success():
+    """Verification is unchanged: a mutated table alone is still not success."""
+    portal = build_portal(["AG008"], latency=Latency.fast())
+    portal.config.faults.unrelated_mutation = {"AG008"}
+    portal.config.faults.probe_unsupported = True
+    session, orch = make_orchestrator(portal, commit_timeout=0.4,
+                                      reconcile_grace=0.2)
+
+    result = orch.process_item(item("AG008", 1))
+
+    assert result.success is False
+    assert result.needs_operator is True
+    assert any(r["code"] == "ZZ999" for r in portal.rows)
+    assert not any(r["code"] == "AG008" for r in portal.rows)
+    assert len(portal.plus_clicks) == 1, "NO second Plus after an uncertain result"
+
+
+def test_exactness_survives_the_widened_family_set():
+    """Forty families, still no substring or prefix widening."""
+    from cghs.dom import row_matches_code
+    for row_text, code in [("AG0081", "AG008"), ("NU1100", "NU110"),
+                           ("BC0021", "BC002"), ("EP0920", "EP092"),
+                           ("MG0010", "MG001"), ("NS0640", "NS064"),
+                           ("CC001", "C001"), ("C001", "CC001")]:
+        assert row_matches_code(row_text, code) is False, \
+            f"{row_text!r} must not satisfy {code}"
+    for code, _qty in BILL_39538_RECONCILED:
+        assert row_matches_code(f"{code} - description", code) is True
+
+
+# ---------------------------------------------------------------------------
+# BILL 39538 - completed vs duplicate accounting
+#
+# Live run reported "[PATIENT DONE] completed=48" while the batch summary
+# reported items_completed=47 / items_skipped_duplicate=1.  A duplicate sets
+# success=True (nothing failed, the row IS present) and was therefore counted
+# as a new completion.
+# ---------------------------------------------------------------------------
+
+def test_a_duplicate_is_never_counted_as_a_new_completion():
+    """completed = newly added AND verified.  duplicate = present AND skipped."""
+    portal = build_portal(["LB001", "AG008"], latency=Latency.fast())
+    portal.seed_rows([("AG008", "1")])          # already billed -> duplicate
+    runner = make_runner(portal)
+
+    result = runner.run([patient("MR KAMTA PRASAD TIWARI",
+                                 [item("LB001", 1), item("AG008", 1)])])
+    report = result.patients[0]
+
+    assert report["completed"] == 1, "the duplicate inflated the completion count"
+    assert report["duplicates"] == ["AG008"]
+    assert report["failed"] == []
+    assert report["reconciliation_required"] == []
+    assert report["items_total"] == 2
+
+
+def test_patient_tally_reconciles_with_the_batch_summary():
+    """The two counters are keyed on the same field and cannot disagree."""
+    portal = build_portal(["LB001", "AG008", "NU110"], latency=Latency.fast())
+    portal.seed_rows([("NU110", "1")])
+    runner = make_runner(portal)
+
+    result = runner.run([patient("MR KAMTA PRASAD TIWARI",
+                                 [item("LB001", 1), item("AG008", 1),
+                                  item("NU110", 1)])])
+    report = result.patients[0]
+    summary = result.summary
+
+    assert report["completed"] == summary.items_completed
+    assert len(report["duplicates"]) == summary.items_skipped_duplicate
+    assert len(report["reconciliation_required"]) == \
+        summary.items_reconciliation_required
+    assert len(report["failed"]) == summary.items_failed
+    # and the buckets account for every item exactly once
+    assert (report["completed"] + len(report["duplicates"])
+            + len(report["reconciliation_required"])
+            + len(report["failed"])) == report["items_total"]

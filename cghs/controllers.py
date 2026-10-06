@@ -46,6 +46,7 @@ from selenium.webdriver.common.keys import Keys
 from .dom import (
     MUTATION_DISCONNECT_JS,
     MUTATION_INSTALL_JS,
+    ROW_CODE_PATTERN,
     PortalContextLost,
     ProbeUnsupported,
     row_matches_code,
@@ -53,6 +54,10 @@ from .dom import (
 from .locators import (portal_input_value, portal_row_aliases,
                        resolve_expected_speciality)
 from .txstate import Diagnostic, DispatchProof, DuplicateDispatchBlocked, PlusTransaction
+
+#: The Selenium row reader shares the browser probe's canonical pattern,
+#: compiled ONCE at import rather than re-parsed for every cell of every row.
+_ROW_CODE_RE = re.compile(ROW_CODE_PATTERN, re.IGNORECASE)
 
 PLACEHOLDERS = {"", "select", "select speciality", "--select--", "none", "null"}
 
@@ -363,8 +368,7 @@ class TableReader(_Controller):
                 for cell in cells:
                     self.counters.element_reads += 1
                     txt = cell.text.strip()
-                    if re.search(r'\b(LB|RI|CI|CN|RP|GP|PT|WC|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100',
-                                 txt, re.IGNORECASE):
+                    if _ROW_CODE_RE.search(txt):
                         code_cell = txt
                     if re.match(r'^\d{1,3}$', txt.strip()) and len(txt.strip()) < 4:
                         qty_cell = txt

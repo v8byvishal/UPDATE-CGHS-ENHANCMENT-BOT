@@ -33,7 +33,8 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.common.by import By
 
-from .locators import AMBIGUOUS_STRATEGIES, LOCATORS, portal_row_aliases
+from .locators import (AMBIGUOUS_STRATEGIES, CGHS_CODE_FAMILIES, LOCATORS,
+                       portal_row_aliases)
 from .telemetry import AdaptivePoller, EnterpriseLogger, PerfCounters
 
 
@@ -119,6 +120,40 @@ class AmbiguousControlException(ElementNotInteractableException):
 #: Marker kept as the first token so test doubles can recognise the probe and
 #: so it is greppable in Chrome devtools during a live run.
 PROBE_MARKER = "/*CGHS_PROBE_V1*/"
+
+# ---------------------------------------------------------------------------
+# Canonical portal-row code recognition
+#
+# The row recogniser used to carry a HAND-TYPED family alternation
+# (``LB|RI|CI|CN|RP|GP|PT|WC|CC|C``).  Every family a bill could contain had to
+# be remembered twice - once in the browser probe, once in the Python readers -
+# and the master list has forty.  A family missing from that literal made the
+# post-Plus verifier read ``code=""`` from a row that was in fact correct, so a
+# committed item was reported RECONCILIATION_REQUIRED.  On bill 39538 that hit
+# AG008, BC002, EP092, MG001, NS064, NU110 and NU122: six families the literal
+# never mentioned.
+#
+# The families are now DERIVED from the canonical CGHS registry that owns code
+# identity.  There is no second registry and no duplicated family universe:
+# add a code to the master list and every recogniser below sees its family.
+# ---------------------------------------------------------------------------
+
+#: Families that appear in a portal ROW but are NOT CGHS master codes.
+#: ``WC`` is the Room Rent ward tally and ``C`` is the legacy raw-alias shape;
+#: both are real portal rows, so the reader must still recognise them.  This is
+#: a recognition set, never a validity set - membership here grants nothing.
+_PORTAL_ONLY_ROW_FAMILIES = frozenset({"WC", "C"})
+
+#: Longest-first so ``CC002`` can never be read as ``C002``: the alternation is
+#: ordered, and a one-letter family listed first would win on a two-letter code.
+_ROW_CODE_FAMILIES = tuple(sorted(
+    CGHS_CODE_FAMILIES | _PORTAL_ONLY_ROW_FAMILIES,
+    key=lambda family: (-len(family), family)))
+
+#: The ONE row-code pattern.  Shared verbatim by the browser probe, the Python
+#: row reader and the Selenium fallback reader, so the three can never drift.
+ROW_CODE_PATTERN = (r"\b(?:" + "|".join(_ROW_CODE_FAMILIES) +
+                    r")\d{2,3}\b|DRGU100|CNSU100|DRUG100")
 
 PROBE_JS = PROBE_MARKER + r"""
 var spec = arguments[0] || {};
@@ -291,7 +326,7 @@ try {
       }
     }
     var rows = [];
-    var codeRe = /\b(?:LB|RI|CI|CN|RP|GP|PT|WC|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100/i;
+    var codeRe = /__CGHS_ROW_CODE_PATTERN__/i;
     for (var n = 0; n < rowNodes.length; n++) {
       var cells = rowNodes[n].querySelectorAll("td");
       var codeCell = "", qtyCell = "";
@@ -350,6 +385,12 @@ try {
 }
 """
 
+#: The browser probe carries the SAME pattern as the Python readers - it is
+#: injected here rather than typed into the JS, so the registry stays the one
+#: source of truth for which families a portal row may carry.
+PROBE_JS = PROBE_JS.replace("__CGHS_ROW_CODE_PATTERN__", ROW_CODE_PATTERN)
+
+
 MUTATION_INSTALL_JS = r"""
 window.__cghsMutationDetected = false;
 window.__cghsMutationCount = 0;
@@ -396,7 +437,7 @@ _PROBE_QUERIES: Dict[str, List[List[str]]] = {
     for key, strategies in LOCATORS.items()
 }
 
-_CODE_TOKEN_RE = re.compile(r"\b(?:LB|RI|CI|CN|RP|GP|PT|WC|CC|C)\d{2,3}\b|DRGU100|CNSU100|DRUG100", re.IGNORECASE)
+_CODE_TOKEN_RE = re.compile(ROW_CODE_PATTERN, re.IGNORECASE)
 
 
 def row_matches_code(code_text: str, code: str) -> bool:
