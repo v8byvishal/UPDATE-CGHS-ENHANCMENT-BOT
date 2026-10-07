@@ -269,3 +269,78 @@ def test_batch_summary_reports_every_required_metric():
         assert field in summary, field
     assert summary["items_total"] == len(CODES)
     assert summary["p95_item_ms"] >= summary["p50_item_ms"]
+
+
+# ---------------------------------------------------------------------------
+# D. DOCUMENT SECTION INDEX - the parser-side cache
+#
+# reconcile_pharmacy resolves the same department boundaries several times per
+# bill.  _document_sections memoises that index.  A cache is only acceptable if
+# it cannot change an answer, so these tests assert RESULT IDENTITY first and
+# the saved work second - never a wall-clock number.
+# ---------------------------------------------------------------------------
+
+from cghs import rules as _rules  # noqa: E402
+
+
+def _indexed_bill(ip="12,000.00", ot_blocks=("100.00", "250.00")):
+    body = [
+        "IP Pharmacy(999311 )", "Dispensary",
+        " 1.00 ", "11", f" {ip}", " 1", " A DRUG              ", f" {ip}",
+        "Dept Sub Total :", "Dept Total :", f" {ip}",
+        "OT Pharmacy(999311 )",
+    ]
+    for n, amount in enumerate(ot_blocks, start=1):
+        body += [f"{n:02d}-Jan-2030", " 1.00 ", "22", f" {amount}", f" {n}",
+                 " B DRUG              ", f" {amount}", "Dept Sub Total :"]
+    body += ["Dept Total :", " 350.00",
+             "Room Rent(999311 )", "Wards", " 1.00 ", "33", " 500.00", " 1",
+             " ROOM RENT(ICU )              ", " 500.00",
+             "Dept Sub Total :", "Dept Total :", " 500.00",
+             "Payer Payable Total :", " 12,850.00"]
+    return "\n".join(body)
+
+
+def test_section_index_is_result_identical_cold_and_warm():
+    """A memoised answer must equal the answer computed from scratch."""
+    text = _indexed_bill()
+    _rules._document_sections.cache_clear()
+    cold = _rules.reconcile_pharmacy(text)
+    warm = _rules.reconcile_pharmacy(text)
+    assert cold == warm
+    _rules._document_sections.cache_clear()
+    again = _rules.reconcile_pharmacy(text)
+    assert again == cold, "clearing the cache changed the answer"
+
+
+def test_section_index_does_not_leak_between_documents():
+    """Two different bills must never share an index."""
+    a = _indexed_bill(ip="12,000.00")
+    b = _indexed_bill(ip="7,500.00")
+    _rules._document_sections.cache_clear()
+    first = _rules.extract_dept_subtotal(a, r'IP\s*Pharmacy')
+    second = _rules.extract_dept_subtotal(b, r'IP\s*Pharmacy')
+    assert first == pytest.approx(12000.00)
+    assert second == pytest.approx(7500.00)
+    assert _rules.extract_dept_subtotal(a, r'IP\s*Pharmacy') == pytest.approx(12000.00)
+
+
+def test_section_index_is_built_once_per_document():
+    """The budget: one header scan per document, not one per lookup."""
+    text = _indexed_bill()
+    _rules._document_sections.cache_clear()
+    before = _rules._document_sections.cache_info()
+    _rules.reconcile_pharmacy(text)
+    after = _rules._document_sections.cache_info()
+    assert after.misses - before.misses == 1, (
+        "the section index was rebuilt more than once for one document")
+    assert after.hits > before.hits, "the index was not reused at all"
+
+
+def test_section_index_cache_is_bounded():
+    """A bounded cache cannot grow into a leak across a long batch."""
+    assert _rules._document_sections.cache_info().maxsize is not None
+    assert _rules._document_sections.cache_info().maxsize <= 8
+    for n in range(40):
+        _rules.reconcile_pharmacy(_indexed_bill(ip=f"{1000 + n}.00"))
+    assert _rules._document_sections.cache_info().currsize <= 8

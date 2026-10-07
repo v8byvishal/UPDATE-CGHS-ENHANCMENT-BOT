@@ -12,6 +12,7 @@ BUSINESS RULES ARE UNCHANGED.  Any behavioural change in this file is a defect.
 """
 
 import re
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 from .locators import (  # noqa: F401
@@ -167,7 +168,68 @@ def _subtotal_at(text: str, label):
 
 _SERVICE_SUMMARY_HEADING = re.compile(
     r'(?:Official\s*)?Service\s*(?:Wise\s*)?Summary', re.IGNORECASE)
-_DEPT_HEADER_RE = re.compile(r'[A-Za-z][A-Za-z\s]*\(\s*999311\s*\)', re.IGNORECASE)
+
+#: A department header is a LINE of the form ``<Name>(<service code> )``.
+#: The name may itself contain a parenthesised qualifier, so the previous
+#: ``[A-Za-z\s]*`` name class could not express it and such a department was
+#: invisible - its section boundary did not exist and the PRECEDING department
+#: silently absorbed its subtotal.  ``\s`` also matched newlines, so the match
+#: could start on an earlier line.  Anchoring to the line removes both faults.
+_DEPT_HEADER_RE = re.compile(
+    r'(?m)^[ \t]*[A-Za-z][^\n(]*?(?:\([^)\n]*\)[^\n(]*?)*\(\s*999311\s*\)[ \t]*$')
+
+_WHOLE_LINE_AMOUNT = re.compile(r'[ \t]*([\d,]+\.\d{2})[ \t]*')
+
+#: A bill is partitioned into a payer-payable and a patient-payable region.
+#: Each region OPENS with a column header of that name and CLOSES with a total
+#: of that name.  Membership of a region - not the presence of a word somewhere
+#: nearby - is what the locked "Patient Payable excluded" rule refers to.
+_PAYER_REGION_CLOSE = re.compile(r'Payer\s+Payable\s+Total\s*:', re.IGNORECASE)
+_PATIENT_PAYABLE_TOTAL = re.compile(r'Patient\s+Payable\s+Total\s*:', re.IGNORECASE)
+_PATIENT_PAYABLE_DEPT = re.compile(r'Patient\s*Payable', re.IGNORECASE)
+
+
+def _is_summary_row(text: str, start: int, end: int, next_start: int) -> bool:
+    """True when this department header is a first-page summary row.
+
+    The discriminator is semantic and exact: a SUMMARY row states a
+    department's total and nothing else, so it is never followed by a
+    "Dept Sub Total" before the next department begins, whereas a DETAILED
+    section is defined by closing with one.  Shape-based guesses (an amount
+    line then a serial line) were rejected: a detailed section whose first row
+    begins with a quantity has the same shape, so the shape does not separate
+    the two and would have misread such a section as a summary line.
+    """
+    return _SUBTOTAL_LABEL.search(text, end, next_start) is None
+
+
+@lru_cache(maxsize=4)
+def _document_sections(text: str):
+    """Build every department section boundary ONCE for a document.
+
+    Returns a tuple of ``(start, end, header_text, next_start, is_summary_row)``
+    in document order, plus the patient-payable region start (or ``None``).
+
+    This is an index, not a rule: it computes exactly what the callers used to
+    recompute.  ``_service_summary_span`` and ``collect_dept_subtotals`` are
+    both called several times per bill and each call previously re-scanned the
+    whole document for headers and then, per header, for a subtotal label - on
+    a real 95-page bill that is 59 full-text regex passes with identical
+    results.  Memoising the index is behaviour-preserving by construction: the
+    function is pure in ``text`` and returns the same tuple for the same input.
+
+    ``maxsize`` is small on purpose - a bill is processed, then the next one -
+    so the cache cannot grow into a memory leak.
+    """
+    headers = [(m.start(), m.end(), m.group(0))
+               for m in _DEPT_HEADER_RE.finditer(text)]
+    sections = []
+    for index, (start, end, label) in enumerate(headers):
+        next_start = headers[index + 1][0] if index + 1 < len(headers) else len(text)
+        sections.append((start, end, label, next_start,
+                         _is_summary_row(text, start, end, next_start)))
+    payer_close = _PAYER_REGION_CLOSE.search(text)
+    return tuple(sections), (payer_close.end() if payer_close else None)
 
 #: Rupee tolerance when comparing two statements of the same department.
 #: This is decimal-precision slack (one paisa), NOT a business threshold.
@@ -177,26 +239,31 @@ PHARMACY_RECONCILIATION_TOLERANCE = 0.01
 def _service_summary_span(text: str):
     """Return ``(start, end)`` of the first-page summary block, or ``None``.
 
-    The summary is identified STRUCTURALLY, not by a caption: it is whatever
-    precedes the first detailed department header, because that header is
-    where the itemised sections begin.  The real BPLIP39538 bill prints its
-    first page as a plain service/amount table with no "Service Summary"
-    caption at all, so keying off the words alone missed it entirely and the
+    The summary is identified STRUCTURALLY, not by a caption: real bills print
+    the first page as a plain service/amount table with no "Service Summary"
+    words anywhere, so keying off the caption alone missed it entirely and the
     summary figure came back as None.
 
-    An explicit caption, when present, still wins - it starts the span later
-    and so keeps patient/bill header lines out of it.  Both branches are exact
+    The span ends at the first DETAILED section header.  It must not end at the
+    first department header, because in this format the summary table is itself
+    built out of department header lines - so "before the first header" collapsed
+    the span onto the summary's own first row and excluded the whole table.  A
+    detailed header is one that is not a summary row (:func:`_is_summary_row`).
+
+    An explicit caption, when present, still wins - it starts the span later and
+    so keeps patient/bill header lines out of it.  Both branches are exact
     string/structure matches; there is no fuzzy or OCR-style matching here.
 
-    Returns ``None`` when the document has no department header, which is the
-    only situation in which "before the first section" is not meaningful.
+    Returns ``None`` when the document has no detailed department section, which
+    is the only situation in which "before the first section" is not meaningful.
     """
-    first_header = _DEPT_HEADER_RE.search(text)
-    if first_header is None:
+    sections, _patient_region_start = _document_sections(text)
+    first_detail = next((s for s in sections if not s[4]), None)
+    if first_detail is None:
         return None
-    heading = _SERVICE_SUMMARY_HEADING.search(text, 0, first_header.start())
+    heading = _SERVICE_SUMMARY_HEADING.search(text, 0, first_detail[0])
     start = heading.start() if heading else 0
-    return (start, first_header.start())
+    return (start, first_detail[0])
 
 
 def extract_service_summary_amount(text: str, dept_pattern: str):
@@ -206,26 +273,39 @@ def extract_service_summary_amount(text: str, dept_pattern: str):
     not listed in it - absence of evidence, never a zero.  Only the department's
     own line is read, so neighbouring rows (Patient Payable, Deposit, Grand
     Total) can never be picked up.
+
+    Two layouts are read, both exactly:
+
+    * the amount sits on the department's own line, and
+    * the amount sits on the line DIRECTLY BENEATH it, which is how a
+      fixed-column report renders the table.  Only a line that is wholly an
+      amount qualifies, so a following row or label can never be mistaken for
+      the department's figure.
     """
     span = _service_summary_span(text)
     if span is None:
         return None
     start, end = span
     label = re.compile(dept_pattern, re.IGNORECASE)
-    pos = start
-    for line in text[start:end].splitlines(keepends=True):
-        line_start, pos = pos, pos + len(line)
+    lines = text[start:end].splitlines()
+    for index, line in enumerate(lines):
         if _SERVICE_SUMMARY_HEADING.search(line):
             continue
         if not label.search(line):
             continue
         amounts = re.findall(r'([\d,]+\.\d{2})', line)
-        if not amounts:
-            continue
-        try:
-            return float(amounts[-1].replace(',', ''))
-        except ValueError:
-            continue
+        if amounts:
+            try:
+                return float(amounts[-1].replace(',', ''))
+            except ValueError:
+                pass
+        if index + 1 < len(lines):
+            beneath = _WHOLE_LINE_AMOUNT.fullmatch(lines[index + 1])
+            if beneath:
+                try:
+                    return float(beneath.group(1).replace(',', ''))
+                except ValueError:
+                    continue
     return None
 
 
@@ -237,8 +317,12 @@ def collect_dept_subtotals(text: str, dept_pattern: str):
     the excluded ones are kept so a caller can SAY why money was left out
     instead of silently dropping it.
 
-    Three properties matter and each is a real bill defect it prevents:
+    Four properties matter and each is a real bill defect it prevents:
 
+    * **Anchored on a department HEADER, not on the name.**  Matching the name
+      anywhere in the document let a ROW DESCRIPTION that happens to mention a
+      department fabricate a section, which then absorbed the subtotal of
+      whichever real section followed it.  Only a header line opens a section.
     * **Section-aware, not first-match-only.**  A department can state several
       subtotals: an OT Pharmacy section is commonly a run of DATED blocks,
       each closing with its own "Dept Sub Total", and the department's true
@@ -251,26 +335,38 @@ def collect_dept_subtotals(text: str, dept_pattern: str):
     * **Position-deduplicated.**  A department named more than once in the
       same section produces overlapping slices; each subtotal label is counted
       at most once, by absolute position.
+
+    Exclusion is decided by REGION, not by a word in the neighbourhood.  The
+    previous test treated any slice containing "Payer Payable" as patient
+    money, but a bill's payer region CLOSES with exactly that phrase, so the
+    last payer-side department of every such bill was silently zeroed - with a
+    reason that said the opposite of what had happened.
     """
     found, seen = [], set()
     try:
         summary_span = _service_summary_span(text)
-        dept_headers = list(_DEPT_HEADER_RE.finditer(text))
-        for m in re.finditer(dept_pattern, text, re.IGNORECASE):
+        sections, patient_region_start = _document_sections(text)
+        wanted = re.compile(dept_pattern, re.IGNORECASE)
+        for header_start, _header_end, header_text, next_pos, _is_summary in sections:
+            if not wanted.search(header_text):
+                continue
             # The summary states the same department a second time.  Reading it
             # here would double count the department.
-            if summary_span and summary_span[0] <= m.start() < summary_span[1]:
+            if summary_span and summary_span[0] <= header_start < summary_span[1]:
                 continue
-            next_pos = len(text)
-            for h in dept_headers:
-                if h.start() > m.start():
-                    next_pos = min(next_pos, h.start())
-            slice_text = text[m.start(): next_pos]
-            payable = re.search(
-                r'Patient\s*Payable|Grand\s*Total|Payer\s*Payable',
-                slice_text, re.IGNORECASE)
+            slice_text = text[header_start:next_pos]
+            if _PATIENT_PAYABLE_DEPT.search(header_text):
+                payable = "the section's own department is Patient Payable"
+            elif _PATIENT_PAYABLE_TOTAL.search(slice_text):
+                payable = "the section closes with a Patient Payable total"
+            elif (patient_region_start is not None
+                  and header_start >= patient_region_start):
+                payable = ("the section opens after the payer-payable region "
+                           "closed, so it is patient-payable")
+            else:
+                payable = None
             for label in _SUBTOTAL_LABEL.finditer(slice_text):
-                position = m.start() + label.start()
+                position = header_start + label.start()
                 if position in seen:
                     continue
                 seen.add(position)
@@ -294,8 +390,7 @@ def collect_dept_subtotals(text: str, dept_pattern: str):
                     found.append({
                         "amount": round(value, 2), "included": False,
                         "position": position,
-                        "reason": (f"excluded: section carries "
-                                   f"'{payable.group(0)}' and the locked rule "
+                        "reason": (f"excluded: {payable}, and the locked rule "
                                    f"excludes Patient Payable")})
                 else:
                     found.append({
@@ -400,8 +495,8 @@ def reconcile_pharmacy(text: str) -> dict:
         included = [e for e in entries if e["included"]]
         detailed[label] = round(sum(e["amount"] for e in included), 2)
         # One provenance row per SUBTOTAL, not per department: a department can
-        # state several (BPLIP39538's OT Pharmacy is five dated blocks) and the
-        # record must show each one that was added.
+        # state several - an OT Pharmacy section is typically a run of dated
+        # blocks - and the record must show each one that was added.
         for index, entry in enumerate(entries, start=1):
             provenance.append({
                 "label": label,

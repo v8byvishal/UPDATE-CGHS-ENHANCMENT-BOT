@@ -34,8 +34,11 @@ Hard rules honoured here:
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import pathlib
+import re
+import sys
 
 import pytest
 
@@ -251,33 +254,51 @@ def test_room_rent_derivations_agree_with_the_baseline(stem):
 # ---------------------------------------------------------------------------
 
 FINDING_DEPT_SUBTOTAL_VALUE_FIRST = """
-OPEN FINDING - NOT_YET_VERIFIED, deliberately NOT fixed.
+CLOSED FINDING - fixed, and confirmed against the real bill.
 
-extract_dept_subtotal() silently returns 0.00 for a department whose subtotal
-is extracted in value-first layout ("6,486.50 Dept Sub Total") when another
-department follows it.  Cause: the department-header regex
+The finding as originally recorded (kept verbatim, indented):
 
-    [A-Za-z][A-Za-z\\s]*\\(\\s*999311\\s*\\)
+    OPEN FINDING - NOT_YET_VERIFIED, deliberately NOT fixed.
 
-lets [A-Za-z\\s]* span newlines, so the NEXT header is matched starting at
-"Dept Sub Total\\n\\nOT Pharmacy(999311)" instead of at "OT Pharmacy".  The
-department slice is then cut before its own subtotal and the amount is lost.
+    extract_dept_subtotal() silently returns 0.00 for a department whose subtotal
+    is extracted in value-first layout ("6,486.50 Dept Sub Total") when another
+    department follows it.  Cause: the department-header regex
 
-Impact: DRUG100 (IP Pharmacy + OT Pharmacy) could under-report on a bill whose
-PDF extracts value-first.
+        [A-Za-z][A-Za-z\\s]*\\(\\s*999311\\s*\\)
 
-Why it is NOT fixed here: unlike the extract_consumables_total defect, there is
-no internal oracle proving the intended value - the baseline yields 0.00 on
-every path, so a "fix" would be me choosing a new billing number with no
-evidence.  The real PDFs are not available to confirm which layout 40343 and
-39078 actually produce.  Fixing this requires the real bills, and the locked
-mapping must not change on a fixture's suggestion.
+    lets [A-Za-z\\s]* span newlines, so the NEXT header is matched starting at
+    "Dept Sub Total\\n\\nOT Pharmacy(999311)" instead of at "OT Pharmacy".  The
+    department slice is then cut before its own subtotal and the amount is lost.
+
+    Impact: DRUG100 (IP Pharmacy + OT Pharmacy) could under-report on a bill whose
+    PDF extracts value-first.
+
+    Why it is NOT fixed here: unlike the extract_consumables_total defect, there is
+    no internal oracle proving the intended value - the baseline yields 0.00 on
+    every path, so a "fix" would be me choosing a new billing number with no
+    evidence.  The real PDFs are not available to confirm which layout 40343 and
+    39078 actually produce.  Fixing this requires the real bills, and the locked
+    mapping must not change on a fixture's suggestion.
+
+The blocking condition - "requires the real bills" - no longer holds.  The
+example-format bill 39538.pdf is now committed to Git (origin/main b5987f4,
+blob 423a9ea6, sha256 1825f727...) and reading it CONFIRMED the diagnosis
+independently.  The newline-spanning name class really did match across a
+line boundary ('Service \\nBlood Bank Procedure(999311 )'), and it also could
+not express a parenthesised department name at all, so
+'Hospital services (others)(999311 )' produced no boundary and the preceding
+Equipment section absorbed its subtotal (79,920.00 was read as 81,180.00).
+
+_DEPT_HEADER_RE is now anchored to one line and accepts a parenthesised
+qualifier inside the name.  The reproducer below is kept executable and is
+now asserted to PASS;
+test_real_39538_equipment_stops_at_a_parenthesised_department pins the same
+repair against the real document.
 """
 
 
-@pytest.mark.xfail(strict=True, reason="open finding: see FINDING_DEPT_SUBTOTAL_VALUE_FIRST")
 def test_FINDING_dept_subtotal_loses_value_first_departments():
-    """Reproducer kept executable so the day it is fixed, this test tells us."""
+    """Former open finding - now a positive regression test."""
     text = _bill_text("40343", ip_pharmacy=1250.00, value_first=True)
     assert rules.extract_dept_subtotal(text, r'OT\s*Consumables') == pytest.approx(6486.50)
 
@@ -682,3 +703,437 @@ def test_c844823_row_recognition_and_duplicate_accounting_are_unchanged():
     for code in ("AG008", "BC002", "EP092", "MG001", "NS064", "NU110", "NU122"):
         assert controllers._ROW_CODE_RE.search(code)
     assert "DUPLICATE_PROVEN" in inspect.getsource(orchestrator.BatchRunner)
+
+
+# ===========================================================================
+# F. REAL PDF STRUCTURAL REGRESSION - 39538.pdf obtained from Git
+#
+# PROVENANCE (verified, not asserted from memory):
+#   git path   39538.pdf on origin/main, commit b5987f4
+#   blob       423a9ea630136c55d1e06ea07f1bdf39982d6ce3
+#   sha256     1825f727981314ec5b6241f967ee9e26ee1bd76e4cbac96b5ceb4404da04993a
+#   in-repo    tests/fixtures/39538.pdf (byte-identical copy)
+#
+# Unlike section E, these tests load the REAL document.  They are the pre-fix
+# reproduction required before production code may be changed, and the
+# old-vs-new evidence afterwards.  The amounts here are EVIDENCE values used to
+# validate extraction; none of them is permitted into cghs/ (see
+# test_case_specific_amounts_are_not_hardcoded_in_the_package).
+# ===========================================================================
+
+REAL_39538_SHA256 = (
+    "1825f727981314ec5b6241f967ee9e26ee1bd76e4cbac96b5ceb4404da04993a")
+REAL_39538_GIT_BLOB = "423a9ea630136c55d1e06ea07f1bdf39982d6ce3"
+
+#: Page-1 Service Summary, read off the real document.
+REAL_39538_SUMMARY = {
+    "Blood Bank Procedure": 9450.00,
+    "Consultation": 29750.00,
+    "Equipment": 79920.00,
+    "Hospital services (others)": 1260.00,
+    "Investigations": 68984.00,
+    "IP Pharmacy": 773703.60,
+    "Non Invasive Procedure": 98341.75,
+    "OT Consumables": 10022.00,
+    "OT Pharmacy": 1790.80,
+    "Physiotherapy": 19790.00,
+    "Profile": 18167.00,
+    "Room Rent": 156600.00,
+    "Ward Consumables": 11874.44,
+}
+REAL_39538_PAYER_TOTAL = 1248055.00
+REAL_39538_PATIENT_TOTAL = 31599.00
+REAL_39538_GRAND_TOTAL = 1279654.00
+
+
+def _real_39538_path():
+    return _find_bill("39538")
+
+
+def _real_pymupdf():
+    """The REAL PyMuPDF.
+
+    ``tests.support.legacy_loader`` installs a stub under the name ``fitz`` so
+    the c3ccdf3 baseline can be imported without PyMuPDF.  ``pytest.importorskip
+    ("fitz")`` would therefore hand back that stub and the real document would
+    never be opened.  The genuine library is imported under its current name.
+    """
+    return pytest.importorskip("pymupdf")
+
+
+@contextlib.contextmanager
+def _real_fitz_installed():
+    """Let production's lazy ``import fitz`` resolve to the real library."""
+    real = _real_pymupdf()
+    saved = sys.modules.get("fitz")
+    sys.modules["fitz"] = real
+    try:
+        yield
+    finally:
+        if saved is None:
+            del sys.modules["fitz"]
+        else:
+            sys.modules["fitz"] = saved
+
+
+def _real_39538_text():
+    path = _real_39538_path()
+    if path is None:
+        pytest.skip("ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository")
+    doc = _real_pymupdf().open(str(path))
+    return "\n".join(page.get_text() for page in doc)
+
+
+def _dept_pattern(name: str) -> str:
+    """Department name -> the pattern callers use.  No fuzzy matching."""
+    return re.escape(name).replace(r"\ ", r"\s*")
+
+
+def test_real_39538_is_the_committed_git_bill():
+    """The analysed file must be the one in Git, byte for byte."""
+    path = _real_39538_path()
+    if path is None:
+        pytest.skip("ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert digest == REAL_39538_SHA256, (
+        f"{path} is not the committed bill (sha256 {digest})")
+
+
+def test_real_39538_has_the_expected_page_count():
+    path = _real_39538_path()
+    if path is None:
+        pytest.skip("ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository")
+    assert _real_pymupdf().open(str(path)).page_count == 95
+
+
+def test_real_39538_has_no_service_summary_caption():
+    """Defect C premise: the real summary table carries no caption at all."""
+    assert "Service Summary" not in _real_39538_text()
+
+
+def test_real_39538_summary_span_covers_the_summary_table():
+    """PRE-FIX: the span collapses to the patient header block."""
+    text = _real_39538_text()
+    span = rules._service_summary_span(text)
+    assert span is not None
+    block = text[span[0]:span[1]]
+    for dept in REAL_39538_SUMMARY:
+        assert dept in block, (
+            f"the summary span does not contain the {dept!r} summary row")
+
+
+def test_real_39538_service_summary_ip_pharmacy_is_read():
+    """PRE-FIX: returns None - the amount sits on the line after the label."""
+    assert rules.extract_service_summary_amount(
+        _real_39538_text(), IPP) == pytest.approx(773703.60, abs=0.005)
+
+
+def test_real_39538_service_summary_ot_pharmacy_is_read():
+    assert rules.extract_service_summary_amount(
+        _real_39538_text(), OTP) == pytest.approx(1790.80, abs=0.005)
+
+
+def test_real_39538_every_summary_line_is_readable():
+    text = _real_39538_text()
+    for dept, amount in REAL_39538_SUMMARY.items():
+        assert rules.extract_service_summary_amount(
+            text, _dept_pattern(dept)) == pytest.approx(amount, abs=0.005), (
+                f"summary line for {dept!r} was not read")
+
+
+def test_real_39538_main_ip_pharmacy_subtotal_is_the_payer_section():
+    entries = rules.collect_dept_subtotals(_real_39538_text(), IPP)
+    included = [e for e in entries if e["included"]]
+    assert len(included) == 1
+    assert included[0]["amount"] == pytest.approx(742104.38, abs=0.005)
+
+
+def test_real_39538_second_ip_section_is_seen_and_excluded_with_a_reason():
+    entries = rules.collect_dept_subtotals(_real_39538_text(), IPP)
+    excluded = [e for e in entries if not e["included"]]
+    assert len(excluded) == 1, "the patient-payable IP section was discarded"
+    assert excluded[0]["amount"] == pytest.approx(31599.22, abs=0.005)
+    assert "payable" in excluded[0]["reason"].lower()
+
+
+def test_real_39538_two_ip_sections_sum_to_the_summary_line():
+    entries = rules.collect_dept_subtotals(_real_39538_text(), IPP)
+    assert sum(e["amount"] for e in entries) == pytest.approx(
+        REAL_39538_SUMMARY["IP Pharmacy"], abs=0.005)
+
+
+def test_real_39538_ot_pharmacy_aggregates_its_five_dated_blocks():
+    entries = rules.collect_dept_subtotals(_real_39538_text(), OTP)
+    assert [e["amount"] for e in entries] == [
+        pytest.approx(v, abs=0.005)
+        for v in (223.85, 447.70, 447.70, 447.70, 223.85)]
+    assert rules.extract_dept_subtotal(
+        _real_39538_text(), OTP) == pytest.approx(1790.80, abs=0.005)
+
+
+def test_real_39538_ot_is_not_first_match_only_and_not_a_global_sum():
+    text = _real_39538_text()
+    ot = rules.extract_dept_subtotal(text, OTP)
+    assert ot != pytest.approx(223.85, abs=0.005), "first-match-only bug"
+    assert ot == pytest.approx(REAL_39538_SUMMARY["OT Pharmacy"], abs=0.005)
+    assert ot < sum(REAL_39538_SUMMARY.values()), "a global sum was taken"
+
+
+def test_real_39538_consultation_is_not_built_from_a_row_description():
+    """PRE-FIX: 'PHYSIOTHERAPY CONSULTATION' on p81 fabricates a section."""
+    assert rules.extract_dept_subtotal(
+        _real_39538_text(), _dept_pattern("Consultation")) == pytest.approx(
+            REAL_39538_SUMMARY["Consultation"], abs=0.005)
+
+
+def test_real_39538_equipment_stops_at_a_parenthesised_department():
+    """PRE-FIX: 'Hospital services (others)(999311 )' is not recognised."""
+    assert rules.extract_dept_subtotal(
+        _real_39538_text(), _dept_pattern("Equipment")) == pytest.approx(
+            REAL_39538_SUMMARY["Equipment"], abs=0.005)
+
+
+def test_real_39538_ward_consumables_survives_the_payer_payable_close():
+    """PRE-FIX: the payer region's CLOSING total zeroes the last department."""
+    assert rules.extract_dept_subtotal(
+        _real_39538_text(), _dept_pattern("Ward Consumables")) == pytest.approx(
+            REAL_39538_SUMMARY["Ward Consumables"], abs=0.005)
+
+
+def test_real_39538_every_payer_department_matches_its_summary_line():
+    """No department may absorb, lose, or invent money."""
+    text = _real_39538_text()
+    wrong = {}
+    for dept, amount in REAL_39538_SUMMARY.items():
+        got = rules.extract_dept_subtotal(text, _dept_pattern(dept))
+        expected = 742104.38 if dept == "IP Pharmacy" else amount
+        if abs(got - expected) > 0.005:
+            wrong[dept] = (expected, got)
+    assert not wrong, f"departments misread: {wrong}"
+
+
+def test_real_39538_payer_departments_reconcile_to_the_payer_payable_total():
+    """Structural proof that the region model is right, to the rupee."""
+    text = _real_39538_text()
+    total = sum(rules.extract_dept_subtotal(text, _dept_pattern(d))
+                for d in REAL_39538_SUMMARY)
+    assert round(total) == pytest.approx(REAL_39538_PAYER_TOTAL, abs=1.0)
+    assert REAL_39538_PAYER_TOTAL + REAL_39538_PATIENT_TOTAL == pytest.approx(
+        REAL_39538_GRAND_TOTAL, abs=0.005)
+
+
+def test_real_39538_drug100_follows_the_locked_rule():
+    ev = rules.reconcile_pharmacy(_real_39538_text())
+    assert ev["total"] == pytest.approx(743895.18, abs=0.005)
+    assert ev["total"] == pytest.approx(742104.38 + 1790.80, abs=0.005)
+    assert ev["total"] != pytest.approx(
+        743895.18 + 31599.22, abs=0.005), "patient-payable money leaked in"
+
+
+def test_real_39538_drug100_provenance_names_every_amount():
+    ev = rules.reconcile_pharmacy(_real_39538_text())
+    amounts = [p["amount"] for p in ev["provenance"]]
+    for value in (742104.38, 223.85, 447.70, 31599.22):
+        assert any(abs(a - value) < 0.005 for a in amounts), (
+            f"{value} is missing from provenance")
+    assert any(not p["included"] for p in ev["provenance"])
+    for p in ev["provenance"]:
+        assert p["detail"] and p["source"]
+
+
+def test_real_39538_drug100_records_the_summary_cross_check():
+    """PRE-FIX: both summary readings are None, so the check disappears."""
+    ev = rules.reconcile_pharmacy(_real_39538_text())
+    assert ev["ip_summary"] == pytest.approx(773703.60, abs=0.005)
+    assert ev["ot_summary"] == pytest.approx(1790.80, abs=0.005)
+
+
+def test_real_39538_drug100_is_executable_with_no_review_state():
+    text = _real_39538_text()
+    final, _raw, _name, _rejected, _log = CGHSParsingEngine().parse_document(
+        [[]], text, "<39538>")
+    drug = [i for i in final if i["code"] == "DRUG100"]
+    assert len(drug) == 1
+    blob = str(drug[0]).upper()
+    assert "REVIEW" not in blob
+
+
+def test_real_39538_production_parse_preserves_the_locked_invariants():
+    """The full production path, not a helper."""
+    path = _real_39538_path()
+    if path is None:
+        pytest.skip("ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository")
+    with _real_fitz_installed():
+        final, _raw, _name, _rejected, log = CGHSParsingEngine().parse(str(path))
+    qty = {i["code"]: i["qty"] for i in final}
+    assert qty["CN002"] == 87
+    assert qty["CC001"] == 29
+    assert qty["CC002"] == 108
+    assert qty["BC002"] == 3
+    assert qty["PT004"] == 19
+    assert qty["PT005"] == 53
+    assert "CC003" not in qty, "C003 must stay REVIEW_REQUIRED"
+    assert any("743895.18" in str(line) for line in log)
+    assert any("21896.44" in str(line) for line in log)
+
+
+def test_real_39538_resolved_codes_are_all_in_the_1998_registry():
+    """No hallucinated code may be produced from the real document."""
+    path = _real_39538_path()
+    if path is None:
+        pytest.skip("ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository")
+    from cghs.locators import CGHS_CODE_REGISTRY
+    with _real_fitz_installed():
+        final, _raw, _name, _rejected, _log = CGHSParsingEngine().parse(str(path))
+    for item in final:
+        code = item["code"]
+        if code in ("DRUG100", "CNSU100", "CC001", "WC001", "CN002"):
+            continue
+        assert code in CGHS_CODE_REGISTRY, f"{code} is not a registry record"
+
+
+def test_real_39538_compound_code_splits_into_registry_components():
+    """CGHS-L B042+043+044-2025 wraps over FOUR lines in the real document."""
+    occ = rules.resolve_cghs_codes(
+        "CGHS-L B042+043+044-2025", service_name="VIRAL MARKER PROFILE")
+    assert [o["final_code"] for o in occ] == ["LB042", "LB043", "LB044"]
+    assert all(o["status"] == rules.EXECUTABLE for o in occ)
+
+
+def test_real_39538_ventilator_rows_stay_review_required():
+    """26 CGHS-C C003 rows must never be guessed into CC003."""
+    occ = rules.resolve_cghs_codes(
+        "CGHS-C C003-2025", service_name="VENTILATOR CHARGES FULL DAY")
+    assert all(o["status"] == rules.REVIEW_REQUIRED for o in occ)
+    assert all(o["final_code"] is None for o in occ)
+
+
+# ---------------------------------------------------------------------------
+# F2. GENERALISATION - same grammar, different identity/amounts/dates/pages
+#
+# The goal is not "39538 passes" but "a bill of this format parses".  These
+# documents reuse the REAL grammar discovered above (three-line captionless
+# summary rows, parenthesised department names, payer/patient region markers,
+# dated OT blocks) with different patients, amounts, dates and section counts.
+# ---------------------------------------------------------------------------
+
+def _format_bill(departments, *, patient="Ms. A N OTHER", ip_no="BPLIP00001",
+                 patient_payable=None, page_breaks=True):
+    """Build a document in the grammar proven from the real PDF."""
+    summary, detail = [], []
+    for index, (name, amount, body) in enumerate(departments, start=1):
+        summary += [f"{name}(999311 )", f" {amount:,.2f}", f" {index}"]
+        detail += [f"{name}(999311 )"] + body
+        if page_breaks:
+            detail += [f"Page {index + 1} of 99"]
+    head = [f"Name  :", patient, "IP Number:", f"*{ip_no}*", "Payer Payable",
+            "Dis (%)"]
+    tail = ["Payer Payable Total :", f" {sum(d[1] for d in departments):,.2f}"]
+    if patient_payable:
+        name, amount, body = patient_payable
+        tail += ["Patient Payable", "Start ", "Date", f"{name}(999311 )"]
+        tail += body + ["Patient Payable  Total :", f" {amount:,.2f}"]
+    return "\n".join(head + summary + ["Page 1 of 99"] + detail + tail)
+
+
+def _section(subtotals, total=None, dated=False):
+    """A detailed section in the grammar the real PDF uses.
+
+    Each block opens with a SUBSECTION label - a date for dated blocks, a
+    discipline otherwise - exactly as pages 3-94 of the real document do.  The
+    amount PRECEDES "Dept Sub Total :" and FOLLOWS "Dept Total :", which is the
+    layout the real report emits.
+    """
+    out = []
+    for n, amount in enumerate(subtotals, start=1):
+        out.append(f"{n:02d}-Mar-2031" if dated else "Some Discipline")
+        out += [" 1.00 ", "12345", f" {amount:,.2f}",
+                f" {n}", " SOME SERVICE ITEM              ",
+                f" {amount:,.2f}", "Dept Sub Total :"]
+    out += ["Dept Total :", f" {total if total is not None else sum(subtotals):,.2f}"]
+    return out
+
+
+def test_generalised_bill_parses_with_different_identity_and_amounts():
+    text = _format_bill([
+        ("IP Pharmacy", 11111.11, _section([11111.11])),
+        ("OT Pharmacy", 606.00, _section([101.00] * 6, dated=True)),
+    ], patient="Mr. Q Z EXAMPLE", ip_no="BPLIP77777")
+    assert rules.extract_dept_subtotal(text, IPP) == pytest.approx(11111.11)
+    assert rules.extract_dept_subtotal(text, OTP) == pytest.approx(606.00)
+    assert rules.reconcile_pharmacy(text)["total"] == pytest.approx(11717.11)
+
+
+def test_generalised_captionless_three_line_summary_is_read():
+    """PRE-FIX: the real summary shape is unreadable."""
+    text = _format_bill([
+        ("IP Pharmacy", 2500.00, _section([2500.00])),
+        ("OT Pharmacy", 900.00, _section([300.00] * 3, dated=True)),
+    ])
+    assert rules.extract_service_summary_amount(text, IPP) == pytest.approx(2500.00)
+    assert rules.extract_service_summary_amount(text, OTP) == pytest.approx(900.00)
+
+
+def test_generalised_last_payer_department_may_be_a_pharmacy():
+    """PRE-FIX: the payer close zeroes whichever department comes last.
+
+    This is the future-bill corruption the Ward Consumables defect proves.
+    """
+    text = _format_bill([
+        ("Room Rent", 5000.00, _section([5000.00])),
+        ("IP Pharmacy", 98765.43, _section([98765.43])),
+    ])
+    assert rules.extract_dept_subtotal(text, IPP) == pytest.approx(98765.43), (
+        "the last payer-side department was discarded")
+    assert rules.reconcile_pharmacy(text)["total"] == pytest.approx(98765.43)
+
+
+def test_generalised_row_description_naming_a_department_is_not_a_section():
+    """PRE-FIX: a row that merely mentions a department fabricates one."""
+    text = _format_bill([
+        ("IP Pharmacy", 1000.00, _section([1000.00])),
+        ("Physiotherapy", 4000.00,
+         [" 1.00 ", "999", " 4,000.00", " 1",
+          " IP PHARMACY LIAISON REVIEW              ", " 4,000.00",
+          "Dept Sub Total :", "Dept Total :", " 4,000.00"]),
+    ])
+    assert rules.extract_dept_subtotal(text, IPP) == pytest.approx(1000.00), (
+        "a Physiotherapy row naming IP Pharmacy was counted as pharmacy")
+
+
+def test_generalised_parenthesised_department_bounds_the_previous_one():
+    """PRE-FIX: a parenthesised name is invisible, so boundaries vanish."""
+    text = _format_bill([
+        ("Equipment", 700.00, _section([350.00, 350.00])),
+        ("Hospital services (others)", 60.00, _section([60.00])),
+        ("IP Pharmacy", 800.00, _section([800.00])),
+    ])
+    assert rules.extract_dept_subtotal(
+        text, _dept_pattern("Equipment")) == pytest.approx(700.00)
+    assert rules.extract_dept_subtotal(
+        text, _dept_pattern("Hospital services (others)")) == pytest.approx(60.00)
+
+
+def test_generalised_patient_payable_region_is_excluded_by_position():
+    text = _format_bill(
+        [("IP Pharmacy", 3000.00, _section([3000.00]))],
+        patient_payable=("IP Pharmacy", 250.00, _section([250.00])))
+    entries = rules.collect_dept_subtotals(text, IPP)
+    assert len(entries) == 2, "both occurrences must stay distinguishable"
+    assert [e["included"] for e in entries] == [True, False]
+    assert rules.reconcile_pharmacy(text)["total"] == pytest.approx(3000.00)
+
+
+@pytest.mark.parametrize("blocks", [1, 2, 5, 9, 14])
+def test_generalised_any_number_of_dated_ot_blocks_aggregates(blocks):
+    text = _format_bill([
+        ("IP Pharmacy", 100.00, _section([100.00])),
+        ("OT Pharmacy", 50.0 * blocks, _section([50.00] * blocks, dated=True)),
+    ])
+    assert rules.extract_dept_subtotal(text, OTP) == pytest.approx(50.0 * blocks)
+
+
+def test_generalised_summary_lines_are_never_added_to_the_detail():
+    text = _format_bill([("IP Pharmacy", 4321.00, _section([4321.00]))])
+    assert rules.extract_dept_subtotal(text, IPP) == pytest.approx(4321.00), (
+        "the summary line was added to the detailed subtotal")

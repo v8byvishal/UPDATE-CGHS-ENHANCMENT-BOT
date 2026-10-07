@@ -1,0 +1,488 @@
+[
+ {
+  "raw": "CGHS-A G008-2025",
+  "count": 1,
+  "final_code": "AG008",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "ENDOSCOPY FEEDING TUBE (NJ",
+  "reason": "Locked composition CGHS-A + G008 => AG008"
+ },
+ {
+  "raw": "CGHS-B C002-2025",
+  "count": 3,
+  "final_code": "BC002",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "PACKED CELLS - BLOOD UNITS",
+  "reason": "Locked composition CGHS-B + C002 => BC002"
+ },
+ {
+  "raw": "CGHS-C C002-2025",
+  "count": 7,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "OXYGEN FULL DAY",
+  "reason": "UNRESOLVED_MAPPING: C002 carries no Oxygen evidence in the same row"
+ },
+ {
+  "raw": "CGHS-C C003-2025",
+  "count": 26,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "VENTILATOR CHARGES FULL DAY",
+  "reason": "UNRESOLVED_MAPPING: C003 has no approved target code; inventing CC003 is forbidden"
+ },
+ {
+  "raw": "CGHS-C C008-2025",
+  "count": 3,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "BLOOD TRANSFUSION CHARGE",
+  "reason": "UNRESOLVED_MAPPING: C008 requires 'Blood Transfusion Charge' evidence in the same row to become CC008; the row does not carry it"
+ },
+ {
+  "raw": "CGHS-C C010-2025",
+  "count": 1,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "ENDOTRACHEAL INTUBATION",
+  "reason": "UNRESOLVED_MAPPING: C010 requires 'Endotracheal Intubation' evidence in the same row to become CC010; the row does not carry it"
+ },
+ {
+  "raw": "CGHS-C C011-2025",
+  "count": 2,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "CENTRAL LINE",
+  "reason": "UNRESOLVED_MAPPING: C011 requires 'Central Line' evidence in the same row to become CC011; the row does not carry it"
+ },
+ {
+  "raw": "CGHS-C C012-2025",
+  "count": 5,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "NEBULIZER THERAPY",
+  "reason": "UNRESOLVED_MAPPING: C012 requires 'Nebulizer Therapy' evidence in the same row to become CC012; the row does not carry it"
+ },
+ {
+  "raw": "CGHS-C C014-2025",
+  "count": 1,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "RYLES TUBE INSERATION CHARGE",
+  "reason": "UNRESOLVED_MAPPING: C014 requires 'Ryles Tube Insertion Charge' evidence in the same row to become CC014; the row does not carry it"
+ },
+ {
+  "raw": "CGHS-C N002-2025",
+  "count": 86,
+  "final_code": "CN002",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "IP CONSULTATION CHARGES",
+  "reason": "Locked composition CGHS-C + N002 => CN002"
+ },
+ {
+  "raw": "CGHS-CI 001-2025",
+  "count": 4,
+  "final_code": "CI001",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "Name :",
+  "reason": "Locked composition CGHS-CI + 001 => CI001"
+ },
+ {
+  "raw": "CGHS-CI 003-2025",
+  "count": 1,
+  "final_code": "CI003",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "( \u00df )  HOLTER MONITORING (SP3) 72",
+  "reason": "Locked composition CGHS-CI + 003 => CI003"
+ },
+ {
+  "raw": "CGHS-E P092-2025",
+  "count": 1,
+  "final_code": "EP092",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "TRACHEOSTOMY (WARD)",
+  "reason": "Locked composition CGHS-E + P092 => EP092"
+ },
+ {
+  "raw": "CGHS-G P009-2025",
+  "count": 2,
+  "final_code": "GP009",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "FOLEYS CATHETER",
+  "reason": "Locked composition CGHS-G + P009 => GP009"
+ },
+ {
+  "raw": "CGHS-L B-103-2025",
+  "count": 2,
+  "final_code": "LB103",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CK (CPK): CREATINE KINASE -",
+  "reason": "Locked composition CGHS-L + B103 => LB103"
+ },
+ {
+  "raw": "CGHS-L B001-2025",
+  "count": 2,
+  "final_code": "LB001",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "URINE ROUTINE (CUE)",
+  "reason": "Locked composition CGHS-L + B001 => LB001"
+ },
+ {
+  "raw": "CGHS-L B012-2025",
+  "count": 30,
+  "final_code": "LB012",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "Name :",
+  "reason": "Locked composition CGHS-L + B012 => LB012"
+ },
+ {
+  "raw": "CGHS-L B027-2025",
+  "count": 1,
+  "final_code": "LB027",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "D-DIMER",
+  "reason": "Locked composition CGHS-L + B027 => LB027"
+ },
+ {
+  "raw": "CGHS-L B036-2025",
+  "count": 1,
+  "final_code": "LB036",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "BLOOD GROUPING-CAT(BB-18-03A)",
+  "reason": "Locked composition CGHS-L + B036 => LB036"
+ },
+ {
+  "raw": "CGHS-L B042+043+044-2025",
+  "count": 1,
+  "final_code": "LB042",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "VIRAL MARKER PROFILE",
+  "reason": "Locked composition CGHS-L + B042 => LB042"
+ },
+ {
+  "raw": "CGHS-L B042+043+044-2025",
+  "count": 1,
+  "final_code": "LB043",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "VIRAL MARKER PROFILE",
+  "reason": "Prefix carried from the first component of 'B042+043+044' => LB043; the compound is unambiguous and LB043 is in the CGHS code registry"
+ },
+ {
+  "raw": "CGHS-L B042+043+044-2025",
+  "count": 1,
+  "final_code": "LB044",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "VIRAL MARKER PROFILE",
+  "reason": "Prefix carried from the first component of 'B042+043+044' => LB044; the compound is unambiguous and LB044 is in the CGHS code registry"
+ },
+ {
+  "raw": "CGHS-L B055-2025",
+  "count": 39,
+  "final_code": "LB055",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "GLUCOMETER",
+  "reason": "Locked composition CGHS-L + B055 => LB055"
+ },
+ {
+  "raw": "CGHS-L B070-2025",
+  "count": 2,
+  "final_code": "LB070",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CRP-QUANTITATIVE              (256182",
+  "reason": "Locked composition CGHS-L + B070 => LB070"
+ },
+ {
+  "raw": "CGHS-L B071-2025",
+  "count": 1,
+  "final_code": "LB071",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CSF ROUTINE AND",
+  "reason": "Locked composition CGHS-L + B071 => LB071"
+ },
+ {
+  "raw": "CGHS-L B091-2025",
+  "count": 1,
+  "final_code": "LB091",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "MAGNESIUM - SERUM",
+  "reason": "Locked composition CGHS-L + B091 => LB091"
+ },
+ {
+  "raw": "CGHS-L B092-2025",
+  "count": 1,
+  "final_code": "LB092",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "SODIUM - SERUM / PLASMA",
+  "reason": "Locked composition CGHS-L + B092 => LB092"
+ },
+ {
+  "raw": "CGHS-L B093-2025",
+  "count": 1,
+  "final_code": "LB093",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "POTASSIUM - SERUM / PLASMA",
+  "reason": "Locked composition CGHS-L + B093 => LB093"
+ },
+ {
+  "raw": "CGHS-L B096-2025",
+  "count": 5,
+  "final_code": "LB096",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "AMMONIA - PLASMA              (253687",
+  "reason": "Locked composition CGHS-L + B096 => LB096"
+ },
+ {
+  "raw": "CGHS-L B105-2025",
+  "count": 2,
+  "final_code": "LB105",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "",
+  "reason": "Locked composition CGHS-L + B105 => LB105"
+ },
+ {
+  "raw": "CGHS-L B120-2025",
+  "count": 36,
+  "final_code": "LB120",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "ABG sampling",
+  "reason": "Locked composition CGHS-L + B120 => LB120"
+ },
+ {
+  "raw": "CGHS-L B123-2025",
+  "count": 30,
+  "final_code": "LB123",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "RENAL FUNCTIONAL TEST",
+  "reason": "Locked composition CGHS-L + B123 => LB123"
+ },
+ {
+  "raw": "CGHS-L B124-2025",
+  "count": 8,
+  "final_code": "LB124",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "LIVER FUNCTION TEST (PACKAGE)",
+  "reason": "Locked composition CGHS-L + B124 => LB124"
+ },
+ {
+  "raw": "CGHS-L B201-2025",
+  "count": 1,
+  "final_code": "LB201",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CULTURE AND SENSITIVITY [C S F]",
+  "reason": "Locked composition CGHS-L + B201 => LB201"
+ },
+ {
+  "raw": "CGHS-L B203-2025",
+  "count": 3,
+  "final_code": "LB203",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CULTURE AND SENSITIVITY [URINE]",
+  "reason": "Locked composition CGHS-L + B203 => LB203"
+ },
+ {
+  "raw": "CGHS-L B204-2025",
+  "count": 7,
+  "final_code": "LB204",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CULTURE AND SENSITIVITY [BLOOD]",
+  "reason": "Locked composition CGHS-L + B204 => LB204"
+ },
+ {
+  "raw": "CGHS-L B205-2025",
+  "count": 5,
+  "final_code": "LB205",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CULTURE AND SENSITIVITY [OTHERS]",
+  "reason": "Locked composition CGHS-L + B205 => LB205"
+ },
+ {
+  "raw": "CGHS-L B243-2025",
+  "count": 1,
+  "final_code": "LB243",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "N TERMINAL PRO B TYPE NATRI",
+  "reason": "Locked composition CGHS-L + B243 => LB243"
+ },
+ {
+  "raw": "CGHS-L B248-2025",
+  "count": 9,
+  "final_code": "LB248",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "PROCALCITONIN ( PCT )- SERUM",
+  "reason": "Locked composition CGHS-L + B248 => LB248"
+ },
+ {
+  "raw": "CGHS-M G001-2025",
+  "count": 1,
+  "final_code": "MG001",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "ENDOSCOPY THERAPEUTIC",
+  "reason": "Locked composition CGHS-M + G001 => MG001"
+ },
+ {
+  "raw": "CGHS-N S064-2025",
+  "count": 1,
+  "final_code": "NS064",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "LUMBER PUNCTURE",
+  "reason": "Locked composition CGHS-N + S064 => NS064"
+ },
+ {
+  "raw": "CGHS-N U110-2025",
+  "count": 1,
+  "final_code": "NU110",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "FEMORAL DIALYSIS CATHETER",
+  "reason": "Locked composition CGHS-N + U110 => NU110"
+ },
+ {
+  "raw": "CGHS-N U122-2025",
+  "count": 5,
+  "final_code": "NU122",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "EMERGENCY DIALYSIS WITH SINGLE",
+  "reason": "Locked composition CGHS-N + U122 => NU122"
+ },
+ {
+  "raw": "CGHS-NI 001-2025",
+  "count": 3,
+  "final_code": null,
+  "status": "REVIEW_REQUIRED",
+  "in_registry": false,
+  "service": "EEG ROUTINE              (4226601 )",
+  "reason": "UNRESOLVED_MAPPING: category 'NI' with token '001' matches no locked rule"
+ },
+ {
+  "raw": "CGHS-P T004-2025",
+  "count": 19,
+  "final_code": "PT004",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CHEST PHYSIOTHERAPY-ICU",
+  "reason": "Locked composition CGHS-P + T004 => PT004"
+ },
+ {
+  "raw": "CGHS-P T005-2025",
+  "count": 53,
+  "final_code": "PT005",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "LIMB PHYSIO-EXERCISES PROGRAM",
+  "reason": "Locked composition CGHS-P + T005 => PT005"
+ },
+ {
+  "raw": "CGHS-RI 001-2025",
+  "count": 1,
+  "final_code": "RI001",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "ECHO SCREENING              (4219371 )",
+  "reason": "Locked composition CGHS-RI + 001 => RI001"
+ },
+ {
+  "raw": "CGHS-RI 020-2025",
+  "count": 1,
+  "final_code": "RI020",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "( \u00df )  ULTRASOUND - WHOLE",
+  "reason": "Locked composition CGHS-RI + 020 => RI020"
+ },
+ {
+  "raw": "CGHS-RI 028-2025",
+  "count": 1,
+  "final_code": "RI028",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "( \u00df )  DOPPLER CAROTIDS AND",
+  "reason": "Locked composition CGHS-RI + 028 => RI028"
+ },
+ {
+  "raw": "CGHS-RI 034-2025",
+  "count": 33,
+  "final_code": "RI034",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "BED SIDE X- RAY              (4227482 )",
+  "reason": "Locked composition CGHS-RI + 034 => RI034"
+ },
+ {
+  "raw": "CGHS-RI 062-2025",
+  "count": 2,
+  "final_code": "RI062",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "CT BRAIN PLAIN              (4222217 )",
+  "reason": "Locked composition CGHS-RI + 062 => RI062"
+ },
+ {
+  "raw": "CGHS-RI 065-2025",
+  "count": 1,
+  "final_code": "RI065",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "HRCT - CHEST              (4219911 )",
+  "reason": "Locked composition CGHS-RI + 065 => RI065"
+ },
+ {
+  "raw": "CGHS-RI 089-2025",
+  "count": 2,
+  "final_code": "RI089",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "MRI BRAIN (SCREENING ONLY)",
+  "reason": "Locked composition CGHS-RI + 089 => RI089"
+ },
+ {
+  "raw": "CGHS-RI 140-2025",
+  "count": 1,
+  "final_code": "RI140",
+  "status": "EXECUTABLE",
+  "in_registry": true,
+  "service": "MRI BRAIN STROKE PRTOCOL",
+  "reason": "Locked composition CGHS-RI + 140 => RI140"
+ }
+]
