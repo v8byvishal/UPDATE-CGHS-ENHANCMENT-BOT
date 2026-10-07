@@ -460,10 +460,11 @@ class CGHSParsingEngine:
             ot_amt = pharmacy["ot_detailed"]
             drugs_amt = pharmacy["total"]
             if drugs_amt > 0:
-                # No upper bound.  A real bill's pharmacy spend runs to seven
-                # figures; the old ``drugs_amt < 500000`` gate, combined with
-                # the same cutoff inside extract_dept_subtotal, reported
-                # DRUG100 = 1,790.80 (OT alone) on a 743,895.18 pharmacy.
+                # No upper bound.  A real bill's pharmacy spend runs well
+                # past any round number; the old ``drugs_amt < 500000`` gate,
+                # combined with the same cutoff inside extract_dept_subtotal,
+                # silently zeroed the large pharmacy department and emitted
+                # only the small one.
                 #
                 # Nor is execution gated on the Service Summary agreeing with
                 # the detailed subtotals: a summary line can aggregate several

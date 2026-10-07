@@ -151,13 +151,13 @@ def _subtotal_at(text: str, label):
 # ---------------------------------------------------------------------------
 # Service Summary vs detailed department sections
 #
-# A bill states each department TWICE: once as a line in the Service Summary
-# near the front, and once as a detailed section ending in "Dept Sub Total".
-# The two are not always equal - on bill BPLIP39538 the IP Pharmacy summary
-# read 773,703.60 while the detailed subtotal read 742,104.38, a gap of
-# 31,599.22.  The locked rule for DRUG100 (see the module docstring of
-# cghs.parsing) is the *subtotal*, so the detailed sections are what
-# ``extract_dept_subtotal`` must read, and the summary must be kept out of it.
+# A bill states each department TWICE: once as a line in the first-page
+# service/amount table, and once as one or more detailed sections ending in
+# "Dept Sub Total".  The two are not always equal, because a summary LINE can
+# aggregate several detailed SECTIONS of the same department.  The locked rule
+# for DRUG100 (see the module docstring of cghs.parsing) is the *subtotal*, so
+# the detailed sections are what ``extract_dept_subtotal`` must read, and the
+# summary must be kept out of it.
 #
 # Structurally the summary is already excluded because its lines do not carry
 # the literal "Dept Sub Total".  That is not a guarantee, so the summary span
@@ -175,19 +175,28 @@ PHARMACY_RECONCILIATION_TOLERANCE = 0.01
 
 
 def _service_summary_span(text: str):
-    """Return ``(start, end)`` of the Service Summary block, or ``None``.
+    """Return ``(start, end)`` of the first-page summary block, or ``None``.
 
-    The block runs from the heading to the first detailed department header,
-    because that header is where the itemised sections begin.
+    The summary is identified STRUCTURALLY, not by a caption: it is whatever
+    precedes the first detailed department header, because that header is
+    where the itemised sections begin.  The real BPLIP39538 bill prints its
+    first page as a plain service/amount table with no "Service Summary"
+    caption at all, so keying off the words alone missed it entirely and the
+    summary figure came back as None.
+
+    An explicit caption, when present, still wins - it starts the span later
+    and so keeps patient/bill header lines out of it.  Both branches are exact
+    string/structure matches; there is no fuzzy or OCR-style matching here.
+
+    Returns ``None`` when the document has no department header, which is the
+    only situation in which "before the first section" is not meaningful.
     """
-    heading = _SERVICE_SUMMARY_HEADING.search(text)
-    if not heading:
+    first_header = _DEPT_HEADER_RE.search(text)
+    if first_header is None:
         return None
-    end = len(text)
-    for h in _DEPT_HEADER_RE.finditer(text, heading.end()):
-        end = h.start()
-        break
-    return (heading.start(), end)
+    heading = _SERVICE_SUMMARY_HEADING.search(text, 0, first_header.start())
+    start = heading.start() if heading else 0
+    return (start, first_header.start())
 
 
 def extract_service_summary_amount(text: str, dept_pattern: str):
@@ -206,7 +215,7 @@ def extract_service_summary_amount(text: str, dept_pattern: str):
     pos = start
     for line in text[start:end].splitlines(keepends=True):
         line_start, pos = pos, pos + len(line)
-        if line_start == start and _SERVICE_SUMMARY_HEADING.search(line):
+        if _SERVICE_SUMMARY_HEADING.search(line):
             continue
         if not label.search(line):
             continue
@@ -220,14 +229,36 @@ def extract_service_summary_amount(text: str, dept_pattern: str):
     return None
 
 
-def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
-    total = 0.0
+def collect_dept_subtotals(text: str, dept_pattern: str):
+    """Every ``Dept Sub Total`` belonging to one department, with provenance.
+
+    Returns a list of dicts: ``amount``, ``included`` (bool), ``reason`` and
+    ``position``.  ``extract_dept_subtotal`` is the sum of the included ones;
+    the excluded ones are kept so a caller can SAY why money was left out
+    instead of silently dropping it.
+
+    Three properties matter and each is a real bill defect it prevents:
+
+    * **Section-aware, not first-match-only.**  A department can state several
+      subtotals: an OT Pharmacy section is commonly a run of DATED blocks,
+      each closing with its own "Dept Sub Total", and the department's true
+      figure is their sum.  Reading only the first returned one block and
+      under-reported DRUG100 by the rest.  Every label inside the department's
+      own slice is resolved, using the same ``_subtotal_at`` label-first /
+      value-first precedence the consumables reader already uses.
+    * **Section-scoped, not a global sum.**  A slice stops at the next
+      department header, so one department can never absorb another's money.
+    * **Position-deduplicated.**  A department named more than once in the
+      same section produces overlapping slices; each subtotal label is counted
+      at most once, by absolute position.
+    """
+    found, seen = [], set()
     try:
         summary_span = _service_summary_span(text)
         dept_headers = list(_DEPT_HEADER_RE.finditer(text))
         for m in re.finditer(dept_pattern, text, re.IGNORECASE):
-            # The Service Summary states the same department a second time.
-            # Reading it here would double count the department.
+            # The summary states the same department a second time.  Reading it
+            # here would double count the department.
             if summary_span and summary_span[0] <= m.start() < summary_span[1]:
                 continue
             next_pos = len(text)
@@ -235,27 +266,51 @@ def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
                 if h.start() > m.start():
                     next_pos = min(next_pos, h.start())
             slice_text = text[m.start(): next_pos]
-            if re.search(r'Patient\s*Payable|Grand\s*Total|Payer\s*Payable', slice_text, re.IGNORECASE):
-                continue
-            val = None
-            for regex in [r'Dept\s*Sub\s*Total\s*:?\s*([\d,]+\.\d{2})', r'([\d,]+\.\d{2})\s*Dept\s*Sub\s*Total']:
-                mm = re.search(regex, slice_text, re.IGNORECASE|re.DOTALL)
-                if mm:
-                    try:
-                        val = float(mm.group(1).replace(',',''))
-                        break
-                    except: continue
-            # No upper bound: a real IP Pharmacy subtotal on bill BPLIP39538 is
-            # 742,104.38.  The previous ``val < 500000`` cutoff did not reject
-            # the bill - it zeroed the IP component and let OT through, so the
-            # bot reported DRUG100 = 1,790.80 for 743,895.18 of pharmacy.  The
-            # guards that actually belong here are structural (department slice,
-            # Patient Payable / Grand Total exclusion), not a magnitude guess.
-            if val is not None and val > 0:
-                total += val
+            payable = re.search(
+                r'Patient\s*Payable|Grand\s*Total|Payer\s*Payable',
+                slice_text, re.IGNORECASE)
+            for label in _SUBTOTAL_LABEL.finditer(slice_text):
+                position = m.start() + label.start()
+                if position in seen:
+                    continue
+                seen.add(position)
+                amount_str, _layout = _subtotal_at(slice_text, label)
+                if amount_str is None:
+                    continue
+                try:
+                    value = float(amount_str.replace(',', ''))
+                except ValueError:
+                    continue
+                # No upper bound.  A real hospital pharmacy department runs
+                # well past any round number, and the previous ``< 500000``
+                # cutoff did not reject such a bill - it silently zeroed the
+                # large department and let a small one through, so DRUG100 was
+                # reported as a fraction of the true spend.  The guards that
+                # belong here are structural, not a magnitude guess.
+                if value <= 0:
+                    continue
+                if payable:
+                    # The locked rule is explicit: "Patient Payable excluded".
+                    found.append({
+                        "amount": round(value, 2), "included": False,
+                        "position": position,
+                        "reason": (f"excluded: section carries "
+                                   f"'{payable.group(0)}' and the locked rule "
+                                   f"excludes Patient Payable")})
+                else:
+                    found.append({
+                        "amount": round(value, 2), "included": True,
+                        "position": position,
+                        "reason": "included: department Dept Sub Total"})
     except Exception:
         pass
-    return total
+    return sorted(found, key=lambda entry: entry["position"])
+
+
+def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
+    return round(sum(entry["amount"]
+                     for entry in collect_dept_subtotals(text, dept_pattern)
+                     if entry["included"]), 2)
 
 def extract_consumables_total(text: str):
     total = 0.0
@@ -315,20 +370,18 @@ def reconcile_pharmacy(text: str) -> dict:
     ``extract_dept_subtotal`` skips any slice carrying Patient Payable.  This
     function returns exactly that figure and never substitutes another.
 
-    A SERVICE SUMMARY LINE IS NOT A SECOND OPINION ON ONE DEPARTMENT.  It can
-    aggregate several detailed departments, so summary != detail is normal and
-    is NOT evidence of a contradiction.  Bill BPLIP39538 is the worked example:
+    A SUMMARY LINE IS NOT A SECOND OPINION ON ONE SECTION.  One summary line
+    can aggregate SEVERAL detailed sections of the same department - a bill
+    may print a department's main section early and a further section of the
+    same department much later - so summary != the first detailed subtotal is
+    normal, and is NOT evidence of a contradiction.
 
-        Service Summary  IP Pharmacy            773,703.60
-        detailed         IP Pharmacy Dept Sub Total   742,104.38
-        detailed         a separate department          31,599.22
-                         742,104.38 + 31,599.22  =    773,703.60
-
-    An earlier revision of this function treated that 31,599.22 as an
-    unexplained gap and withheld DRUG100 as REVIEW_REQUIRED.  That was wrong:
-    the money is a different department's subtotal and belongs to neither IP
-    Pharmacy nor DRUG100.  Gating on summary-vs-detail equality is therefore
-    removed - it blocks correct bills.
+    An earlier revision treated that difference as an unexplained gap and
+    withheld DRUG100 as REVIEW_REQUIRED.  That was wrong, and it blocked
+    correct bills; gating on summary-vs-detail equality is removed.  Which of
+    a department's sections actually count is decided by the locked rule
+    alone: every detailed subtotal is included EXCEPT one whose section is
+    patient-payable, and each exclusion is reported with its reason.
 
     The summary is still READ, for two reasons that remain valid: it is
     provenance, and ``extract_dept_subtotal`` skips the summary span so a
@@ -341,22 +394,37 @@ def reconcile_pharmacy(text: str) -> dict:
     """
     departments = (("IP Pharmacy", r'IP\s*Pharmacy'), ("OT Pharmacy", r'OT\s*Pharmacy'))
 
-    detailed, summary, provenance = {}, {}, []
+    detailed, summary, provenance, excluded = {}, {}, [], []
     for label, pattern in departments:
-        amount = extract_dept_subtotal(text, pattern)
-        detailed[label] = amount
-        if amount > 0:
-            provenance.append({"label": label, "amount": round(amount, 2),
-                               "source": "detailed_dept_subtotal",
-                               "detail": f"{label} Dept Sub Total {amount:,.2f}"})
+        entries = collect_dept_subtotals(text, pattern)
+        included = [e for e in entries if e["included"]]
+        detailed[label] = round(sum(e["amount"] for e in included), 2)
+        # One provenance row per SUBTOTAL, not per department: a department can
+        # state several (BPLIP39538's OT Pharmacy is five dated blocks) and the
+        # record must show each one that was added.
+        for index, entry in enumerate(entries, start=1):
+            provenance.append({
+                "label": label,
+                "amount": entry["amount"],
+                "source": ("detailed_dept_subtotal" if entry["included"]
+                           else "excluded_dept_subtotal"),
+                "included": entry["included"],
+                "detail": (f"{label} subtotal #{index} {entry['amount']:,.2f} "
+                           f"- {entry['reason']}")})
+            if not entry["included"]:
+                excluded.append({"label": label, "amount": entry["amount"],
+                                 "reason": entry["reason"]})
         stated = extract_service_summary_amount(text, pattern)
         summary[label] = stated
         if stated is not None:
             provenance.append({"label": label, "amount": round(stated, 2),
-                               "source": "service_summary",
-                               "detail": f"Service Summary {label} {stated:,.2f}"})
+                               "source": "service_summary", "included": False,
+                               "detail": f"first-page summary {label} {stated:,.2f}"})
 
     total = round(sum(detailed.values()), 2)
+    arithmetic = " + ".join(
+        f"{e['amount']:,.2f}" for e in provenance if e.get("included")) or "0.00"
+    arithmetic = f"{arithmetic} = {total:,.2f}"
 
     stated_amounts = [summary[label] for label, _ in departments
                       if summary[label] is not None]
@@ -368,7 +436,10 @@ def reconcile_pharmacy(text: str) -> dict:
 
     reason = (f"DRUG100 = IP Pharmacy subtotal ({detailed['IP Pharmacy']:,.2f}) "
               f"+ OT Pharmacy subtotal ({detailed['OT Pharmacy']:,.2f}) "
-              f"= {total:,.2f}, Patient Payable excluded")
+              f"= {total:,.2f} [{arithmetic}], Patient Payable excluded")
+    if excluded:
+        reason += ("; excluded " + "; ".join(
+            f"{e['label']} {e['amount']:,.2f} ({e['reason']})" for e in excluded))
     if difference is not None and abs(difference) > PHARMACY_RECONCILIATION_TOLERANCE:
         # Informational only.  The summary aggregates departments the locked
         # rule does not put in DRUG100; naming the gap here keeps it visible
@@ -385,6 +456,8 @@ def reconcile_pharmacy(text: str) -> dict:
         "total": total,
         "summary_total": summary_total,
         "difference": difference,
+        "excluded": excluded,
+        "arithmetic": arithmetic,
         "reason": reason,
         "provenance": provenance,
     }
