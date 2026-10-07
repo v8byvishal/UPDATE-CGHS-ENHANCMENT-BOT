@@ -51,7 +51,22 @@ CRITICAL_FILES = [
     "cghs/session.py",
     "cghs/orchestrator.py",
     "docs/AUTOMATION_PERFORMANCE_HARDENING.md",
+    "requirements.txt",
 ]
+
+#: Fixtures the regression suite READS.  Each is shipped and hash-verified.
+#:
+#: Without this, INCLUDE_GLOBS had no tests/fixtures entry, so the real-bill
+#: specimen was absent from the archive while the shipped git-archive ZIP
+#: contained it - two divergent artifacts from one commit.  Worse, the
+#: extracted archive still looked green: the 23 real-39538 regressions simply
+#: reported "ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository" and
+#: skipped, so the artifact passed its suite while no longer exercising the
+#: real document at all.  A fixture the tests require is part of the product.
+REQUIRED_FIXTURES = {
+    "tests/fixtures/39538.pdf":
+        "1825f727981314ec5b6241f967ee9e26ee1bd76e4cbac96b5ceb4404da04993a",
+}
 
 INCLUDE_GLOBS = [
     "app.py",
@@ -66,6 +81,7 @@ INCLUDE_GLOBS = [
     "tests/*.py",
     "tests/support/*.py",
     "tests/support/*.txt",
+    "tests/fixtures/*.pdf",
     "tools/*.py",
     "docs/*.md",
     "docs/perf/*",
@@ -116,6 +132,21 @@ def build(zip_path: pathlib.Path) -> List[pathlib.Path]:
     if missing:
         raise SystemExit(f"FAIL - critical file(s) missing from the workspace: {missing}")
 
+    selected = {path.relative_to(REPO).as_posix() for path in files}
+    for fixture, expected in REQUIRED_FIXTURES.items():
+        source = REPO / fixture
+        if not source.exists():
+            raise SystemExit(
+                f"FAIL - required fixture missing from the workspace: {fixture}")
+        if sha256(source) != expected:
+            raise SystemExit(
+                f"FAIL - required fixture {fixture} does not match its recorded "
+                f"SHA-256 (expected {expected}, got {sha256(source)})")
+        if fixture not in selected:
+            raise SystemExit(
+                f"FAIL - required fixture {fixture} exists but no INCLUDE_GLOBS "
+                "pattern selects it, so the archive would lose it silently")
+
     if zip_path.exists():
         zip_path.unlink()
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED,
@@ -161,6 +192,23 @@ def verify(zip_path: pathlib.Path) -> Tuple[bool, Dict[str, object]]:
         leaked = [n for n in names if any(part in f"/{n}" for part in FORBIDDEN_PARTS)]
         check("no build intermediates / caches / journals", not leaked,
               f"leaked={leaked[:5]}")
+
+        # --- fixtures the regression suite READS must be in the archive ---
+        fixture_report = {}
+        fixture_failures = []
+        for fixture, expected in REQUIRED_FIXTURES.items():
+            if fixture not in names:
+                fixture_failures.append(f"{fixture}: ABSENT")
+                fixture_report[fixture] = {"present": False}
+                continue
+            actual = sha256_bytes(archive.read(fixture))
+            fixture_report[fixture] = {"present": True, "sha256": actual,
+                                       "matches_expected": actual == expected}
+            if actual != expected:
+                fixture_failures.append(f"{fixture}: {actual} != {expected}")
+        report["required_fixtures"] = fixture_report
+        check("required real-bill fixtures present and hash-verified",
+              not fixture_failures, f"failures={fixture_failures}")
 
         # --- extract to a scratch dir and compare BYTES -------------------
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="cghs_zip_verify_"))

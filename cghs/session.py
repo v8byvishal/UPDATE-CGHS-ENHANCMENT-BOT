@@ -212,21 +212,69 @@ class PortalSession:
         return evidence
 
     # ---- identity reconciliation ----------------------------------------
+    #: Identity fields, strongest first.  These are the ONLY things that count
+    #: as proof of patient identity; a URL or a tab title is page routing, not
+    #: a patient.
+    _IDENTITY_FIELDS = ("ip_case", "bill_number", "patient_name")
+
+    def _identity_fallback(self, why: str) -> Tuple[bool, str]:
+        """Signature-only check, valid ONLY when nothing stronger ever existed.
+
+        When the verified context carries patient evidence, this path is not
+        reachable: URL and title would approve a page that no longer proves
+        who the patient is, and the caller is about to trust row data for a
+        mutation.  Such a context must fail closed instead.
+        """
+        if self.identity.has_patient_evidence:
+            return False, (
+                f"patient identity could not be re-read ({why}); this context "
+                "was verified against patient evidence "
+                f"(ip={self.identity.ip_case!r} bill={self.identity.bill_number!r} "
+                f"name={self.identity.patient_name!r}) and a URL/title match is "
+                "not evidence of a patient - refusing to approve it")
+        try:
+            url, title = self.driver.current_url, self.driver.title
+        except WebDriverException as exc:
+            return False, f"browser unreachable: {exc}"
+        if self.identity.url and url != self.identity.url:
+            return False, f"url changed {self.identity.url!r} -> {url!r}"
+        if self.identity.title and title != self.identity.title:
+            return False, f"title changed {self.identity.title!r} -> {title!r}"
+        return True, ("signature fallback matched (this portal never exposed "
+                      "patient evidence, so no stronger proof exists)")
+
     def verify_identity_unchanged(self) -> Tuple[bool, str]:
-        """Re-prove we are still on the same patient before trusting row data."""
+        """Re-prove we are still on the same patient before trusting row data.
+
+        FAIL-CLOSED.  The gate guards a portal MUTATION, so "we could not
+        check" must stop the run exactly like "it changed" does.
+
+        Three fail-open paths were reproduced here and are now closed:
+
+        * the probe answered but every patient field came back EMPTY.  The
+          comparison loop required both sides to be non-empty, so not one
+          comparison ran and the function reported ``patient evidence matched``
+          without having matched any;
+        * the probe raised :class:`ProbeUnsupported` and the URL/title were
+          unchanged, so a context that HAD been verified against real patient
+          evidence was approved on page routing alone;
+        * both of the above returned ``True`` with a reason that claimed more
+          than had been established.
+
+        The rule now: when the verified context carried patient evidence, at
+        least one identity field must be re-read and match, and no re-read
+        field may contradict.  Which fields carried the proof - and which were
+        unreadable - is named in the reason, so weaker evidence is disclosed
+        rather than silently accepted.
+
+        No new identity source is introduced: this reads the same
+        ``["signature", "patient"]`` probe the portal already serves.  No
+        cookie, token, profile or login automation is involved.
+        """
         try:
             state = self.driver.probe(["signature", "patient"])
-        except ProbeUnsupported:
-            # Documented fallback: URL + title are always available.
-            try:
-                url, title = self.driver.current_url, self.driver.title
-            except WebDriverException as exc:
-                return False, f"browser unreachable: {exc}"
-            if self.identity.url and url != self.identity.url:
-                return False, f"url changed {self.identity.url!r} -> {url!r}"
-            if self.identity.title and title != self.identity.title:
-                return False, f"title changed {self.identity.title!r} -> {title!r}"
-            return True, "signature fallback matched (no patient evidence available)"
+        except ProbeUnsupported as exc:
+            return self._identity_fallback(f"the portal cannot serve the identity probe: {exc}")
         except WebDriverException as exc:
             return False, f"browser unreachable: {exc}"
 
@@ -240,12 +288,27 @@ class PortalSession:
             title=signature.get("title", ""),
         )
         if self.identity.has_patient_evidence:
-            for field in ("ip_case", "bill_number", "patient_name"):
+            matched, unreadable = [], []
+            for field in self._IDENTITY_FIELDS:
                 expected = getattr(self.identity, field)
                 actual = getattr(current, field)
-                if expected and actual and expected.upper() != actual.upper():
+                if not expected:
+                    continue                       # never part of this proof
+                if not actual:
+                    unreadable.append(field)
+                    continue
+                if expected.upper() != actual.upper():
                     return False, f"{field} changed {expected!r} -> {actual!r}"
-            return True, "patient evidence matched"
+                matched.append(field)
+            if not matched:
+                return False, (
+                    "patient identity could not be re-read (the portal answered "
+                    f"but returned no value for {', '.join(unreadable) or 'any identity field'}); "
+                    "refusing to approve an unverifiable patient context")
+            detail = f"patient evidence matched on {', '.join(matched)}"
+            if unreadable:
+                detail += f" ({', '.join(unreadable)} unreadable this time)"
+            return True, detail
         if self.identity.url and current.url and current.url != self.identity.url:
             return False, f"url changed {self.identity.url!r} -> {current.url!r}"
         return True, "page signature matched (portal exposes no patient evidence)"

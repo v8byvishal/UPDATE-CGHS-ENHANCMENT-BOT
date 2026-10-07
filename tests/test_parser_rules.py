@@ -275,7 +275,23 @@ DECLARED_RULE_DEVIATIONS = {
         "(DRUG100) disagreed with extract_consumables_total (CNSU100) on identical "
         "text. The label is now anchored first and the amount resolved around it, "
         "label-first then value-first - the same precedence extract_dept_subtotal "
-        "already applied. Only the previously-ambiguous layout changes."),
+        "already applied. Only the previously-ambiguous layout changes. "
+        "FINALLY: this function no longer owns a section model at all. It was a "
+        "SECOND reader - global subtotal scan, 5,000-character backward window, "
+        "heuristic department match, (position//500, amount) dedup bucket - and "
+        "it disagreed with extract_dept_subtotal about the same document. Three "
+        "defects were reproduced from that: two different consumable departments "
+        "stating the same subtotal collapsed into one (2,500+2,500 read as "
+        "2,500); one department's two equal dated subtotals collapsed the same "
+        "way; and a consumables section inside the PATIENT PAYABLE region was "
+        "INCLUDED (10,022.00 read as 20,021.00) although the locked rule excludes "
+        "patient money and collect_dept_subtotals already enforced exactly that "
+        "for pharmacy. A dead `elif last_header` branch also unpacked three-tuples "
+        "into two names and raised ValueError, which cghs.parsing swallowed into a "
+        "rejection so CNSU100 vanished. It now delegates to collect_dept_subtotals, "
+        "so there is ONE department-section model and one answer to which money is "
+        "patient-payable. Baseline parity is unchanged for every layout the "
+        "baseline got right; see the consumables tests in test_real_format_bills.py."),
 }
 
 
@@ -496,3 +512,120 @@ def test_drug100_under_the_old_ceiling_is_byte_for_byte_unchanged():
     assert ip == pytest.approx(BASELINE.extract_dept_subtotal(text, r'IP\s*Pharmacy'))
     assert ot == pytest.approx(BASELINE.extract_dept_subtotal(text, r'OT\s*Pharmacy'))
     assert round(ip + ot, 2) == pytest.approx(14690.67, abs=0.005)
+
+
+# ---------------------------------------------------------------------------
+# ROUND 15 - BUG #3: a parser failure must never become a silent zero.
+#
+# collect_dept_subtotals() wrapped its WHOLE body in `except Exception: pass`
+# and returned whatever it had collected so far.  Three consequences were
+# reproduced before the fix:
+#
+#   * an invalid department pattern (a programmer error) returned 0.00;
+#   * text=None returned [] instead of raising;
+#   * an internal defect raised PART WAY THROUGH the loop returned a PARTIAL
+#     sum, and reconcile_pharmacy then published DRUG100 = 742,104.38 instead
+#     of 743,895.18 - losing the whole OT Pharmacy department - with a reason
+#     string that read "OT Pharmacy subtotal (0.00) ... [742,104.38 =
+#     742,104.38]", i.e. a wrong figure presented as reconciled.
+#
+# The contract now: recoverable *data* conditions stay recoverable; an
+# unexpected failure propagates.  A wrong amount is never published as a right
+# one.
+# ---------------------------------------------------------------------------
+
+_SUBTOTAL_DOC = (
+    "IP Pharmacy(999311)\n"
+    "1 CGHS DRUG A IPP01 1 1.00 1.00\n"
+    "Dept Sub Total : 12,345.67\n"
+    "OT Pharmacy(999311)\n"
+    "1 CGHS DRUG B OTP01 1 1.00 1.00\n"
+    "Dept Sub Total : 2,345.00\n")
+
+
+def test_an_invalid_department_pattern_raises_instead_of_reporting_zero():
+    """A broken regex is a programmer error, not an empty department."""
+    bad_pattern = "IP" + chr(92) + "s*Pharmacy["      # unterminated class
+    with pytest.raises(re.error):
+        rules.collect_dept_subtotals(_SUBTOTAL_DOC, bad_pattern)
+    with pytest.raises(re.error):
+        rules.extract_dept_subtotal(_SUBTOTAL_DOC, bad_pattern)
+
+
+def test_a_non_string_document_raises_instead_of_reporting_zero():
+    with pytest.raises(TypeError):
+        rules.collect_dept_subtotals(None, r'IP\s*Pharmacy')
+
+
+def test_an_internal_defect_is_not_turned_into_a_partial_subtotal(monkeypatch):
+    """The exact silent-truncation reproduction, now fail-closed.
+
+    ``_subtotal_at`` is made to fail on its third call - after real entries
+    have already been collected - which is precisely the shape that produced a
+    plausible-but-wrong total.  The failure must now surface.
+    """
+    healthy = rules.extract_dept_subtotal(_SUBTOTAL_DOC, r'IP\s*Pharmacy')
+    assert healthy == pytest.approx(12345.67)
+
+    original = rules._subtotal_at
+    calls = {"n": 0}
+
+    def flaky(slice_text, label):
+        calls["n"] += 1
+        if calls["n"] >= 1:
+            raise AttributeError("simulated internal parser defect")
+        return original(slice_text, label)
+
+    monkeypatch.setattr(rules, "_subtotal_at", flaky)
+    with pytest.raises(AttributeError):
+        rules.collect_dept_subtotals(_SUBTOTAL_DOC, r'IP\s*Pharmacy')
+
+
+def test_an_internal_defect_cannot_publish_a_wrong_drug100(monkeypatch):
+    """reconcile_pharmacy must not reconcile a truncated reading."""
+    original = rules._subtotal_at
+    calls = {"n": 0}
+
+    def flaky(slice_text, label):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise AttributeError("simulated internal parser defect")
+        return original(slice_text, label)
+
+    monkeypatch.setattr(rules, "_subtotal_at", flaky)
+    with pytest.raises(AttributeError):
+        rules.reconcile_pharmacy(_SUBTOTAL_DOC)
+
+
+def test_recoverable_data_conditions_are_still_tolerated():
+    """Fail-closed must not mean fail-often: real bill noise still parses."""
+    noisy = (
+        "IP Pharmacy(999311)\n"
+        "1 CGHS DRUG A IPP01 UNPRICED ROW\n"
+        "Dept Sub Total :\n"                      # label with no amount at all
+        "IP Pharmacy(999311)\n"
+        "1 CGHS DRUG A IPP01 ANOTHER ROW\n"
+        "Dept Sub Total : 1,000.00\n"
+        "IP Pharmacy(999311)\n"
+        "Dept Sub Total : 0.00\n")                 # zero is skipped, not fatal
+    entries = rules.collect_dept_subtotals(noisy, r'IP\s*Pharmacy')
+    assert [e["amount"] for e in entries] == [1000.00]
+    assert rules.extract_dept_subtotal(noisy, r'IP\s*Pharmacy') == pytest.approx(1000.00)
+
+
+def test_no_broad_exception_handler_remains_in_the_subtotal_readers():
+    """Gate: the swallow must not come back, and must not spread."""
+    import ast
+    import inspect
+
+    for name in ("collect_dept_subtotals", "extract_consumables_total",
+                 "extract_dept_subtotal", "reconcile_pharmacy"):
+        func = getattr(rules, name)
+        tree = ast.parse(inspect.getsource(func).lstrip())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            assert node.type is not None, f"{name}: bare `except:` is forbidden"
+            names = [n.id for n in ast.walk(node.type) if isinstance(n, ast.Name)]
+            assert "Exception" not in names and "BaseException" not in names, (
+                f"{name}: broad `except {names}` hides unexpected parser failure")

@@ -489,3 +489,410 @@ Nothing was guessed to close these.
    performed in this environment. Unit and fake-portal tests cannot establish it.
 4. **Other bills (40343, 39078, 40337, D1–D5)** — still absent; those tests skip
    loudly as `ENVIRONMENT_BLOCKED`. Only 39538 is present.
+
+---
+
+# ROUND 15 — DEFECT-FIX AND INTEGRATION AUDIT
+
+Scope: a fresh audit of six *suspected* defects plus the cross-file data flow.
+Nothing below was accepted from the earlier rounds without re-proving it.
+Two of the six suspected defects were **not reproducible** and were therefore
+**not changed**.
+
+## L. Provenance re-verified (§3)
+
+| property | value |
+|---|---|
+| Git path (origin/main `b5987f4`) | `39538.pdf` |
+| in-repo regression fixture | `tests/fixtures/39538.pdf` |
+| blob (identical for both paths) | `423a9ea630136c55d1e06ea07f1bdf39982d6ce3` |
+| bytes | 239,002 |
+| SHA-256 | `1825f727981314ec5b6241f967ee9e26ee1bd76e4cbac96b5ceb4404da04993a` |
+| pages | 95 |
+| producer | Crystal Reports, PDF 1.7 |
+
+The specimen remains a **format specimen**. No bill id, patient, IP number,
+page number, date, quantity or amount from it appears in production logic.
+
+## M. Defect ledger
+
+| # | suspected defect | reproduced? | action |
+|---|---|---|---|
+| 1 | `PortalSession.verify_identity_unchanged()` fail-open | **YES** (3 paths) | fixed, fail-closed |
+| 2 | `extract_service_rows_from_pages()` gives `Name :` as `service_name` | **NO** | `NOT_PROVEN — NO CHANGE MADE` |
+| 3 | `collect_dept_subtotals()` silent `except Exception: pass` | **YES** (3 paths) | fixed, fail-closed |
+| 4 | `extract_consumables_total()` heuristics | **YES** (3 defects + 1 crash) | fixed, delegated to the canonical model |
+| 5 | builder omits `tests/fixtures/39538.pdf` | **YES** | fixed, shipped + hash-verified |
+| 6 | build/dependency irreproducibility | **YES** | fixed, single pinned manifest |
+| 7 | harness hands production a stubbed `fitz` (found during §16) | **YES** | test harness fixed |
+| — | `parse_row_quantity()` `< 30` ceiling | **NO** | `NOT_PROVEN — NO CHANGE MADE` |
+| — | oxygen FULL/HALF parsing | **NO** | `NOT_PROVEN — NO CHANGE MADE` |
+
+### M.1 Defect 1 — portal identity was fail-open (`cghs/session.py`)
+
+Reproduced with a scripted driver against the real method. Three approvals
+that no evidence supported:
+
+| case | pre-fix | post-fix |
+|---|---|---|
+| C — probe answers, every patient field EMPTY, URL/title identical | `True, "patient evidence matched"` | `False, "patient identity could not be re-read …"` |
+| C2 — ip + bill unreadable, name re-read and matching | `True, "patient evidence matched"` | `True, "patient evidence matched on patient_name (ip_case, bill_number unreadable this time)"` |
+| D — `ProbeUnsupported`, context had patient evidence, URL/title identical | `True, "signature fallback matched"` | `False, "… a URL/title match is not evidence of a patient"` |
+
+Root cause: the comparison loop was `if expected and actual and …`, so when
+every field came back empty **not one comparison ran** and the function
+returned a match it had never made; and the `ProbeUnsupported` branch treated
+URL + title as sufficient even for a context verified against real patient
+evidence.
+
+Rule now: when the verified context carried patient evidence, **at least one
+identity field must be re-read and match, and no re-read field may
+contradict**. Which fields carried the proof — and which were unreadable — is
+named in the reason, so weaker evidence is *disclosed*, not silently accepted.
+
+**C2 is a deliberate decision, not an oversight.** The directive requires a
+fail when "patient/bill/IP identity evidence *cannot be re-read*"; in C2 the
+name **is** re-read and matches, so it passes with the degradation disclosed.
+A stricter variant ("IP or bill specifically must be re-readable") is
+`NOT_PROVEN` — no project spec or portal evidence ranks the fields, and
+inventing that ranking would be a guessed business rule.
+
+No new identity source was introduced: the same `["signature", "patient"]`
+probe is used. No cookie, token, profile, login or MFA automation
+(`test_the_identity_gate_never_invents_a_dom_source`, which strips docstrings
+and comments before checking, because `session.py` legitimately *documents*
+that it does none of these).
+
+Gates A–F all covered: `tests/test_tab_frame_safety.py`, 11 new tests.
+
+### M.2 Defect 2 — `NOT_PROVEN`, service-name provenance
+
+The claim was that page-header text such as `Name :` becomes a row's
+`service_name`. Measured on all 95 pages of the real document:
+
+| measurement | result |
+|---|---|
+| service rows extracted | 459 |
+| rows whose `service_name` contains header material (`Name :`, `IP No`, `Bill No`, `Order No`, `Page n of m`) | **0** |
+| rows with an empty `service_name` | **0** |
+| rows whose `service_name` is pure numeric noise | **0** |
+| raw occurrences carrying header material in `source_service_name` | **0** |
+| department headers contaminated by page-header text | **0** |
+| department-header candidates rejected by the `len < 80` guard | **0** |
+| **minimum `|y0(header) − y0(CGHS row)|` across all pages** | **20.13 pt** vs a 12 pt cluster threshold |
+
+The clustering cannot merge the two on this document — the margin is 67 %.
+The only non-service row that reaches the list is the
+`TPA/Corporate(1): CENTRAL GOVERNMENT HEALTH SCHEME(CGHS)` banner, and it
+resolves to **zero** codes, so nothing enters the plan.
+
+`service_name = combined.split("CGHS")[0]` is still structurally weak — it
+carries amounts and serials — but **no defect follows from it on the available
+evidence**, so it was not changed. Evidence needed to reopen: a same-format
+bill where a header block and a service row fall within 12 pt of each other,
+or any row whose resolved occurrence carries header text.
+
+### M.3 Defect 3 — a parser failure became a silent wrong number (`cghs/rules.py`)
+
+`collect_dept_subtotals()` wrapped its **whole body** in
+`except Exception: pass` and returned whatever it had collected so far.
+
+| scenario | pre-fix | post-fix |
+|---|---|---|
+| invalid department pattern | `[]` → `extract_dept_subtotal` = **0.00** | `re.error` propagates |
+| `text=None` | `[]` | `TypeError` propagates |
+| internal defect mid-loop | **partial** sum returned as complete | exception propagates |
+
+The consequential one: with an injected fault in `_subtotal_at`,
+`reconcile_pharmacy` published
+
+```
+DRUG100 total = 742,104.38      (truth: 743,895.18 — the whole OT Pharmacy department lost)
+reason        = "... + OT Pharmacy subtotal (0.00) = 742,104.38 [742,104.38 = 742,104.38]"
+```
+
+— a wrong figure, self-described as reconciled, with no REVIEW state. That is
+precisely the failure mode the project forbids.
+
+Recoverable **data** conditions are unchanged and still handled where they
+occur: a label with no amount, a non-numeric amount and a non-positive amount
+are each skipped with provenance. An unexpected failure now surfaces; in the
+production path `cghs/parsing.py` turns it into a **visible** `rejected` entry
+(counted in the UI as "N flagged" and written to the audit report), so DRUG100
+is *absent and explained* rather than *present and wrong*.
+
+A gate test (`test_no_broad_exception_handler_remains_in_the_subtotal_readers`)
+parses the AST of the four subtotal readers and fails on any bare `except:` or
+`except Exception:`.
+
+### M.4 Defect 4 — consumables was a second, divergent section model
+
+`extract_consumables_total()` scanned every `Dept Sub Total` globally, searched
+5,000 characters backwards for a department-ish word, and de-duplicated on a
+`(position // 500, amount)` bucket. Cases A–H were run against the grammar
+proven from the real PDF:
+
+| case | pre-fix | post-fix | truth |
+|---|---|---|---|
+| REAL 39538 | 21,896.44 | 21,896.44 | 21,896.44 |
+| A OT Consumables only | 10,022.00 | 10,022.00 | 10,022.00 |
+| B Ward Consumables only | 11,874.44 | 11,874.44 | 11,874.44 |
+| C repeated same-name dept | 1,200.00 | 1,200.00 | 1,200.00 |
+| **D two depts, equal subtotals** | **2,500.00** | 5,000.00 | 5,000.00 |
+| **D2 one dept, two equal dated subtotals** | **2,500.00** | 5,000.00 | 5,000.00 |
+| E page breaks inside a dept | 11,874.44 | 11,874.44 | 11,874.44 |
+| F unrelated dept immediately before | 10,022.00 | 10,022.00 | 10,022.00 |
+| G three consumable families | 22,346.44 | 22,346.44 | 22,346.44 |
+| **H consumables in the Patient Payable region** | **20,021.00** | 10,022.00 | 10,022.00 |
+
+Plus a latent crash: the `elif last_header` branch unpacked three-tuples into
+two names and raised `ValueError: too many values to unpack`, which
+`cghs/parsing.py` swallowed into a rejection — **CNSU100 silently vanished**.
+
+Root cause of D/D2: the dedup key was the *amount*, not the position. Root
+cause of H: the region model that `collect_dept_subtotals` already applied to
+pharmacy **did not exist on this path**, so two readers gave two different
+answers about the same document.
+
+Fix: `extract_consumables_total` now **delegates to
+`collect_dept_subtotals(text, r'Consumable')`** — header-anchored, section
+scoped, region aware, position-deduplicated. The duplicate business logic is
+*removed*, not patched. One section model, one answer to "which money is
+patient-payable". The `(label, value)` detail contract is preserved, and the
+label is now the real department header (`OT Consumables(999311 )`) instead of
+a 40-character text snippet, so provenance improved.
+`collect_dept_subtotals` gained one additive key, `department`.
+A gate test asserts the 5,000-window and the private `999311` discovery are
+gone and that `collect_dept_subtotals` is called.
+
+### M.5 Defects 5 & 6 — the artifact did not match the tested source
+
+Proven by running `tools/build_package.py` in a clean worktree:
+
+| | builder ZIP (pre-fix) | `git archive` ZIP (what shipped) |
+|---|---|---|
+| entries | 56 | 66 |
+| `tests/fixtures/39538.pdf` | **ABSENT** | present |
+| builder verdict | **`PACKAGING: PASS`** | n/a |
+
+And the consequence, measured by running the suite from each extracted tree:
+
+| tree | skipped | real-39538 tests skipped |
+|---|---|---|
+| repository | 8 | 0 |
+| **extracted builder artifact (pre-fix)** | **31** | **23** |
+| extracted builder artifact (post-fix) | 8 | **0** |
+
+All 23 reported `ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository` and
+the artifact still looked green. A green run that has silently stopped
+exercising the real document is a false pass, not a pass.
+
+Fixes:
+* `INCLUDE_GLOBS` gains `tests/fixtures/*.pdf`;
+* a new `REQUIRED_FIXTURES` map (path → SHA-256) is enforced **at build time**
+  (workspace presence, hash, *and* that some glob actually selects it) and
+  **at verify time** (present in the archive, hash of the archived bytes);
+* `requirements.txt` is created as the **single authoritative manifest** —
+  it was referenced by `INCLUDE_GLOBS` but did not exist, so the glob silently
+  matched nothing;
+* `BUILD_WINDOWS.cmd` no longer carries its own list. It previously ran
+  `pip install --upgrade pyinstaller selenium PyQt5 PyMuPDF`, i.e. whatever was
+  newest on build day, so the EXE was never built against the tested versions.
+  It now installs `-r requirements.txt`, fails clearly if the manifest is
+  missing, and fails clearly if a declared dependency is not importable
+  afterwards.
+
+**Pins are measured, not guessed.** `PyMuPDF==1.28.2`, `selenium==4.50.0`,
+`pytest==9.1.1` are the versions this suite actually ran against, and a test
+(`test_the_manifest_pins_the_versions_the_tests_actually_ran_against`) compares
+every pin against `importlib.metadata.version()` so a stale pin fails the suite.
+
+**`PyQt5` and `pyinstaller` are `NOT_PROVEN`.** Neither is installable in the
+headless Linux environment that ran the suite, so no version is asserted for
+them; they carry documented minimum floors and an explicit `NOT_PROVEN` marker.
+Evidence needed to close: a real `BUILD_WINDOWS.cmd` run on the target Windows
+host, whose resulting versions replace those two lines.
+
+### M.6 Defect 7 — the harness could hand production a stub (§16)
+
+`tests/support/legacy_loader` installs a **stub module under the name `fitz`**
+so the `c3ccdf3` baseline imports without PyMuPDF. Two call sites still used
+`pytest.importorskip("fitz")`, which therefore returns that stub.
+
+Proven, not argued: placing a real PDF at the `40343` slot made the gate
+reachable and the run died with
+
+```
+TypeError: 'open' object is not iterable      (cghs/parsing.py:223)
+```
+
+— a **harness** defect reported as a **parser** defect. It was latent only
+because none of those eight bills is in the repository yet; `_find_bill` is
+explicitly designed to pick them up the moment they appear.
+
+Fixed by using the established `_real_fitz_installed()` pattern at both sites.
+Re-run with the same temporary file, the parse then succeeded
+(`DRUG100 = 743,895.18`) and the test correctly failed its *identity*
+assertion, because the file was 39538's bytes at the 40343 slot — the test
+doing exactly its job. The temporary file was removed; only `39538.pdf`
+remains in `tests/fixtures/`.
+
+A new guard builds the forbidden literal at runtime (so it cannot match its own
+source) and fails if the trap is reintroduced — verified by reintroducing it.
+
+### M.7 `NOT_PROVEN` — quantity semantics (§12)
+
+| measurement on the real bill | result |
+|---|---|
+| rows where the `qty ref amount` column pattern yields ≥ 30 | **0** |
+| candidates in the 30–49 dead band (`< 50` filter accepts, `< 30` return rejects) | **0** |
+| observed `parse_row_quantity` results | 1 (×425), 2 (×9), 3 (×17), 4 (×7), 5 (×1) |
+| OXYGEN rows | 7 → 24 (FULL DAY ×2), 12 (HALF DAY ×5) — correct |
+
+No evidence exists that quantities ≥ 30 are legitimate in this format, and no
+oxygen row is misparsed. **`NOT_PROVEN — NO CHANGE MADE`** for both the `< 30`
+ceiling and the FULL/HALF parsing. Evidence needed: a same-format bill with a
+genuine quantity ≥ 30, or a project specification stating the valid range.
+
+## N. Code and rule safety re-run (§13)
+
+| property | result |
+|---|---|
+| resolved occurrences | 459 |
+| distinct executable codes | 52 |
+| EXECUTABLE / REVIEW_REQUIRED | 430 / 29 |
+| **EXECUTABLE codes outside the 1998 registry** | **none** |
+| REVIEW tokens | `C` + `C003` ×26, `NI` + `001` ×3 |
+| any REVIEW leaking a `final_code` | **no** — `final_code` stays `None` |
+| `C003` executable anywhere | **no** |
+
+`CGHS-NI 001` remains `REVIEW_REQUIRED`. The 1998 master registry was not
+modified. No blanket `C→CC`, no wildcard family, no invented range, no
+nearest-code substitution.
+
+## O. Cross-file data flow (§11)
+
+`PDF → parsing → rules → registry → aggregation → EnhancementPlan → portal
+mapping` verified end to end on the real document:
+
+| edge | result |
+|---|---|
+| `CN002 / CC001 / CC002 / BC002 / PT004 / PT005` | `87 / 29 / 108 / 3 / 19 / 53` — unchanged from baseline |
+| `DRUG100` item amount == `reconcile_pharmacy` total | ✅ 743,895.18 |
+| `CNSU100` item amount == `extract_consumables_total` | ✅ 21,896.44 |
+| every item code registry-known or a declared amount code | ✅ |
+| items missing provenance | **none** |
+| `DRUG100` → portal target | `drugs(DRGU100-None)` — canonical code stays `DRUG100`; the deviation is confined to the portal option string |
+| `CNSU100` → portal target | `consumables(CNSU100-None)` |
+| rejections | 117, all **visible** (UI "flagged" count + audit report), none swallowed |
+| duplicate business logic | **none** — consumables no longer owns a second section model |
+| patient name | parsed for display only; never an input to any rule |
+
+## P. Performance, measured (§14)
+
+Real 95-page bill, same machine, same run. `extract_consumables_total` is the
+only hot path the change touched.
+
+| metric | OLD (`19ddbf1`) | NEW | change |
+|---|---|---|---|
+| `extract_consumables_total` cold | 121.774 ms | **5.541 ms** | **22.0× faster** |
+| `extract_consumables_total` warm | 124.515 ms | **0.162 ms** | **768× faster** |
+| `reconcile_pharmacy` cold | 9.851 ms | 9.677 ms | unchanged (−1.8 %) |
+| `reconcile_pharmacy` warm | 4.044 ms | 4.130 ms | unchanged (+2.1 %, within noise) |
+| **full `parse_document`** | **169.09 ms** | **51.33 ms** | **3.29× faster** |
+
+Values identical in both builds: `DRUG100 = 743,895.18`, `CNSU100 = 21,896.44`.
+
+This speedup was **not** an optimisation goal and no safety operation was
+removed to obtain it. It is a side effect of deleting duplicated work: the old
+reader ran a 5,000-character backward slice plus four regex scans plus a
+department-header `finditer` **for every one of the 64 subtotal labels** in the
+document; the new one reuses the already-cached `_document_sections` index.
+The old reader's "warm" figure being marginally *slower* than its "cold" figure
+is reported as measured — it never used the cache, so the difference is noise.
+
+## Q. Files changed (§18)
+
+| file | why changed | defect proving it | test proving the fix | consumed by |
+|---|---|---|---|---|
+| `cghs/session.py` | identity gate was fail-open | §M.1 C, C2, D | 11 tests in `test_tab_frame_safety.py` | `cghs/controllers.py:1445` (`reconcile`) |
+| `cghs/rules.py` | blanket `except` + duplicate consumables section model | §M.3, §M.4 | 5 in `test_parser_rules.py`, 11 in `test_real_format_bills.py` | `cghs/parsing.py`, `app.py` |
+| `tools/build_package.py` | fixture omitted, no fixture verification | §M.5 | 4 in `test_packaging.py` | `BUILD_WINDOWS.cmd`, delivery |
+| `BUILD_WINDOWS.cmd` | unpinned `--upgrade` install | §M.5 | `test_the_windows_build_consumes_the_manifest…` | Windows build |
+| `requirements.txt` *(new)* | no authoritative manifest existed | §M.5 | 2 in `test_packaging.py` | `BUILD_WINDOWS.cmd`, builder |
+| `tests/test_real_format_bills.py` | consumables regressions + harness stub trap | §M.4, §M.6 | self | — |
+| `tests/test_parser_rules.py` | fail-closed regressions + truthful deviation record | §M.3 | self | — |
+| `tests/test_tab_frame_safety.py` | identity gates A–F | §M.1 | self | — |
+| `tests/test_packaging.py` | fixture + manifest gates | §M.5 | self | — |
+
+### Files deliberately NOT changed
+
+| file | why |
+|---|---|
+| `cghs/parsing.py` | defect 2 `NOT_PROVEN`; its `except Exception` around DRUG100/CNSU100 is the **visible** rejection channel, not a silent swallow |
+| `cghs/dom.py`, `cghs/controllers.py`, `cghs/orchestrator.py`, `cghs/tabs.py`, `cghs/locators.py`, `cghs/txstate.py`, `cghs/telemetry.py` | no defect reproduced; portal layer untouched |
+| `app.py`, `ui_theme.py` | §17 — no UI change |
+| the CGHS 1998 master registry | forbidden, and nothing required it |
+| `parse_row_quantity`, `parse_oxygen_quantity` | `NOT_PROVEN` (§M.7) |
+
+## R. Testing (§15)
+
+| stage | result |
+|---|---|
+| pre-fix reproduction | **19 tests fail** against `19ddbf1` production with the new tests in place |
+| post-fix | **0 fail** |
+| full Python regression | **723 collected, 0 failed, 8 skipped** (was 684 / 0 / 8) |
+| skips | all 8 are `ENVIRONMENT_BLOCKED` for 40343 / 39078 / 40337 / D1–D5, which are genuinely absent |
+| XFAIL / XPASS | 0 |
+| real-PDF regression | **ACTIVE** — runs `CGHSParsingEngine().parse()` on the committed 95-page document |
+| extracted-artifact regression | passes, and now with **0** real-39538 skips (was 23) |
+
+New tests: 11 identity + 6 fail-closed + 13 consumables/harness + 7 packaging
+and dependency = **39** (723 − 684).
+
+## S. Acceptance gate (§19)
+
+| gate | status |
+|---|---|
+| Git example PDF verified | ✅ blob, bytes, SHA-256, 95 pages |
+| complete 39538 document inspected | ✅ all 95 pages |
+| no case-specific production hard-coding | ✅ |
+| portal identity fallback is fail-closed | ✅ §M.1 |
+| patient-context safety regression passes | ✅ gates A–F |
+| service-name provenance structurally correct | ⚠️ **`NOT_PROVEN`** — 0/459 contaminated; no change made |
+| no silent broad exception hides parser failure | ✅ §M.3 + AST gate |
+| consumables logic proven section-safe | ✅ cases A–H |
+| pharmacy logic remains correct | ✅ 743,895.18 |
+| 1998 registry remains canonical | ✅ untouched |
+| no invented CGHS mapping | ✅ 0 executable codes outside the registry |
+| cross-file data flow verified | ✅ §O |
+| quantity behaviour proven or `NOT_PROVEN` | ✅ explicitly `NOT_PROVEN` |
+| package builder includes the real-bill fixture | ✅ |
+| package verifier checks required fixtures | ✅ presence + SHA-256 |
+| dependencies / build reproducible | ✅ for the 3 tested pins; ⚠️ `NOT_PROVEN` for PyQt5 + pyinstaller |
+| full regression passes | ✅ 723 / 0 |
+| extracted artifact regression passes | ✅ |
+| performance measured | ✅ §P |
+| no safety mechanism removed for speed | ✅ |
+| ZIP matches tested source | ✅ built from the committed tree, reopened and hash-verified |
+| **`LIVE_PORTAL` honest** | ✅ **`NOT_VERIFIED`** |
+
+## T. Outstanding after round 15
+
+Carried forward unchanged from §K (1–4), plus:
+
+5. **Service-name provenance** — `NOT_PROVEN`. Needs a same-format bill where a
+   header block and a service row fall within 12 pt, or any occurrence carrying
+   header text. Current margin on 39538 is 20.13 pt.
+6. **Quantity ≥ 30** — `NOT_PROVEN`. Needs a bill with a genuine quantity ≥ 30
+   or a written specification of the valid range.
+7. **`PyQt5` / `pyinstaller` pins** — `NOT_PROVEN`. Needs one real
+   `BUILD_WINDOWS.cmd` run on the target Windows host.
+8. **Identity evidence ranking** — `NOT_PROVEN`. Whether IP/bill specifically
+   (rather than any one identity field) must be re-readable is a policy
+   decision with no supporting evidence; C2 currently passes with the
+   degradation disclosed in the reason string.
+
+**`LIVE_PORTAL` = `NOT_VERIFIED`.** No Windows authenticated portal run was
+performed. Nothing in this round changes that, and no unit or fake-portal test
+can establish it.

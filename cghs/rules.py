@@ -341,64 +341,72 @@ def collect_dept_subtotals(text: str, dept_pattern: str):
     money, but a bill's payer region CLOSES with exactly that phrase, so the
     last payer-side department of every such bill was silently zeroed - with a
     reason that said the opposite of what had happened.
+
+    FAIL-CLOSED.  This function used to wrap its whole body in
+    ``except Exception: pass`` and return whatever it had collected so far.
+    An invalid department pattern therefore reported 0.00, and an internal
+    defect raised part way through the loop returned a PARTIAL sum that was
+    indistinguishable from a complete one - ``reconcile_pharmacy`` published
+    DRUG100 = 742,104.38 instead of 743,895.18 and still described itself as
+    reconciled.  Unreadable DATA is handled where it occurs (a label with no
+    amount, a non-numeric amount, a non-positive amount are all skipped with
+    provenance); anything else is a defect and must surface.
     """
     found, seen = [], set()
-    try:
-        summary_span = _service_summary_span(text)
-        sections, patient_region_start = _document_sections(text)
-        wanted = re.compile(dept_pattern, re.IGNORECASE)
-        for header_start, _header_end, header_text, next_pos, _is_summary in sections:
-            if not wanted.search(header_text):
+    summary_span = _service_summary_span(text)
+    sections, patient_region_start = _document_sections(text)
+    wanted = re.compile(dept_pattern, re.IGNORECASE)
+    for header_start, _header_end, header_text, next_pos, _is_summary in sections:
+        if not wanted.search(header_text):
+            continue
+        # The summary states the same department a second time.  Reading it
+        # here would double count the department.
+        if summary_span and summary_span[0] <= header_start < summary_span[1]:
+            continue
+        slice_text = text[header_start:next_pos]
+        if _PATIENT_PAYABLE_DEPT.search(header_text):
+            payable = "the section's own department is Patient Payable"
+        elif _PATIENT_PAYABLE_TOTAL.search(slice_text):
+            payable = "the section closes with a Patient Payable total"
+        elif (patient_region_start is not None
+              and header_start >= patient_region_start):
+            payable = ("the section opens after the payer-payable region "
+                       "closed, so it is patient-payable")
+        else:
+            payable = None
+        for label in _SUBTOTAL_LABEL.finditer(slice_text):
+            position = header_start + label.start()
+            if position in seen:
                 continue
-            # The summary states the same department a second time.  Reading it
-            # here would double count the department.
-            if summary_span and summary_span[0] <= header_start < summary_span[1]:
+            seen.add(position)
+            amount_str, _layout = _subtotal_at(slice_text, label)
+            if amount_str is None:
                 continue
-            slice_text = text[header_start:next_pos]
-            if _PATIENT_PAYABLE_DEPT.search(header_text):
-                payable = "the section's own department is Patient Payable"
-            elif _PATIENT_PAYABLE_TOTAL.search(slice_text):
-                payable = "the section closes with a Patient Payable total"
-            elif (patient_region_start is not None
-                  and header_start >= patient_region_start):
-                payable = ("the section opens after the payer-payable region "
-                           "closed, so it is patient-payable")
+            try:
+                value = float(amount_str.replace(',', ''))
+            except ValueError:
+                continue
+            # No upper bound.  A real hospital pharmacy department runs
+            # well past any round number, and the previous ``< 500000``
+            # cutoff did not reject such a bill - it silently zeroed the
+            # large department and let a small one through, so DRUG100 was
+            # reported as a fraction of the true spend.  The guards that
+            # belong here are structural, not a magnitude guess.
+            if value <= 0:
+                continue
+            department = header_text.strip()
+            if payable:
+                # The locked rule is explicit: "Patient Payable excluded".
+                found.append({
+                    "amount": round(value, 2), "included": False,
+                    "position": position, "department": department,
+                    "reason": (f"excluded: {payable}, and the locked rule "
+                               f"excludes Patient Payable")})
             else:
-                payable = None
-            for label in _SUBTOTAL_LABEL.finditer(slice_text):
-                position = header_start + label.start()
-                if position in seen:
-                    continue
-                seen.add(position)
-                amount_str, _layout = _subtotal_at(slice_text, label)
-                if amount_str is None:
-                    continue
-                try:
-                    value = float(amount_str.replace(',', ''))
-                except ValueError:
-                    continue
-                # No upper bound.  A real hospital pharmacy department runs
-                # well past any round number, and the previous ``< 500000``
-                # cutoff did not reject such a bill - it silently zeroed the
-                # large department and let a small one through, so DRUG100 was
-                # reported as a fraction of the true spend.  The guards that
-                # belong here are structural, not a magnitude guess.
-                if value <= 0:
-                    continue
-                if payable:
-                    # The locked rule is explicit: "Patient Payable excluded".
-                    found.append({
-                        "amount": round(value, 2), "included": False,
-                        "position": position,
-                        "reason": (f"excluded: {payable}, and the locked rule "
-                                   f"excludes Patient Payable")})
-                else:
-                    found.append({
-                        "amount": round(value, 2), "included": True,
-                        "position": position,
-                        "reason": "included: department Dept Sub Total"})
-    except Exception:
-        pass
+                found.append({
+                    "amount": round(value, 2), "included": True,
+                    "position": position, "department": department,
+                    "reason": "included: department Dept Sub Total"})
     return sorted(found, key=lambda entry: entry["position"])
 
 
@@ -407,50 +415,48 @@ def extract_dept_subtotal(text: str, dept_pattern: str) -> float:
                      for entry in collect_dept_subtotals(text, dept_pattern)
                      if entry["included"]), 2)
 
+#: A consumable department is identified by its own HEADER naming it, which is
+#: how the real report prints it: "OT Consumables(999311 )",
+#: "Ward Consumables(999311 )", "Cathlab Consumables(999311 )".  This is the
+#: department-name test only - section discovery, region membership and
+#: de-duplication all belong to collect_dept_subtotals.
+_CONSUMABLE_DEPT = r'Consumable'
+
+
 def extract_consumables_total(text: str):
-    total = 0.0
-    details = []
-    for m in _SUBTOTAL_LABEL.finditer(text):
-        amt_str, _layout = _subtotal_at(text, m)
-        if amt_str is None:
-            continue
-        try:
-            val = float(amt_str.replace(',',''))
-        except: continue
-        # No upper bound - see extract_dept_subtotal: a magnitude cutoff
-        # silently discards real six-figure consumable subtotals.
-        if not val > 0:
-            continue
-        start = max(0, m.start()-5000)
-        snippet = text[start:m.start()]
-        last_header = None
-        last_pos = -1
-        for pat in [r'Cathlab\s*Consumables', r'OT\s*Consumables', r'Ward\s*Consumable', r'\bConsumables\b']:
-            for mm in re.finditer(pat, snippet, re.IGNORECASE):
-                if mm.start() > last_pos:
-                    last_pos = mm.start()
-                    last_header = pat
-        dept_headers = list(re.finditer(r'[A-Za-z][A-Za-z\s]*\(\s*999311\s*\)', snippet, re.IGNORECASE))
-        if dept_headers:
-            last_dept = max(dept_headers, key=lambda x: x.start())
-            last_dept_text = snippet[last_dept.start():last_dept.start()+80]
-            if re.search(r'Consumable', last_dept_text, re.IGNORECASE):
-                if not any(abs(m.start()-pos) < 10 for pos,_,_ in details):
-                    details.append((m.start(), val, last_dept_text.strip()[:40]))
-                    total += val
-        elif last_header:
-            if not any(abs(m.start()-pos) < 200 for pos,_ in details):
-                details.append((m.start(), val, last_header))
-                total += val
-    uniq = []
-    seen = set()
-    for pos,val,pat in sorted(details):
-        key = (int(pos/500), round(val,2))
-        if key not in seen:
-            seen.add(key)
-            uniq.append((pat,val))
-    total = sum(v for _,v in uniq)
-    return total, uniq
+    """CNSU100 - the consumable department subtotals of a bill.
+
+    Returns ``(total, [(department_header, amount), ...])``.
+
+    This reads the SAME section model as DRUG100.  It used to be a second,
+    independent reader: it scanned every "Dept Sub Total" in the document,
+    searched 5,000 characters backwards for a department-ish word, and then
+    de-duplicated on a ``(position // 500, amount)`` bucket.  Four defects
+    were reproduced against the grammar proven from the real bill:
+
+    * two DIFFERENT consumable departments that happened to state the SAME
+      subtotal were collapsed into one - 2,500.00 + 2,500.00 was reported as
+      2,500.00 - because the dedup key was the amount, not the position;
+    * one department stating two equal dated subtotals was collapsed the same
+      way, and a dated run is the normal shape of these sections;
+    * a consumables section inside the PATIENT PAYABLE region was INCLUDED,
+      reporting 20,021.00 where the locked rule gives 10,022.00.  The region
+      model that ``collect_dept_subtotals`` already applied to pharmacy simply
+      did not exist on this path, so the two readers gave different answers
+      about the same document;
+    * the ``elif last_header`` branch unpacked three-tuples into two names and
+      raised ``ValueError``; ``cghs.parsing`` swallowed that into a rejection
+      and CNSU100 vanished from the plan.
+
+    Delegating removes the duplicate business logic rather than patching it,
+    so there is one department-section model in this codebase and exactly one
+    answer to "which money is patient-payable".
+    """
+    entries = collect_dept_subtotals(text, _CONSUMABLE_DEPT)
+    details = [(entry["department"], entry["amount"])
+               for entry in entries if entry["included"]]
+    total = round(sum(amount for _department, amount in details), 2)
+    return total, details
 
 
 def reconcile_pharmacy(text: str) -> dict:

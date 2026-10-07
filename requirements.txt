@@ -1,0 +1,42 @@
+# CGHS Enhancement Bot - the single authoritative dependency manifest.
+#
+# tools/build_package.py ships this file and BUILD_WINDOWS.cmd installs from
+# it, so the dependency set is declared exactly once.  Before this file
+# existed, BUILD_WINDOWS.cmd ran
+#     pip install --upgrade pyinstaller selenium PyQt5 PyMuPDF
+# which installed whatever was newest on build day - never the versions the
+# test suite had actually passed against - and tools/build_package.py listed a
+# requirements.txt that was not in the repository, so the glob silently
+# matched nothing.
+#
+# PINNING POLICY: a version is pinned ONLY when this exact version is the one
+# the regression suite ran against and reported in the forensic report.  No
+# version here is guessed.  Packages that the verified environment cannot
+# install are listed unpinned and marked NOT_PROVEN rather than given an
+# invented number.
+
+# ---------------------------------------------------------------------------
+# Runtime + test dependencies, pinned to the VERIFIED environment.
+# Measured with `python -m pip list --format=freeze` in the environment that
+# ran the full suite (see the forensic report, "package verification").
+# ---------------------------------------------------------------------------
+PyMuPDF==1.28.2
+selenium==4.50.0
+pytest==9.1.1
+
+# ---------------------------------------------------------------------------
+# NOT_PROVEN - required, but NOT installable/verifiable in the environment the
+# suite ran in (headless Linux), so no version is asserted.
+#
+# PyQt5 is the desktop UI (app.py) and pyinstaller builds the Windows EXE.
+# Both are exercised only by BUILD_WINDOWS.cmd on Windows.  Pinning them from
+# here would be a guess, and a guessed pin is worse than an honest floor: it
+# would claim a test coverage that does not exist.  To close this, run
+# BUILD_WINDOWS.cmd on the target Windows host and replace these two lines
+# with the versions that build produced.
+#
+# Minimum floors below are the ones the project already states
+# (BUILD_WINDOWS.cmd requires Python 3.9+); they are bounds, not pins.
+# ---------------------------------------------------------------------------
+PyQt5>=5.15            # NOT_PROVEN: no verified Windows build recorded
+pyinstaller>=5.0       # NOT_PROVEN: no verified Windows build recorded

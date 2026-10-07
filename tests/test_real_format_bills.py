@@ -335,10 +335,16 @@ def test_real_pdf_parses_when_supplied(stem):
     if path is None:
         pytest.skip(f"ENVIRONMENT_BLOCKED: {stem}.pdf is not in the repository")
 
-    pytest.importorskip("fitz")
+    # NOT pytest.importorskip("fitz"): tests.support.legacy_loader installs a
+    # STUB under that name so the c3ccdf3 baseline imports without PyMuPDF, so
+    # importorskip returns the stub, production's lazy `import fitz` picks it
+    # up, and the run dies with "TypeError: 'open' object is not iterable" -
+    # a harness defect reported as a parser defect.  Reproduced by placing a
+    # real PDF at this slot.  Bind the genuine library instead.
     from cghs.parsing import CGHSParsingEngine
 
-    plan = CGHSParsingEngine().parse(str(path))
+    with _real_fitz_installed():
+        plan = CGHSParsingEngine().parse(str(path))
     assert plan is not None
 
     if stem in EVIDENCE:
@@ -354,10 +360,12 @@ def test_d_series_fixtures_when_present(stem):
     if path is None:
         pytest.skip(f"ENVIRONMENT_BLOCKED: {stem}.pdf is not in the repository")
 
-    pytest.importorskip("fitz")
+    # see test_real_pdf_parses_when_supplied - importorskip("fitz") would
+    # hand production the legacy_loader stub rather than PyMuPDF
     from cghs.parsing import CGHSParsingEngine
 
-    assert CGHSParsingEngine().parse(str(path)) is not None
+    with _real_fitz_installed():
+        assert CGHSParsingEngine().parse(str(path)) is not None
 
 
 # ===========================================================================
@@ -1137,3 +1145,205 @@ def test_generalised_summary_lines_are_never_added_to_the_detail():
     text = _format_bill([("IP Pharmacy", 4321.00, _section([4321.00]))])
     assert rules.extract_dept_subtotal(text, IPP) == pytest.approx(4321.00), (
         "the summary line was added to the detailed subtotal")
+
+
+# ---------------------------------------------------------------------------
+# ROUND 15 - BUG #4: consumables must use the canonical section model.
+#
+# extract_consumables_total() was a SECOND, global reader: it scanned every
+# "Dept Sub Total" in the document, searched 5,000 characters backwards for a
+# department-ish word, and de-duplicated on a coarse ``(position // 500,
+# amount)`` bucket.  Three defects were reproduced against the grammar proven
+# from the real PDF, plus one latent crash:
+#
+#   D  two DIFFERENT consumable departments with the SAME subtotal collapsed
+#      into one - 2,500.00 + 2,500.00 was reported as 2,500.00;
+#   D2 one department with two equal dated subtotals collapsed the same way;
+#   H  a consumables section inside the PATIENT PAYABLE region was INCLUDED -
+#      10,022.00 was reported as 20,021.00 - although the locked rule excludes
+#      patient money and collect_dept_subtotals already enforced exactly that
+#      for pharmacy.  Two readers, two different answers on one document;
+#   X  the ``elif last_header`` branch unpacked 3-tuples into 2 names and
+#      raised ValueError, which cghs.parsing then swallowed into a `rejected`
+#      entry, so CNSU100 simply disappeared.
+#
+# The fix routes consumables through collect_dept_subtotals - the same engine
+# DRUG100 uses - so there is one section model, not two.
+# ---------------------------------------------------------------------------
+
+def _consumables(text):
+    return rules.extract_consumables_total(text)[0]
+
+
+def test_two_consumable_departments_with_equal_subtotals_are_both_counted():
+    """Defect D: the (position//500, amount) bucket erased real money."""
+    text = _format_bill([("OT Consumables", 2500.00, _section([2500.00])),
+                         ("Ward Consumables", 2500.00, _section([2500.00]))])
+    assert _consumables(text) == pytest.approx(5000.00)
+
+
+def test_one_department_with_two_equal_dated_subtotals_is_not_collapsed():
+    """Defect D2: a dated run of identical blocks is normal in this format."""
+    text = _format_bill([("OT Consumables", 5000.00,
+                          _section([2500.00, 2500.00], dated=True))])
+    assert _consumables(text) == pytest.approx(5000.00)
+
+
+def test_consumables_inside_the_patient_payable_region_are_excluded():
+    """Defect H: the locked rule excludes patient money from BOTH aggregates."""
+    text = _format_bill(
+        [("OT Consumables", 10022.00, _section([10022.00]))],
+        patient_payable=("Ward Consumables", 9999.00, _section([9999.00])))
+    assert _consumables(text) == pytest.approx(10022.00)
+
+
+def test_consumables_and_pharmacy_agree_on_which_region_is_payable():
+    """One section model: the two readers may not disagree on one document."""
+    text = _format_bill(
+        [("OT Consumables", 10022.00, _section([10022.00])),
+         ("IP Pharmacy", 4000.00, _section([4000.00]))],
+        patient_payable=("Ward Consumables", 9999.00, _section([9999.00])))
+    consumable_entries = rules.collect_dept_subtotals(text, r'Consumable')
+    excluded = [e for e in consumable_entries if not e["included"]]
+    assert [e["amount"] for e in excluded] == [9999.00]
+    assert "Patient Payable" in excluded[0]["reason"] or "patient" in excluded[0]["reason"]
+
+
+def test_a_consumables_reader_defect_cannot_crash_into_a_missing_cnsu100():
+    """Defect X: the dead branch raised ValueError on any second entry.
+
+    The text names "Consumables" but carries no ``(999311)`` department
+    header, so the canonical model reports no department section and the
+    answer is a deterministic zero with no provenance.  That is the point:
+    the old code reached this shape through a private backward-window
+    heuristic and crashed on the second entry, and ``cghs.parsing`` turned
+    the crash into a missing CNSU100.
+    """
+    text = ("Consumables\nSome Discipline\n 1.00 \n12345\n 100.00\n 1\n"
+            " ITEM \n 100.00\nDept Sub Total :\n"
+            "Consumables\nSome Discipline\n 1.00 \n12345\n 200.00\n 2\n"
+            " ITEM \n 200.00\nDept Sub Total :\n")
+    total, details = rules.extract_consumables_total(text)       # must not raise
+    assert total == pytest.approx(0.0)
+    assert details == []
+
+    # and a properly headed version of the same two sections IS read
+    headed = text.replace("Consumables\n", "OT Consumables(999311 )\n")
+    total, details = rules.extract_consumables_total(headed)
+    assert total == pytest.approx(300.00)
+    assert [amount for _dept, amount in details] == [100.00, 200.00]
+
+
+def test_consumables_keeps_its_two_tuple_detail_contract():
+    """cghs.parsing formats `for pat, val in cons_details` - keep that shape."""
+    text = _format_bill([("OT Consumables", 10022.00, _section([10022.00]))])
+    _total, details = rules.extract_consumables_total(text)
+    assert details, "a consumable department must be reported with provenance"
+    for entry in details:
+        assert len(entry) == 2
+        label, value = entry
+        assert isinstance(label, str) and isinstance(value, float)
+        assert "Consumable" in label
+
+
+def test_unrelated_department_immediately_before_a_consumable_subtotal():
+    """Case F: a 5,000-character backward window used to reach across."""
+    text = _format_bill([("Investigations", 300000.00, _section([300000.00])),
+                         ("OT Consumables", 10022.00, _section([10022.00]))])
+    assert _consumables(text) == pytest.approx(10022.00)
+
+
+def test_repeated_same_name_consumable_sections_are_both_counted():
+    text = _format_bill([("OT Consumables", 500.00, _section([500.00])),
+                         ("Investigations", 99.00, _section([99.00])),
+                         ("OT Consumables", 700.00, _section([700.00]))])
+    assert _consumables(text) == pytest.approx(1200.00)
+
+
+def test_consumables_survive_page_breaks_inside_one_department():
+    text = _format_bill([("Ward Consumables", 11874.44,
+                          _section([5000.00, 6874.44]))], page_breaks=True)
+    assert _consumables(text) == pytest.approx(11874.44)
+
+
+def test_three_distinct_consumable_families_are_all_counted():
+    text = _format_bill([("OT Consumables", 10022.00, _section([10022.00])),
+                         ("Cathlab Consumables", 450.00, _section([450.00])),
+                         ("Ward Consumables", 11874.44, _section([11874.44]))])
+    assert _consumables(text) == pytest.approx(22346.44)
+
+
+def test_the_summary_line_never_double_counts_a_consumable_department():
+    """The first-page table states each department a second time."""
+    text = _format_bill([("OT Consumables", 10022.00, _section([10022.00]))])
+    assert text.count("OT Consumables(999311 )") == 2        # summary + detail
+    assert _consumables(text) == pytest.approx(10022.00)
+
+
+def test_there_is_only_one_department_section_model():
+    """Gate: consumables must not grow a private header/backward-window scan."""
+    import ast
+    import inspect
+
+    source = inspect.getsource(rules.extract_consumables_total)
+    assert "5000" not in source, "the backward character window must be gone"
+    assert "999311" not in source, (
+        "consumables must not re-implement department-header discovery; "
+        "collect_dept_subtotals owns it")
+    tree = ast.parse(source.lstrip())
+    called = {node.func.id for node in ast.walk(tree)
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+    assert "collect_dept_subtotals" in called, (
+        "consumables must consume the canonical section model")
+
+
+# ---------------------------------------------------------------------------
+# ROUND 15 - S16: the harness must not bypass production.
+#
+# tests/support/legacy_loader installs a STUB module under the name ``fitz``
+# so the c3ccdf3 baseline can be imported without PyMuPDF.  Any test that
+# reaches production through ``pytest.importorskip("fitz")`` therefore hands
+# the parser that stub.  Reproduced by placing a real PDF at the 40343 slot:
+# the run died with "TypeError: 'open' object is not iterable" inside
+# cghs/parsing.py - a HARNESS defect presented as a parser defect, which is
+# exactly the false-fail this section exists to catch.  It was latent only
+# because none of those eight bills is in the repository yet.
+# ---------------------------------------------------------------------------
+
+def test_the_fitz_name_is_a_stub_so_tests_must_not_importorskip_it():
+    """The trap is real: prove the stub owns the name, then forbid its use."""
+    stub = sys.modules.get("fitz")
+    assert stub is not None, "legacy_loader is expected to have installed it"
+    assert not hasattr(stub, "__doc__") or "PyMuPDF" not in (stub.__doc__ or ""), (
+        "sys.modules['fitz'] is the real library here; the stub assumption "
+        "this guard is built on no longer holds - re-audit the harness")
+
+    # Built at runtime so this detector cannot match its own source line.
+    needle = "importorskip" + '("' + "fitz" + '")'
+    source = pathlib.Path(__file__).read_text(encoding="utf-8")
+    offenders = [line.strip() for line in source.splitlines()
+                 if needle in line
+                 and not line.strip().startswith("#")
+                 and "needle" not in line]
+    assert offenders == [], (
+        "these call sites would hand production the stub instead of PyMuPDF: "
+        f"{offenders}")
+
+
+def test_real_fitz_installed_actually_reaches_pymupdf_in_production():
+    """The replacement pattern must really drive the production disk path."""
+    path = _real_39538_path()
+    if path is None:
+        pytest.skip("ENVIRONMENT_BLOCKED: 39538.pdf is not in the repository")
+    from cghs.parsing import CGHSParsingEngine
+
+    with _real_fitz_installed():
+        assert sys.modules["fitz"].__doc__ and "PyMuPDF" in sys.modules["fitz"].__doc__
+        items, _raw, _patient, _rejected, _log = CGHSParsingEngine().parse(str(path))
+
+    codes = {entry["code"]: entry for entry in items}
+    assert codes["DRUG100"]["amount"] == pytest.approx(743895.18)
+    assert codes["CNSU100"]["amount"] == pytest.approx(21896.44)
+
+    # and the stub is restored afterwards, so the baseline loader still works
+    assert "PyMuPDF" not in (getattr(sys.modules.get("fitz"), "__doc__", "") or "")

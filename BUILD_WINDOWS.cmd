@@ -60,12 +60,30 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-%PY% -m pip install --upgrade pyinstaller selenium PyQt5 PyMuPDF
+REM requirements.txt is the ONE authoritative manifest - do not duplicate the
+REM dependency list here.  The previous "--upgrade pyinstaller selenium PyQt5
+REM PyMuPDF" installed whatever was newest on build day, so the EXE was never
+REM built against the versions the test suite had passed with.
+if not exist "%~dp0requirements.txt" (
+    echo [FAIL] requirements.txt is missing - cannot install a declared,
+    echo        reproducible dependency set. Aborting.
+    exit /b 1
+)
+
+%PY% -m pip install -r "%~dp0requirements.txt"
 if %ERRORLEVEL% NEQ 0 (
     echo [FAIL] Dependency installation failed.
     exit /b 1
 )
-echo [OK]   Dependencies present
+
+REM Fail clearly if anything the build needs is still not importable.
+%PY% -c "import PyQt5, selenium, fitz, PyInstaller" 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [FAIL] A declared dependency is not importable after installation.
+    echo        Check requirements.txt against this interpreter.
+    exit /b 1
+)
+echo [OK]   Dependencies present (from requirements.txt)
 
 REM ---- 3. Sanity: the automation package must import ------------------
 echo [..]   Import check: cghs package

@@ -161,3 +161,214 @@ def test_patient_not_switched_is_a_distinct_stop_condition():
     with pytest.raises(PatientNotSwitched) as excinfo:
         session.ensure_context()
     assert "nothing was written" in str(excinfo.value)
+
+
+# ---------------------------------------------------------------------------
+# ROUND 15 - BUG #1: the identity gate must be FAIL-CLOSED.
+#
+# Reproduced before the fix (see the report, section "defects reproduced"):
+# verify_identity_unchanged() approved the context in three situations where
+# the patient could NOT actually be re-proved.  The gate guards a MUTATION, so
+# an unprovable context must stop the run, never continue it.
+#
+# These tests drive the real PortalSession method with a scripted driver; no
+# production function is mocked out.
+# ---------------------------------------------------------------------------
+
+from selenium.common.exceptions import WebDriverException      # noqa: E402
+
+from cghs.dom import ProbeUnsupported                          # noqa: E402
+from cghs.session import PortalIdentity, PortalSession         # noqa: E402
+from cghs.telemetry import EnterpriseLogger                    # noqa: E402
+
+#: a context that WAS verified against real patient evidence
+VERIFIED_WITH_EVIDENCE = PortalIdentity(
+    identity_key="IP-A|BILL-A|PATIENT A", patient_name="PATIENT A",
+    ip_case="IP-A", bill_number="BILL-A",
+    url="https://portal.example/plan", title="Treatment Plan")
+
+#: a portal that genuinely never exposed patient evidence at all
+VERIFIED_WITHOUT_EVIDENCE = PortalIdentity(
+    identity_key="||", url="https://portal.example/plan", title="Treatment Plan")
+
+
+class _ScriptedDriver:
+    """Stands in for PortalDriver with a scriptable probe outcome."""
+
+    def __init__(self, probe_result=None, probe_raises=None, url="", title=""):
+        self._probe_result = probe_result
+        self._probe_raises = probe_raises
+        self.current_url = url
+        self.title = title
+        self.probe_calls = 0
+
+    def probe(self, fields, token=None):
+        self.probe_calls += 1
+        if self._probe_raises is not None:
+            raise self._probe_raises
+        return self._probe_result
+
+
+def _session_with(identity, driver):
+    session = PortalSession.__new__(PortalSession)     # no CDP attach in a test
+    session.identity = identity
+    session.driver = driver
+    session.logger = EnterpriseLogger()
+    return session
+
+
+def _probe_ok(name="", ip="", bill="", url="https://portal.example/plan",
+              title="Treatment Plan"):
+    return {"ok": True,
+            "patient": {"name": name, "ip": ip, "bill": bill},
+            "signature": {"url": url, "title": title}}
+
+
+def test_A_identity_gate_passes_when_the_same_patient_is_re_read():
+    session = _session_with(VERIFIED_WITH_EVIDENCE,
+                            _ScriptedDriver(_probe_ok("PATIENT A", "IP-A", "BILL-A")))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is True, reason
+    assert "matched" in reason
+
+
+def test_B_identity_gate_fails_when_the_patient_changed():
+    session = _session_with(VERIFIED_WITH_EVIDENCE,
+                            _ScriptedDriver(_probe_ok("PATIENT B", "IP-B", "BILL-B")))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is False
+    assert "changed" in reason
+
+
+def test_C_identity_gate_fails_when_patient_evidence_vanished_but_url_is_same():
+    """The portal answers, the URL/title are identical - and the patient is gone.
+
+    Pre-fix this returned ``(True, 'patient evidence matched')``: the loop
+    required BOTH sides to be non-empty, so when every field came back empty
+    not one comparison ran and the function reported a match it had never made.
+    """
+    session = _session_with(VERIFIED_WITH_EVIDENCE, _ScriptedDriver(_probe_ok()))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is False, reason
+    assert "could not be re-read" in reason or "no patient evidence" in reason
+    assert "matched" not in reason
+
+
+def test_C2_identity_gate_still_passes_on_a_partially_readable_identity():
+    """Weaker evidence is DISCLOSED, not silently upgraded or rejected.
+
+    IP and bill are unreadable but the name is re-read and matches, so
+    deterministic patient evidence does exist.  The directive requires a fail
+    only when identity evidence *cannot be re-read*; the reason string must
+    name exactly which fields carried the proof.
+    """
+    session = _session_with(VERIFIED_WITH_EVIDENCE,
+                            _ScriptedDriver(_probe_ok(name="PATIENT A")))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is True, reason
+    assert "patient_name" in reason
+    assert "ip_case" in reason and "bill_number" in reason   # named as unreadable
+
+
+def test_D_identity_gate_fails_when_the_probe_dies_and_evidence_was_required():
+    """URL + title are NOT patient identity.
+
+    Pre-fix the ProbeUnsupported branch returned True whenever the URL and
+    title were unchanged, even though the context had been verified against
+    real patient evidence that could no longer be read at all.
+    """
+    session = _session_with(
+        VERIFIED_WITH_EVIDENCE,
+        _ScriptedDriver(probe_raises=ProbeUnsupported("probe returned None"),
+                        url="https://portal.example/plan", title="Treatment Plan"))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is False, reason
+    assert "url" not in reason.lower() or "patient" in reason.lower()
+    assert "matched" not in reason
+
+
+def test_E_identity_gate_fails_when_the_browser_is_unreachable():
+    session = _session_with(VERIFIED_WITH_EVIDENCE,
+                            _ScriptedDriver(probe_raises=WebDriverException("disconnected")))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is False
+    assert "unreachable" in reason
+
+
+def test_E2_identity_gate_fails_when_the_fallback_cannot_read_url_either():
+    class _Dead(_ScriptedDriver):
+        @property
+        def current_url(self):
+            raise WebDriverException("disconnected")
+
+        @current_url.setter
+        def current_url(self, value):
+            pass
+
+    session = _session_with(VERIFIED_WITHOUT_EVIDENCE,
+                            _Dead(probe_raises=ProbeUnsupported("no probe")))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is False
+    assert "unreachable" in reason
+
+
+def test_F_a_portal_that_never_exposed_patient_evidence_keeps_its_fallback():
+    """Gate F: the genuinely safe fallback must survive the fix.
+
+    Nothing stronger was ever available for this context, so a stable page
+    signature is the best evidence that exists and the batch must not be
+    bricked.  The reason says so explicitly.
+    """
+    session = _session_with(VERIFIED_WITHOUT_EVIDENCE, _ScriptedDriver(_probe_ok()))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is True, reason
+    assert "no patient evidence" in reason
+
+
+def test_F2_probe_unsupported_without_prior_evidence_keeps_the_signature_fallback():
+    session = _session_with(
+        VERIFIED_WITHOUT_EVIDENCE,
+        _ScriptedDriver(probe_raises=ProbeUnsupported("no probe"),
+                        url="https://portal.example/plan", title="Treatment Plan"))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is True, reason
+
+
+def test_F3_signature_fallback_still_fails_on_a_changed_url_or_title():
+    session = _session_with(
+        VERIFIED_WITHOUT_EVIDENCE,
+        _ScriptedDriver(probe_raises=ProbeUnsupported("no probe"),
+                        url="https://portal.example/SOMEWHERE-ELSE",
+                        title="Treatment Plan"))
+    ok, reason = session.verify_identity_unchanged()
+    assert ok is False
+    assert "url changed" in reason
+
+
+def test_the_identity_gate_never_invents_a_dom_source():
+    """No new selector, cookie, token or login path may appear in the fix.
+
+    Comments and docstrings are stripped first: ``session.py`` legitimately
+    *documents* that no cookie/MFA/profile automation is performed, and a raw
+    substring search would read that promise as a violation of itself.
+    """
+    import io
+    import tokenize
+
+    source = (REPO / "cghs" / "session.py").read_text(encoding="utf-8")
+    code = []
+    previous = tokenize.INDENT
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type == tokenize.COMMENT:
+            continue
+        if token.type == tokenize.STRING and previous in (
+                tokenize.INDENT, tokenize.DEDENT, tokenize.NEWLINE, tokenize.NL):
+            continue                      # a docstring, not an expression
+        if token.type not in (tokenize.NL, tokenize.NEWLINE):
+            previous = token.type
+        code.append(token.string)
+    executable = "\n".join(code)
+
+    for forbidden in ("cookie", "localStorage", "sessionStorage",
+                      "password", "find_element"):
+        assert forbidden not in executable, forbidden
