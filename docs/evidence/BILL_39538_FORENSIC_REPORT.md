@@ -433,12 +433,12 @@ identity.
 | field | value |
 |---|---|
 | branch | `arena/01a10125-update-cghs-enhancment-bot` |
-| commit | **`194c3e6`** (parent `0f27b31`) |
+| commit | **`194c3e6`** = the fix; **`591cb0e`** = this report (branch HEAD) |
 | tag | **`bill-format-39538-v4`** |
 | pushed | yes — branch and tag both on `origin` |
 | ZIP | `CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip` |
-| size | 558,369 bytes · 66 files · no wrapper directory |
-| **ZIP SHA-256** | **`17771ab0d372d95df68c87f31fbb82fa1f136aa156e7b6c7b082260fdc7cefd4`** |
+| size | 66 files · no wrapper directory · built with `git archive HEAD` |
+| **ZIP SHA-256** | published with the delivery and in the sidecar `CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip.sha256`. It cannot be embedded here: the report is inside the archive, so stating the hash in the report would change it. |
 | extraction check | extracted to a clean directory; `tests/fixtures/39538.pdf` SHA-256 matches; **full suite 684 passed / 0 failed from inside the extracted tree** |
 | regenerate | `git archive --format=zip -o <name> HEAD` |
 
