@@ -425,3 +425,67 @@ and the 1998-record master registry.
 files and the standing rule is not to modify them without a proven regression,
 so they are reported rather than edited. `cghs/rules.py` is now free of case
 identity.
+
+---
+
+## I. Artifact
+
+| field | value |
+|---|---|
+| branch | `arena/01a10125-update-cghs-enhancment-bot` |
+| commit | **`194c3e6`** (parent `0f27b31`) |
+| tag | **`bill-format-39538-v4`** |
+| pushed | yes — branch and tag both on `origin` |
+| ZIP | `CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip` |
+| size | 558,369 bytes · 66 files · no wrapper directory |
+| **ZIP SHA-256** | **`17771ab0d372d95df68c87f31fbb82fa1f136aa156e7b6c7b082260fdc7cefd4`** |
+| extraction check | extracted to a clean directory; `tests/fixtures/39538.pdf` SHA-256 matches; **full suite 684 passed / 0 failed from inside the extracted tree** |
+| regenerate | `git archive --format=zip -o <name> HEAD` |
+
+## J. Acceptance gate (§24)
+
+| gate | state |
+|---|---|
+| bill obtained directly from Git | ✅ `origin/main` `b5987f4`, blob `423a9ea6` |
+| Git source / hash recorded | ✅ SHA-256 `1825f727…`, round-trip verified |
+| entire bill inspected | ✅ 95/95 pages, 0 empty |
+| format model is evidence-derived | ✅ regions, headers, subtotals, summary, wraps |
+| all observed code forms inventoried | ✅ 457 occurrences, 52 distinct |
+| official registry remains canonical | ✅ untouched, 1998 records |
+| no hallucinated code exists | ✅ every resolved code is a registry record |
+| repeated sections handled structurally | ✅ IP Pharmacy ×2 kept distinguishable with provenance |
+| multi-subtotal departments handled structurally | ✅ OT Pharmacy 5 dated blocks |
+| summary / detail not confused | ✅ summary span ends at first detailed header |
+| Patient Payable not substituted for detail | ✅ excluded by region, reason reported |
+| pharmacy extraction correct | ✅ 742,104.38 / 31,599.22 / 1,790.80 |
+| DRUG100 follows the locked rule | ✅ 743,895.18, no REVIEW state |
+| CNSU100 remains safe | ✅ 21,896.44 unchanged |
+| no arbitrary amount ceiling | ✅ none; parametrised tests up to 1,250,000.00 |
+| `c844823` fixes intact | ✅ asserted by `test_c844823_…` |
+| previous portal safety intact | ✅ no portal file modified |
+| cross-file data flow verified | ✅ §D; one canonical owner, no second engine |
+| production path has regression coverage | ✅ `CGHSParsingEngine().parse()` on the real PDF |
+| real example bill passes | ✅ |
+| generalised same-format fixtures pass | ✅ altered identity, amounts, dates, page breaks, section counts |
+| performance measured | ✅ cold/warm/batch, p50/p95/worst |
+| optimisation preserves safety | ✅ result identity asserted by 4 tests |
+| package matches tested source | ✅ `git archive HEAD` |
+| ZIP extract-verified | ✅ 684 passed inside the extracted tree |
+| **`LIVE_PORTAL` honestly reported** | ✅ **`NOT_VERIFIED`** |
+
+## K. Outstanding — `EVIDENCE_MISSING` / `NEEDS_MORE_EVIDENCE`
+
+Nothing was guessed to close these.
+
+1. **`CGHS-NI <nnn>` composition** — `CGHS-NI 001-2025` stays `REVIEW_REQUIRED`
+   though `NI001` is a registry record and `CGHS-CI 001-2025` → `CI001` works.
+   Needs: operator approval that `NI` is a locked composition family.
+   Blocked: the category ladder in `cghs/rules.py`. 3 occurrences in this bill.
+2. **Closing-total double count** — a department printing per-date subtotals
+   *and* a closing section-level `Dept Sub Total` under the same label would be
+   counted twice. This shape does **not** occur in 39538 (OT Pharmacy closes with
+   `Dept Total`), so there is no evidence to design against. Not implemented.
+3. **`LIVE_PORTAL` = `NOT_VERIFIED`** — no Windows authenticated portal run was
+   performed in this environment. Unit and fake-portal tests cannot establish it.
+4. **Other bills (40343, 39078, 40337, D1–D5)** — still absent; those tests skip
+   loudly as `ENVIRONMENT_BLOCKED`. Only 39538 is present.
