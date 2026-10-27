@@ -114,16 +114,41 @@ class PortalSession:
         options = Options()
         options.add_experimental_option("debuggerAddress", debugger_address)
         last_error: Optional[Exception] = None
+        # Stage timings, so a slow start can be ATTRIBUTED instead of guessed
+        # at.  These only read the clock around work that already happens -
+        # no extra probe, no extra round trip, no added latency.
+        attach_t0 = time.monotonic()
         for attempt in range(1, attempts + 1):
             try:
+                connect_t0 = time.monotonic()
                 driver = webdriver.Chrome(options=options)
+                connect_ms = (time.monotonic() - connect_t0) * 1000.0
                 logger.info(f"[SESSION] CDP attached on {debugger_address} (attempt {attempt})")
-                return cls(driver, logger, **kwargs)
+                validate_t0 = time.monotonic()
+                session = cls(driver, logger, **kwargs)
+                validate_ms = (time.monotonic() - validate_t0) * 1000.0
+                # time spent locating a WORKING endpoint = everything before
+                # the connect that finally succeeded (failed attempts+backoff)
+                session.counters.endpoint_discovery_ms = max(
+                    0.0, (connect_t0 - attach_t0) * 1000.0)
+                session.counters.cdp_connect_ms = connect_ms
+                session.counters.session_validate_ms = validate_ms
+                logger.info(
+                    f"[SESSION-TIMING] endpoint_discovery="
+                    f"{session.counters.endpoint_discovery_ms:.0f}ms "
+                    f"cdp_connect={connect_ms:.0f}ms "
+                    f"session_validate={validate_ms:.0f}ms "
+                    f"(attempt {attempt}/{attempts})")
+                return session
             except Exception as exc:                        # noqa: BLE001
                 last_error = exc
                 logger.warn(f"[SESSION] CDP attach attempt {attempt}/{attempts} failed: {exc}")
                 if attempt < attempts:
                     time.sleep(backoff)
+        logger.warn(
+            f"[SESSION-TIMING] endpoint unreachable after "
+            f"{(time.monotonic() - attach_t0) * 1000.0:.0f}ms "
+            f"across {attempts} attempt(s)")
         raise WebDriverException(
             f"Could not attach Chrome Debug at {debugger_address}: {last_error}")
 
@@ -189,6 +214,10 @@ class PortalSession:
     def ensure_context(self, expected_identity: Optional[str] = None,
                        force: bool = False) -> TabEvidence:
         """Cached tab + frame binding.  Full discovery only when invalid."""
+        # Only a REAL discovery is timed; the cached fast path must not be
+        # reported as "context readiness" or the number becomes meaningless.
+        discovering = force or not self._context_ready
+        ready_t0 = time.monotonic() if discovering else None
         evidence = self.tabs.resolve(expected_identity=expected_identity, force=force)
         if not self.frames.ensure(force=force):
             self.frames.invalidate("no browsing context exposed the controls")
@@ -209,6 +238,11 @@ class PortalSession:
                 f"[CONTEXT] verified Treatment Plan: patient={evidence.patient_name!r} "
                 f"ip={evidence.ip_case!r} bill={evidence.bill_number!r} rows={evidence.rows}")
             self._context_ready = True
+        if ready_t0 is not None:
+            self.counters.context_ready_ms = (time.monotonic() - ready_t0) * 1000.0
+            self.logger.info(
+                f"[SESSION-TIMING] context_ready={self.counters.context_ready_ms:.0f}ms "
+                f"start_to_first_operation={self.elapsed_ms():.0f}ms")
         return evidence
 
     # ---- identity reconciliation ----------------------------------------

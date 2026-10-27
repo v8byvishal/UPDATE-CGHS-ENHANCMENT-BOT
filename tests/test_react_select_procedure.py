@@ -422,3 +422,119 @@ def test_stage_reuse_is_refused_without_probe_evidence():
     assert dom.plus_clicks == 4
     assert session.counters.stage_context_reuses == 0
     assert session.counters.procedure_selections == 4
+
+
+# ===========================================================================
+# ROUND 16 - the reported console incident:
+#   "Exact code match [CN002] not found among 0 options: []"
+#
+# Root cause reproduced below: _await_exact_option makes TWO independent
+# observations of a changing DOM - a JS readiness probe that COUNTS options,
+# then a separate Selenium locate_all + .text read - with no re-check and no
+# retry between them.  When React re-renders in that window (debounced/async
+# option load) every captured node is detached, `texts` comes back empty, and
+# the reader reports "0 options" for a menu that is in fact populated.
+#
+# The fix is bounded and failure-only: the healthy path is untouched, a
+# genuinely absent code still fails immediately, and recovery never widens
+# matching or picks a different option.
+# ===========================================================================
+
+def test_REPRO_rerender_between_probe_and_read_reports_zero_options():
+    """The exact incident: options counted by the probe, gone by the read."""
+    dom, session = _portal_with(None, detach_options_once_after_probe=True)
+    selector = ProcedureSelector(session)
+
+    assert selector.execute("CN002", timeout=4.0) is True
+    assert dom.selected_code() == "CN002", (
+        "React must actually hold CN002 - a True return with nothing "
+        "committed is the defect, not the fix")
+
+
+def test_transient_empty_option_collection_is_recovered_not_reported():
+    dom, session = _portal_with(None, detach_options_once_after_probe=True)
+    selector = ProcedureSelector(session)
+    selector.execute("CN002", timeout=4.0)
+    assert session.counters.option_requeries >= 1, (
+        "recovery must be recorded, so an operator can see it happened")
+
+
+def test_a_permanently_missing_code_still_fails_and_is_not_retried_forever():
+    """A code the portal does not offer must fail fast, with evidence."""
+    dom, session = _portal_with(None, missing_codes=("CN002",))
+    selector = ProcedureSelector(session)
+    started = time.perf_counter()
+    with pytest.raises(NoSuchElementException):
+        selector.execute("CN002", timeout=2.0)
+    elapsed = time.perf_counter() - started
+    assert elapsed < 8.0, f"must be bounded, took {elapsed:.1f}s"
+    assert dom.selected_code() == ""
+
+
+def test_a_readable_menu_without_the_code_fails_immediately_without_requery():
+    """Options ARE readable and the code is simply absent -> no retry at all.
+
+    This is the speed guard: retrying a menu that answered correctly would
+    add latency to a genuine 'code not offered' outcome.
+    """
+    # React-Select FILTERS by the typed token, so a menu that renders at all
+    # while CN002 is typed can only contain near-misses.  A catalogue with no
+    # token match renders nothing and is the separate "never opened" case.
+    catalogue = [Option("CN0021", "CN0021 - Lookalike, longer code"),
+                 Option("CN002X", "CN002X - Lookalike, suffixed code")]
+    dom, session = _portal_with(catalogue)
+    selector = ProcedureSelector(session)
+    with pytest.raises(NoSuchElementException) as err:
+        selector.execute("CN002", timeout=2.0)
+    assert "not found among" in str(err.value)
+    assert session.counters.option_requeries == 0, (
+        "a readable menu that simply lacks the code must not be re-queried")
+
+
+def test_recovery_never_selects_a_similar_or_first_option():
+    """Exactness is preserved through the recovery path."""
+    catalogue = [Option("CN0021", "CN0021 - Lookalike"),
+                 Option("CN002", "CN002 - Consultation for Inpatients")]
+    dom, session = _portal_with(catalogue, detach_options_once_after_probe=True)
+    selector = ProcedureSelector(session)
+    assert selector.execute("CN002", timeout=4.0) is True
+    assert dom.selected_code() == "CN002"
+
+
+def test_the_healthy_path_adds_no_requery_and_no_new_sleep():
+    """Speed guard: a healthy portal must not pay for the recovery path."""
+    dom, session = _portal_with(None)
+    before_sleep = session.counters.fixed_sleep_ms
+    selector = ProcedureSelector(session)
+    assert selector.execute("CN002", timeout=4.0) is True
+    assert session.counters.option_requeries == 0
+    assert session.counters.fixed_sleep_ms == before_sleep, (
+        "no fixed sleep may be introduced into the successful path")
+
+
+def test_option_readiness_timing_is_instrumented():
+    """Stage timing must be observable so a slow day is diagnosable."""
+    dom, session = _portal_with(None)
+    ProcedureSelector(session).execute("CN002", timeout=4.0)
+    assert session.counters.option_ready_ms >= 0.0
+    assert session.counters.option_ready_ms < 60_000
+
+
+def test_recovery_reconfirms_patient_context_before_re_reading():
+    """A dropdown may only be re-read while the patient context still holds.
+
+    Recovery must not spin on a menu that belongs to a different patient:
+    if identity cannot be reconfirmed the item stops with PortalContextLost,
+    and nothing is selected.
+    """
+    from cghs.dom import PortalContextLost
+
+    dom, session = _portal_with(None, detach_options_once_after_probe=True)
+    selector = ProcedureSelector(session)
+    session.verify_identity_unchanged = lambda: (False, "ip_case changed")
+
+    with pytest.raises(PortalContextLost) as err:
+        selector.execute("CN002", timeout=4.0)
+    assert "context could not be reconfirmed" in str(err.value)
+    assert dom.selected_code() != "CN002", (
+        "nothing may be committed once the patient context is in doubt")

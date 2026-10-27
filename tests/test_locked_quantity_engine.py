@@ -347,3 +347,109 @@ def test_amount_based_codes_are_never_split_into_units(code):
         f"{code} must produce exactly ONE Plus regardless of amount")
     assert session.counters.locked_unit_transactions == 0
     assert result.success is True
+
+
+# =====================================================================
+# ROUND 16 - PRIORITY THREE: CI003 Holter analysis per day
+# Business rule change (explicitly authorised by the round-16 directive):
+#   Derived Quantity = Verified Bill Amount / Verified CGHS Unit Rate
+# The PRINTED hospital quantity is not authoritative for CI003.
+# =====================================================================
+from cghs.rules import derive_amount_based_quantity, AMOUNT_DERIVED_QUANTITY_CODES
+from cghs.locators import cghs_record
+
+
+#: The real CI003 row from the evidence bill 39538, page 73, section
+#: "NON INVASIVE PROCEDURE" - reproduced verbatim, not synthesised.
+REAL_CI003_ROW = ("6,750.00  0  1 ( \u00df )  HOLTER MONITORING (SP3) 72  HOURS "
+                  "STUDY (4220174 ) 1.00  3099477  6,750.00 CGHS-CI 003-202 5")
+
+
+def test_ci003_rate_is_verified_in_the_active_master_registry():
+    """The 2250 rate must come from the registry, never from a literal."""
+    record = cghs_record("CI003")
+    assert record is not None
+    assert record.description == "Holter analysis per day"
+    assert record.nabh_rate == "2250"
+
+
+def test_REPRO_real_bill_ci003_row_printed_quantity_is_one():
+    """Pre-fix behaviour: the printed column says 1 for a 6,750 charge."""
+    from cghs.rules import parse_row_quantity
+    assert parse_row_quantity(REAL_CI003_ROW) == 1
+
+
+def test_real_bill_ci003_derives_three_from_the_amount():
+    """6,750.00 / 2,250 = 3 - the directive's own worked example."""
+    qty, reason = derive_amount_based_quantity("CI003", REAL_CI003_ROW)
+    assert qty == 3, reason
+    assert reason is None
+
+
+def test_ci003_full_multiple_table_from_the_directive():
+    for amount, expected in (("2,250.00", 1), ("4,500.00", 2),
+                             ("6,750.00", 3), ("9,000.00", 4)):
+        row = f"X 1.00  3099477  {amount} CGHS-CI 003-2025"
+        qty, reason = derive_amount_based_quantity("CI003", row)
+        assert qty == expected, f"{amount} -> {qty} ({reason})"
+
+
+def test_ci003_ignores_a_conflicting_printed_quantity():
+    """Printed 9 against a 4,500 charge must still derive 2, never 9."""
+    row = "X 9.00  3099477  4,500.00 CGHS-CI 003-2025"
+    qty, _ = derive_amount_based_quantity("CI003", row)
+    assert qty == 2
+
+
+def test_ci003_rejects_a_non_integral_multiple():
+    row = "X 1.00  3099477  5,000.00 CGHS-CI 003-2025"
+    qty, reason = derive_amount_based_quantity("CI003", row)
+    assert qty is None
+    assert "exact" in reason.lower() or "multiple" in reason.lower()
+
+
+def test_ci003_rejects_a_missing_amount_and_never_falls_back_to_printed_qty():
+    row = "HOLTER MONITORING (SP3) 72 HOURS STUDY CGHS-CI 003-2025"
+    qty, reason = derive_amount_based_quantity("CI003", row)
+    assert qty is None, "a missing amount must reject, not reuse the printed 1"
+    assert reason
+
+
+def test_ci003_rejects_zero_and_negative_amounts():
+    for amount in ("0.00", "-2,250.00"):
+        row = f"X 1.00  3099477  {amount} CGHS-CI 003-2025"
+        qty, reason = derive_amount_based_quantity("CI003", row)
+        assert qty is None, f"{amount} must reject"
+        assert reason
+
+
+def test_ci003_rejects_conflicting_money_values_in_one_row():
+    """Two different amount triples -> ambiguous -> review, never a guess."""
+    row = ("X 1.00  3099477  6,750.00 and 2.00  3099478  9,000.00 "
+           "CGHS-CI 003-2025")
+    qty, reason = derive_amount_based_quantity("CI003", row)
+    assert qty is None
+    assert "ambig" in reason.lower() or "conflict" in reason.lower()
+
+
+def test_ci003_does_not_use_a_bill_total():
+    """A grand-total-looking figure with no column triple is not an amount."""
+    row = "HOLTER MONITORING CGHS-CI 003-2025 Grand Total : 1,279,654.00"
+    qty, reason = derive_amount_based_quantity("CI003", row)
+    assert qty is None
+    assert reason
+
+
+def test_the_derived_rule_applies_to_ci003_only():
+    """Blast radius: no other code's quantity logic may be touched."""
+    assert AMOUNT_DERIVED_QUANTITY_CODES == {"CI003"}
+    for other in ("CI001", "CI002", "CN002", "LB269", "CC001"):
+        qty, reason = derive_amount_based_quantity(other, REAL_CI003_ROW)
+        assert qty is None and reason is None, (
+            f"{other} must be left entirely alone by the CI003 rule")
+
+
+def test_ci003_rejects_when_the_rate_is_unverifiable():
+    """An unknown code has no verified rate - it must never derive silently."""
+    qty, reason = derive_amount_based_quantity("ZZ999", REAL_CI003_ROW)
+    assert qty is None and reason is None

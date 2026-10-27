@@ -1,0 +1,22 @@
+{
+  "round": 16,
+  "method": "Same bill (tests/fixtures/39538.pdf), same process, same host, same pinned environment (PyMuPDF 1.28.2 / selenium 4.50.0 / pytest 9.1.1). The pre-change tree is a `git archive` of 962b37b extracted to /tmp/base962 and measured by the SAME script, interleaved BASE/AFTER twice to cancel machine drift. parse timings are min and median of 15 runs.",
+  "caveat": "These absolute numbers are NOT comparable with the round-15 figures (51.33 ms) - that was a different sandbox host. Only the BASE-vs-AFTER pairs below, measured minutes apart on one host, are meaningful.",
+  "parse_document_39538_ms": {
+    "run1": {"base": {"min": 122.35, "median": 146.43}, "round16": {"min": 123.41, "median": 144.35}},
+    "run2": {"base": {"min": 122.65, "median": 123.14}, "round16": {"min": 121.32, "median": 146.00}},
+    "verdict": "No measurable change. Differences are smaller than the run-to-run spread of the baseline itself."
+  },
+  "react_select_healthy_path": {
+    "base":    {"ms": [1.61, 1.40], "find_elements_calls": 18, "element_reads": 14},
+    "round16": {"ms": [1.45, 1.60], "find_elements_calls": 18, "element_reads": 14, "option_requeries": 0},
+    "verdict": "IDENTICAL DOM round-trip counts before and after. The recovery path costs nothing on a healthy portal because it is entered only when a read returns nothing readable or a node went stale mid-read."
+  },
+  "recovery_path_cost": {
+    "reproduction": "/home/user/cghs_evidence/repro_r16_dropdown.py case B",
+    "requeries_to_recover": 1,
+    "bound": "min(caller timeout, 3 re-reads)",
+    "note": "Only paid on a failure that previously ended the item as PARTIAL."
+  },
+  "LIVE_PORTAL": "NOT_VERIFIED"
+}

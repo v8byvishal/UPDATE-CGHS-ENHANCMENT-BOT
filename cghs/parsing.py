@@ -34,6 +34,8 @@ from .rules import (
     normalize_cghs_code,
     parse_oxygen_quantity,
     parse_row_quantity,
+    AMOUNT_DERIVED_QUANTITY_CODES,
+    derive_amount_based_quantity,
     resolve_cghs_codes,
 )
 
@@ -397,9 +399,27 @@ class CGHSParsingEngine:
                             })
                             continue
 
-                # Quantity: a locked rule wins (Oxygen full/half day), else
-                # the explicit row quantity.  An amount is never a quantity.
-                qty = locked_quantities.get(code)
+                # Quantity: for the small, explicitly authorised set of
+                # amount-driven codes the quantity is DERIVED from the billed
+                # amount (round-16 Priority Three, CI003 Holter analysis per
+                # day); a row that cannot be derived safely goes to review and
+                # NEVER falls back to the printed quantity.  Otherwise a
+                # locked rule wins (Oxygen full/half day), else the explicit
+                # row quantity.  An amount is never a quantity.
+                qty = None
+                if code in AMOUNT_DERIVED_QUANTITY_CODES:
+                    qty, derive_reason = derive_amount_based_quantity(code, row_text)
+                    if qty is None and derive_reason:
+                        rejected.append({
+                            "page": str(page),
+                            "block": row_text[:300],
+                            "reason": f"REVIEW REQUIRED - {derive_reason}",
+                            "section": section,
+                            "code": code
+                        })
+                        continue
+                if qty is None:
+                    qty = locked_quantities.get(code)
                 if qty is None:
                     qty = parse_row_quantity(row_text)
 

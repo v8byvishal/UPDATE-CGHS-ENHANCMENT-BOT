@@ -102,6 +102,19 @@ class PerfCounters:
     stale_recoveries: int = 0
     procedure_reacquisitions: int = 0
     shared_control_failures: int = 0
+    # --- dropdown readiness recovery (round 16) ------------------------
+    #: bounded re-queries of the option list, performed ONLY after a read
+    #: produced nothing readable (transient re-render).  A readable menu
+    #: that simply lacks the code never increments this.
+    option_requeries: int = 0
+    #: how long the option list took to become readable, last selection
+    option_ready_ms: float = 0.0
+    # --- attach/connection stage timings (round 16) --------------------
+    #: so a slow day can be attributed to a STAGE instead of guessed at
+    endpoint_discovery_ms: float = 0.0
+    cdp_connect_ms: float = 0.0
+    session_validate_ms: float = 0.0
+    context_ready_ms: float = 0.0
 
     # ---- derived -----------------------------------------------------
     @property

@@ -795,3 +795,89 @@ def test_portal_pseudo_codes_are_not_registry_members():
     for pseudo in PORTAL_OPTION_MAP:
         assert pseudo not in VALID_CODES
         assert cghs_record(pseudo) is None
+
+
+# =====================================================================
+# ROUND 16 - PRIORITY TWO: compound codes (LB269+LB270)
+# AUDIT RESULT: the existing resolver already handles these correctly.
+# No production change was made.  These tests LOCK THE BEHAVIOUR IN so a
+# future edit cannot silently regress it.
+# =====================================================================
+
+def _resolved(text):
+    """(final_code, status) pairs from the canonical resolver."""
+    return [(o["final_code"], o["status"]) for o in resolve_cghs_codes(text)]
+
+
+def test_compound_two_codes_resolve_independently():
+    pairs = _resolved("VIRAL MARKER CGHS-LB269+LB270-2025")
+    assert ("LB269", "EXECUTABLE") in pairs
+    assert ("LB270", "EXECUTABLE") in pairs
+
+
+def test_compound_tolerates_the_wrapped_spacing_of_real_bills():
+    pairs = _resolved("VIRAL MARKER CGHS-LB 269 + LB270-2025")
+    codes = [c for c, _ in pairs]
+    assert "LB269" in codes and "LB270" in codes
+
+
+def test_compound_real_bill_triple_resolves_all_three():
+    """The only genuine compound cell in evidence bill 39538, verbatim."""
+    row = ("1,350.00  0  1 VIRAL MARKER PROFILE (HBsAg, HIV, HCV) "
+           "1.00  3099123  1,350.00 CGHS-L B042+0 43+044- 2025")
+    codes = [c for c, _ in _resolved(row)]
+    for expected in ("LB042", "LB043", "LB044"):
+        assert expected in codes, f"{expected} missing from {codes}"
+
+
+def test_compound_incomplete_second_token_is_never_given_an_invented_prefix():
+    """`LB269+270` is incomplete - it must go to review, not become LB270."""
+    pairs = _resolved("CGHS-LB269+270-2025")
+    assert ("LB269", "EXECUTABLE") in pairs
+    statuses = [s for c, s in pairs if c != "LB269"]
+    assert statuses, "the incomplete half must still be reported"
+    assert all(s != "EXECUTABLE" for s in statuses), (
+        f"an incomplete token must never resolve to an executable code: {pairs}")
+
+
+def test_compound_unknown_half_does_not_execute():
+    pairs = _resolved("CGHS-LB269+ZZ999-2025")
+    assert ("LB269", "EXECUTABLE") in pairs
+    assert not any(c == "ZZ999" and s == "EXECUTABLE" for c, s in pairs)
+
+
+def test_compound_reprocessing_the_same_text_does_not_duplicate():
+    text = "CGHS-LB269+LB270-2025"
+    first = _resolved(text)
+    second = _resolved(text)
+    assert first == second
+    codes = [c for c, _ in first]
+    assert len(codes) == len(set(codes)), f"duplicate codes emitted: {codes}"
+
+
+def test_compound_never_merges_two_unrelated_adjacent_codes():
+    """Separate cells must stay separate - no accidental compounding."""
+    codes = [c for c, _ in _resolved("CGHS-LB269-2025 and CGHS-CI003-2025")]
+    assert "LB269" in codes and "CI003" in codes
+    assert "LB269CI003" not in codes
+
+
+def test_compound_halves_keep_their_own_registry_rate_and_description():
+    from cghs.locators import cghs_record
+    lb269, lb270 = cghs_record("LB269"), cghs_record("LB270")
+    assert lb269.nabh_rate != lb270.nabh_rate, (
+        "each half must keep its OWN rate, not share one")
+    assert lb269.description != lb270.description
+
+
+def test_compound_components_keep_their_source_text_and_position():
+    """Each half must stay traceable to the original compound expression."""
+    resolved = resolve_cghs_codes("CGHS-LB269+LB270-2025")
+    halves = [o for o in resolved if o["final_code"] in ("LB269", "LB270")]
+    assert len(halves) == 2
+    for occ in halves:
+        assert occ["raw_expression"] == "LB269+LB270"
+        assert occ["parent_expression"] == "LB269+LB270"
+        assert occ["source_row_text"] == "CGHS-LB269+LB270-2025"
+        assert occ["component_count"] == 2
+    assert sorted(o["component_index"] for o in halves) == [0, 1]

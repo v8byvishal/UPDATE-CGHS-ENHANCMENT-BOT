@@ -8,10 +8,17 @@ at baseline commit c3ccdf32e2170891fad9b150c850053461c85a25 so that exactly one
 implementation exists and so the CGHS business rules are importable (and therefore
 testable) without PyQt5 / Chrome / PyMuPDF being present.
 
-BUSINESS RULES ARE UNCHANGED.  Any behavioural change in this file is a defect.
+BUSINESS RULES ARE UNCHANGED, with ONE explicitly authorised exception:
+``derive_amount_based_quantity`` (round 16, Priority Three) derives the
+quantity of CI003 "Holter analysis per day" from the billed amount instead of
+the printed quantity column.  It is additive - it is defined after the
+baseline block, it changes no function moved out of ``app.py``, and it
+affects no code outside ``AMOUNT_DERIVED_QUANTITY_CODES``.  Any OTHER
+behavioural change in this file is a defect.
 """
 
 import re
+from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -20,6 +27,7 @@ from .locators import (  # noqa: F401
     CGHS_CODE_FAMILIES,
     PORTAL_OPTION_MAP,
     VALID_CODES,
+    cghs_record,
 )
 
 # ---------------------------------------------------------------------------
@@ -919,3 +927,100 @@ def resolve_cghs_codes(row_text: str, page: Any = None, section: str = "",
             occurrences.append(occurrence)
 
     return occurrences
+
+
+#: Codes whose quantity is DERIVED FROM THE BILLED AMOUNT rather than from
+#: the printed quantity column.  Round-16 directive, Priority Three:
+#:
+#:     Derived Quantity = Verified Bill Amount / Verified CGHS Unit Rate
+#:
+#: CI003 "Holter analysis per day" is billed as a single line for a multi-day
+#: study (a 72-hour study prints quantity 1 but charges three days), so the
+#: printed quantity is NOT authoritative for this code.  The rate is read
+#: from the active master registry - never hard-coded here.
+#:
+#: Adding a code to this set is a BUSINESS RULE CHANGE and requires the same
+#: kind of authorisation CI003 received.  No other code's quantity logic is
+#: affected.
+AMOUNT_DERIVED_QUANTITY_CODES = {"CI003"}
+
+#: Same sanity ceiling the printed-quantity parser already applies, so the
+#: derived path cannot emit a quantity the rest of the engine would refuse.
+_MAX_DERIVED_QUANTITY = 30
+
+
+def _row_item_amount(row_text: str) -> Tuple[Optional[Decimal], Optional[str]]:
+    """The ITEM amount of a service row, or a reason it cannot be trusted.
+
+    The amount is taken from the third column of the ``qty ref amount``
+    triple that :func:`parse_row_quantity` already anchors on - the same
+    structure, read one column further across.  That triple is item-level by
+    construction: it carries the line's own reference number, so a package
+    total, a department subtotal or a grand total cannot occupy it.
+
+    Returns ``(amount, None)`` or ``(None, reason)``.  It NEVER falls back to
+    another field.
+    """
+    matches = re.findall(r'(\d+\.\d{2})\s+(\d{3,7})\s+(-?[\d,]+\.\d{2})', row_text)
+    if not matches:
+        return None, "no item amount column found in the row"
+
+    amounts = []
+    for _qty, _ref, amt in matches:
+        cleaned = amt.replace(",", "").replace("\u20b9", "").strip()
+        try:
+            amounts.append(Decimal(cleaned))
+        except (InvalidOperation, ValueError):
+            return None, f"item amount {amt!r} is not a readable number"
+
+    distinct = {a for a in amounts}
+    if len(distinct) > 1:
+        rendered = ", ".join(str(a) for a in sorted(distinct))
+        return None, f"conflicting/ambiguous money values in one row: {rendered}"
+    return amounts[0], None
+
+
+def derive_amount_based_quantity(code: str,
+                                 row_text: str) -> Tuple[Optional[int], Optional[str]]:
+    """Quantity derived from the billed amount, for amount-driven codes only.
+
+    Returns:
+        ``(quantity, None)``  - derived successfully;
+        ``(None, reason)``    - the code IS amount-driven but the row must go
+                                to review (the caller must NOT fall back to
+                                the printed quantity);
+        ``(None, None)``      - the code is not amount-driven, or its rate is
+                                unverifiable; the caller keeps its existing
+                                behaviour untouched.
+    """
+    normalised = (code or "").strip().upper()
+    if normalised not in AMOUNT_DERIVED_QUANTITY_CODES:
+        return None, None
+
+    record = cghs_record(normalised)
+    if record is None:
+        return None, None
+    try:
+        rate = Decimal(str(record.nabh_rate).replace(",", "").strip())
+    except (InvalidOperation, ValueError, AttributeError):
+        return None, None
+    if rate <= 0:
+        return None, None
+
+    amount, reason = _row_item_amount(row_text)
+    if amount is None:
+        return None, f"{normalised}: {reason}"
+    if amount <= 0:
+        return None, (f"{normalised}: billed amount {amount} is not positive - "
+                      f"cannot derive a quantity")
+
+    quotient = amount / rate
+    if quotient != quotient.to_integral_value():
+        return None, (f"{normalised}: billed amount {amount} is not an exact whole "
+                      f"multiple of the CGHS unit rate {rate}")
+
+    quantity = int(quotient)
+    if not (0 < quantity <= _MAX_DERIVED_QUANTITY):
+        return None, (f"{normalised}: derived quantity {quantity} is outside the "
+                      f"accepted range 1-{_MAX_DERIVED_QUANTITY}")
+    return quantity, None

@@ -167,6 +167,14 @@ class ReactSelectConfig:
     #: resort returned ``els[0]`` regardless of displayedness; the arbitration
     #: build refused it outright and stopped the queue on item two.
     procedure_collapses_after_commit: bool = False
+    #: True -> the option nodes are DETACHED exactly once, immediately after
+    #: a readiness probe has already counted them.  This models the real
+    #: React-Select race the console screenshot shows: the JS probe sees the
+    #: menu, React re-renders (debounced/async option load), and the separate
+    #: Selenium read that follows lands on nodes that are no longer in the
+    #: document - so the reader reports "0 options" for a menu that is in
+    #: fact populated.  The menu repaints on the next read.
+    detach_options_once_after_probe: bool = False
     #: Stages the portal CLEARS after every Add.  The live CGHS portal clears
     #: the procedure (which is why the engine re-selects it for every locked
     #: unit); without this the double never re-touches the input and cannot
@@ -1154,6 +1162,12 @@ class ReactSelectDOM:
             token = (spec or {}).get("token") or ""
             if self.config.menu_rerender_after_read and self._menu_visible("procedure"):
                 self._rerender_budget = getattr(self, "_rerender_budget", 1)
+            # A debounced re-render REPAINTS: the blank window is transient.
+            if getattr(self, "_needs_repaint", False):
+                self._needs_repaint = False
+                for field_name in INSTANCE:
+                    if self._parts(field_name).get("open"):
+                        self._render_menu(field_name)
             # PROBE_JS queries DROPDOWN_OPTIONS globally, so report every
             # option that is currently rendered and visible, whichever
             # combobox owns it.
@@ -1167,6 +1181,24 @@ class ReactSelectDOM:
                 "count": len(texts),
                 "exact": any(token.upper() in t.upper() for t in texts),
                 "texts": texts[:12]}
+            # The probe has now REPORTED these options.  Blank them once, so
+            # the Selenium read that follows lands in the re-render window -
+            # the transient disagreement the recovery path must survive.  The
+            # menu REPAINTS on the next probe, because a real debounced load
+            # comes back; a permanently empty menu is a different condition
+            # and is covered by `missing_codes`.
+            if (self.config.detach_options_once_after_probe
+                    and not getattr(self, "_options_detached_once", False)
+                    and texts):
+                self._options_detached_once = True
+                self._needs_repaint = True
+                for field_name in INSTANCE:
+                    parts = self._parts(field_name)
+                    listbox = parts.get("listbox")
+                    if listbox is None:
+                        continue
+                    for child in list(listbox.get("children", [])):
+                        self._detach(child)
         if "rows" in fields:
             # same shape PROBE_JS emits: i / code / qty per row
             items = [{"i": i, "code": r["code"], "qty": r["qty"]}

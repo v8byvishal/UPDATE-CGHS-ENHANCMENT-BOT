@@ -665,9 +665,68 @@ class ProcedureSelector(_Controller):
         except TimeoutError:
             return False
 
+    def _read_options_once(self, code: str, token: str):
+        """ONE snapshot of the option list.
+
+        Returns ``(exact, texts, stale_seen)``.  ``stale_seen`` records that a
+        node vanished *while being read* - the signature of a re-render, and
+        the only thing that distinguishes "the menu moved under us" from "this
+        code is not offered".
+        """
+        options = self.resolver.locate_all("DROPDOWN_OPTIONS")
+        if not options:
+            self.counters.find_elements_calls += 1
+            options = self.driver.find_elements(
+                By.XPATH,
+                "//mat-option | //ng-option | //*[contains(@class, 'option') or contains(@role, 'option')]")
+        exact = None
+        texts = []
+        stale_seen = False
+        for opt in options:
+            try:
+                self.counters.element_reads += 1
+                txt = (opt.text or "").strip()
+            except StaleElementReferenceException:
+                stale_seen = True
+                continue
+            if not txt:
+                continue
+            texts.append(txt)
+            if exact is None and (exact_code_in_text(txt, code)
+                                  or txt.strip().upper() == token):
+                exact = opt
+        return exact, texts, stale_seen
+
     def _await_exact_option(self, code: str, portal_target: str, timeout: float):
-        """Wait for the dropdown, then pick the EXACT option - never the first."""
+        """Wait for the dropdown, then pick the EXACT option - never the first.
+
+        BOUNDED, FAILURE-ONLY RECOVERY (round 16).  The readiness probe and
+        the option read are two separate observations of a live React tree:
+        the probe counts the menu in one JS round trip, then Selenium reads
+        the nodes in another.  When React re-renders between them - debounced
+        or async option loading - every captured node is detached, the read
+        yields nothing, and the reader used to report
+
+            Exact code match [CN002] not found among 0 options: []
+
+        for a menu that was in fact populated.  That is the incident in the
+        operator's console.
+
+        The retry fires ONLY on that proven transient signature: the read
+        produced no readable text at all, or a node went stale mid-read.  A
+        menu that answered readably and simply does not contain the code
+        still fails on the FIRST attempt, so the "code not offered" outcome
+        keeps its original speed.  Recovery re-queries the live DOM; it never
+        widens matching, never relaxes exactness and never substitutes a
+        different option.
+        """
         token = portal_target.upper()
+        started = time.monotonic()
+        deadline = started + max(timeout, 0.0)
+        #: Bounded twice over: by the caller's deadline AND by a hard attempt
+        #: cap, so an option list that never repaints cannot turn into a busy
+        #: loop against the portal.
+        max_requeries = 3
 
         def ready():
             try:
@@ -679,28 +738,56 @@ class ProcedureSelector(_Controller):
         try:
             self.sync.wait_until(ready, timeout=timeout, desc=f"dropdown options for {code}")
         except TimeoutError:
+            self.counters.option_ready_ms = (time.monotonic() - started) * 1000.0
             raise NoSuchElementException(f"Dropdown never opened for [{code}]")
 
-        options = self.resolver.locate_all("DROPDOWN_OPTIONS")
-        if not options:
-            self.counters.find_elements_calls += 1
-            options = self.driver.find_elements(
-                By.XPATH,
-                "//mat-option | //ng-option | //*[contains(@class, 'option') or contains(@role, 'option')]")
-        exact = None
-        texts = []
-        for opt in options:
+        exact, texts, stale_seen = self._read_options_once(code, token)
+        identity_checked = False
+        requeries_at_entry = self.counters.option_requeries
+
+        while exact is None and (not texts or stale_seen):
+            # Transient signature only.  Nothing readable, or the nodes moved
+            # while we read them.
+            if time.monotonic() >= deadline:
+                break
+            if self.counters.option_requeries - requeries_at_entry >= max_requeries:
+                self.logger.warn(
+                    f"[OPTION-REQUERY] giving up on [{code}] after "
+                    f"{max_requeries} re-reads - the option list never became readable")
+                break
+
+            if not identity_checked:
+                # Before re-reading the portal, prove we are still on the same
+                # patient's plan.  A context that cannot be re-proved must stop
+                # the item, not spin on its dropdown.
+                identity_checked = True
+                ok, detail = self.session.verify_identity_unchanged()
+                if not ok:
+                    raise PortalContextLost(
+                        f"option list for [{code}] was unreadable and the patient "
+                        f"context could not be reconfirmed: {detail}")
+
+            self.counters.option_requeries += 1
+            self.logger.info(
+                f"[OPTION-REQUERY #{self.counters.option_requeries}] option list for "
+                f"[{code}] was unreadable "
+                f"({'stale nodes' if stale_seen else 'no option text'}) - "
+                f"re-reading the live menu (exactness unchanged)")
+            # The held references are what went stale; drop them and whatever
+            # strategy produced them, then wait on the SAME readiness
+            # condition rather than sleeping.
+            self.resolver.invalidate("DROPDOWN_OPTIONS")
+            remaining = max(0.0, deadline - time.monotonic())
+            if remaining <= 0:
+                break
             try:
-                self.counters.element_reads += 1
-                txt = (opt.text or "").strip()
-            except StaleElementReferenceException:
-                continue
-            if not txt:
-                continue
-            texts.append(txt)
-            if exact is None and (exact_code_in_text(txt, code)
-                                  or txt.strip().upper() == token):
-                exact = opt
+                self.sync.wait_until(ready, timeout=remaining,
+                                     desc=f"dropdown options for {code} (re-read)")
+            except TimeoutError:
+                break
+            exact, texts, stale_seen = self._read_options_once(code, token)
+
+        self.counters.option_ready_ms = (time.monotonic() - started) * 1000.0
         if exact is None:
             raise NoSuchElementException(
                 f"Exact code match [{code}] not found among {len(texts)} options: {texts[:8]}")
