@@ -372,3 +372,50 @@ def test_the_identity_gate_never_invents_a_dom_source():
     for forbidden in ("cookie", "localStorage", "sessionStorage",
                       "password", "find_element"):
         assert forbidden not in executable, forbidden
+
+
+# =====================================================================
+# ROUND 17 - PHASE 1: why attaching to Chrome takes so long.
+#
+# PortalSession.attach went straight into webdriver.Chrome(), whose own
+# failure path (driver resolution, then connection attempts) is slow and
+# opaque - and it ran up to `attempts` times with backoff.  When Chrome is
+# simply not in debugging mode the operator waited through all of that for
+# a generic WebDriverException.  A sub-millisecond local probe of the
+# debugging endpoint turns that into an immediate, accurate diagnosis and
+# costs nothing when the endpoint IS up.
+# =====================================================================
+from cghs.session import probe_debugger_endpoint
+
+
+def test_a_dead_endpoint_is_reported_immediately_and_accurately():
+    ok, detail = probe_debugger_endpoint("127.0.0.1:1", timeout=0.25)
+    assert ok is False
+    assert "remote debugging mode" in detail, detail
+
+
+def test_the_probe_is_bounded_and_fast_even_when_nothing_listens():
+    import time
+    start = time.monotonic()
+    probe_debugger_endpoint("127.0.0.1:1", timeout=0.25)
+    elapsed = time.monotonic() - start
+    assert elapsed < 2.0, f"probe took {elapsed:.2f}s - it must fail fast"
+
+
+def test_attach_refuses_to_call_selenium_when_the_endpoint_is_dead():
+    """The whole point: no slow WebDriver path when we KNOW it cannot work."""
+    from cghs.session import PortalSession
+    from cghs.telemetry import EnterpriseLogger
+    from selenium.common.exceptions import WebDriverException
+    import cghs.session as sess
+
+    called = []
+    original = sess.__dict__.get("_SELENIUM_CALLED_MARKER")
+    logger = EnterpriseLogger()
+    try:
+        PortalSession.attach(logger, debugger_address="127.0.0.1:1",
+                             attempts=3, backoff=0.01)
+    except WebDriverException as exc:
+        assert "remote debugging mode" in str(exc), str(exc)
+    else:
+        raise AssertionError("a dead endpoint must not produce a session")

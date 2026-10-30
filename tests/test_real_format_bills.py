@@ -980,7 +980,13 @@ def test_real_39538_production_parse_preserves_the_locked_invariants():
     assert qty["BC002"] == 3
     assert qty["PT004"] == 19
     assert qty["PT005"] == 53
-    assert "CC003" not in qty, "C003 must stay REVIEW_REQUIRED"
+    # ROUND 17 (operator-authorised): CC003 "Ventilator charges (Per day)" is
+    # in the 1998-record master registry at exactly the 2,700 this bill
+    # charges, and the bill carries 26 "VENTILATOR CHARGES FULL DAY" rows
+    # wrapped by the PDF as "CGHS-C" / "C003-20" / "25".  It resolves through
+    # the same same-row evidence mechanism as every other C-alias.
+    assert qty["CC003"] == 26, "ventilator days must be recovered, not dropped"
+    assert qty["NI001"] == 3, "EEG rows must be recovered"
     assert any("743895.18" in str(line) for line in log)
     assert any("21896.44" in str(line) for line in log)
 

@@ -196,23 +196,33 @@ def test_oxygen_quantity_survives_into_the_parsed_document():
 # section 6: C003 is never invented
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("context", ["VENTILATOR", "FRESH FROZEN PLASMA"])
-def test_c003_is_always_review_required(context):
+# ROUND 17 (operator-authorised): C003 moved from a permanent blacklist to
+# the SAME same-row evidence mechanism as every other C-alias.  The rule is
+# now "Ventilator evidence => CC003", so the no-evidence cases below are
+# unchanged and still prove that a plausible target is not authorisation.
+@pytest.mark.parametrize("context", ["FRESH FROZEN PLASMA", "ANY ROW"])
+def test_c003_without_ventilator_evidence_is_still_review_required(context):
     row = f"{context} CGHS-C C003 1 500.00 500.00"
     assert codes(row) == []
     assert review(row) == ["C003"]
     assert "UNRESOLVED_MAPPING" in reasons(row)
 
 
-@pytest.mark.parametrize("context", ["VENTILATOR", "FRESH FROZEN PLASMA", "ANY ROW"])
-def test_cc003_is_never_produced(context):
+@pytest.mark.parametrize("context", ["FRESH FROZEN PLASMA", "ANY ROW"])
+def test_cc003_is_not_produced_without_its_evidence(context):
     assert "CC003" not in codes(f"{context} CGHS-C C003")
 
 
+def test_c003_with_ventilator_evidence_resolves_to_cc003():
+    row = "VENTILATOR CHARGES FULL DAY CGHS-C C003 1 2700.00 2700.00"
+    assert codes(row) == ["CC003"], codes(row)
+
+
 def test_c003_review_reaches_the_operator_not_the_portal():
+    """A row WITHOUT the evidence still reaches the operator, never the portal."""
     final, _raw, _name, rejected, _log = _parse([
         "ICU(999311)",
-        "VENTILATOR CGHS-C C003 1 500.00 500.00",
+        "FRESH FROZEN PLASMA CGHS-C C003 1 500.00 500.00",
     ])
     assert [i["code"] for i in final] == []
     assert any(r.get("status") == REVIEW_REQUIRED and r.get("code") == "C003"
@@ -374,16 +384,19 @@ def test_a_compound_component_is_a_real_registry_code():
 # section 17: prefix carry across '+' is ambiguous
 # ---------------------------------------------------------------------------
 
-def test_prefix_carry_is_not_assumed():
+def test_prefix_carry_is_performed_when_the_registry_validates_it():
+    """ROUND 17 (operator-authorised): carrying the CATEGORY onto a bare
+    component is the same registry-gated operation already applied to the
+    FIRST component of the expression, so it is no longer withheld."""
     row = "LAB PANEL CGHS-LB269+270-2025"
-    assert codes(row) == ["LB269"], "LB270 must not be invented"
-    assert review(row) == ["270"]
-    assert "prefix carry" in reasons(row)
+    assert codes(row) == ["LB269", "LB270"], codes(row)
 
 
-def test_an_ambiguous_component_does_not_remove_the_unambiguous_one():
-    """Safety over recall, but never at the cost of a code that IS explicit."""
-    assert codes("LAB PANEL CGHS-LB269+270") == ["LB269"]
+def test_prefix_carry_still_refuses_an_unregistered_component():
+    """Recall never at the cost of inventing a code."""
+    row = "LAB PANEL CGHS-LB269+998-2025"
+    assert codes(row) == ["LB269"], codes(row)
+    assert review(row), "the unregistered component must still be reported"
 
 
 # ---------------------------------------------------------------------------
@@ -503,11 +516,24 @@ def test_a_proven_family_holds_exactly_the_master_codes(prefix, expected):
     assert sorted(c for c in VALID_CODES if c.startswith(prefix)) == expected
 
 
-@pytest.mark.parametrize("token", ["BC002", "CT001"])
+@pytest.mark.parametrize("token", ["BC099", "CT099", "NI999", "LB998"])
 def test_an_unregistered_token_is_preserved_for_review_not_manufactured(token):
+    """The safety property, pointed at tokens that are genuinely absent.
+
+    BC002/CT001 used to stand in for "unregistered" because the SYNTHETIC
+    registry lacked them.  The 1998-record master list defines both, so they
+    are now covered by the positive test below; using them here would assert
+    that a real CGHS code must be thrown away.
+    """
     row = f"SERVICE CGHS-{token} 1 100.00 100.00"
     assert codes(row) == [], f"{token} was manufactured"
     assert review(row), f"{token} was silently dropped instead of reported"
+
+
+@pytest.mark.parametrize("token", ["BC002", "CT001"])
+def test_a_registered_token_in_a_real_family_resolves(token):
+    row = f"SERVICE CGHS-{token} 1 100.00 100.00"
+    assert codes(row) == [token], codes(row)
 
 
 @pytest.mark.parametrize("description", ["BLOOD", "LABORATORY", "RADIOLOGY",
@@ -773,12 +799,13 @@ def test_a_foreign_identifier_is_never_read_as_a_cghs_code(identifier):
 
 def test_the_c_family_safety_rules_are_unchanged_by_the_registry_swap():
     """Section 12/13: the locked context rules still govern raw C aliases."""
-    # C003 has no approved target and stays unresolved - CC003 now EXISTS in
-    # the master list, which makes this the sharpest possible version of the
-    # rule: availability of a plausible target is still not authorisation.
+    # ROUND 17: C003 resolves ONLY with same-row Ventilator evidence.  The
+    # sharp edge of the rule is preserved one step further along: a plausible
+    # target plus NO evidence is still not authorisation.
     assert "CC003" in VALID_CODES
-    assert codes("VENTILATOR CGHS-C C003 1 100.00 100.00") == []
-    assert review("VENTILATOR CGHS-C C003 1 100.00 100.00") == ["C003"]
+    assert codes("VENTILATOR CGHS-C C003 1 100.00 100.00") == ["CC003"]
+    assert codes("FRESH FROZEN PLASMA CGHS-C C003 1 100.00 100.00") == []
+    assert review("FRESH FROZEN PLASMA CGHS-C C003 1 100.00 100.00") == ["C003"]
 
     # C002 is Oxygen only, and only with the evidence on the same row.
     assert codes("OXYGEN FULL DAY CGHS-C C002") == ["CC002"]
@@ -830,14 +857,18 @@ def test_compound_real_bill_triple_resolves_all_three():
         assert expected in codes, f"{expected} missing from {codes}"
 
 
-def test_compound_incomplete_second_token_is_never_given_an_invented_prefix():
-    """`LB269+270` is incomplete - it must go to review, not become LB270."""
+def test_compound_abbreviated_second_token_carries_the_family():
+    """ROUND 17 (operator-authorised, reverses the round-16 rule).
+
+    `LB269+270` carries the category onto the bare component because "LB" is
+    itself the family and LB270 is in the master registry.  Round 16 parked
+    this at REVIEW; the operator confirmed that the established reading -
+    already applied to the real bill's wrapped `CGHS-L B042+043+044` - is
+    prefix carry, and that it must not depend on how the PDF happened to wrap.
+    """
     pairs = _resolved("CGHS-LB269+270-2025")
     assert ("LB269", "EXECUTABLE") in pairs
-    statuses = [s for c, s in pairs if c != "LB269"]
-    assert statuses, "the incomplete half must still be reported"
-    assert all(s != "EXECUTABLE" for s in statuses), (
-        f"an incomplete token must never resolve to an executable code: {pairs}")
+    assert ("LB270", "EXECUTABLE") in pairs, pairs
 
 
 def test_compound_unknown_half_does_not_execute():
@@ -881,3 +912,88 @@ def test_compound_components_keep_their_source_text_and_position():
         assert occ["source_row_text"] == "CGHS-LB269+LB270-2025"
         assert occ["component_count"] == 2
     assert sorted(o["component_index"] for o in halves) == [0, 1]
+
+
+# =====================================================================
+# ROUND 17 - registry-validated code recovery.
+#
+# These three changes were each AUTHORISED EXPLICITLY by the operator after
+# being shown the evidence, because each reverses a rule locked in an
+# earlier round.  The reversal is only safe because VALID_CODES is now
+# derived EXACTLY from the 1998-record master registry (no CC001..CC100
+# wildcards), which is the hazard the original locks were written against.
+# =====================================================================
+
+def test_valid_codes_carry_no_wildcards_the_precondition_for_this_round():
+    """The whole round rests on this: registry membership is now real."""
+    from cghs.locators import CGHS_CODE_REGISTRY
+    assert VALID_CODES == set(CGHS_CODE_REGISTRY)
+    assert len(VALID_CODES) == 1998
+    assert "CC100" not in VALID_CODES, "a wildcard CC family would make composition unsafe"
+    assert len([c for c in VALID_CODES if c.startswith("CC")]) == 14
+
+
+# --- CC003: ventilator charges, 26 rows on the real bill -------------
+def test_cc003_resolves_with_ventilator_evidence_in_the_same_row():
+    row = ("VENTILATOR CHARGES FULL DAY 3050140 2,700.00 CGHS-C C003-2025 2,700.00")
+    pairs = _resolved(row)
+    assert ("CC003", "EXECUTABLE") in pairs, pairs
+
+
+def test_cc003_still_requires_same_row_evidence():
+    """No ventilator evidence -> still REVIEW.  The blacklist is replaced by
+    an evidence rule, not by blanket acceptance."""
+    row = "SOME UNRELATED SERVICE 1.00 3050140 2,700.00 CGHS-C C003-2025"
+    assert not any(c == "CC003" and s == "EXECUTABLE" for c, s in _resolved(row))
+
+
+def test_c002_oxygen_and_blood_bank_safety_is_untouched_by_the_c003_change():
+    assert ("CC002", "EXECUTABLE") in _resolved("OXYGEN FULL DAY CGHS-C C002-2025")
+    assert not any(c == "CC002" and s == "EXECUTABLE"
+                   for c, s in _resolved("PACKED CELLS BLOOD BANK CGHS-C C002-2025"))
+
+
+# --- NI family: bare numeric after a two-letter family ---------------
+def test_ni001_eeg_resolves_from_the_registry():
+    row = "EEG ROUTINE (4226601 ) 1.00 14835 900.00 CGHS-NI 001-2025 900.00"
+    assert ("NI001", "EXECUTABLE") in _resolved(row), _resolved(row)
+
+
+def test_ni007_resolves_from_the_registry():
+    row = "POLYSOMNOGRAPHY LEVEL I SLEEP STUDY 1.00 14835 8,100.00 CGHS-NI 007-2025"
+    assert ("NI007", "EXECUTABLE") in _resolved(row), _resolved(row)
+
+
+def test_an_unregistered_number_in_a_real_family_still_reviews():
+    """Dynamic composition must never invent a code."""
+    row = "SOMETHING 1.00 14835 900.00 CGHS-NI 999-2025"
+    assert not any(c == "NI999" and s == "EXECUTABLE"
+                   for c, s in _resolved(row))
+
+
+def test_the_other_three_named_codes_resolve():
+    for code, row in (
+        ("NU004", "UROFLOW STUDY UROFLOWMETRY 1.00 16716 900.00 CGHS-NU 004-2025"),
+        ("CI016", "CORONARY ANGIOGRAPHY 1.00 16716 12,060.00 CGHS-CI 016-2025"),
+        ("NU001", "ULTRASOUND GUIDED KIDNEY BIOPSY 1.00 16716 8,280.00 CGHS-NU 001-2025"),
+    ):
+        assert (code, "EXECUTABLE") in _resolved(row), f"{code}: {_resolved(row)}"
+
+
+# --- abbreviated compounds: prefix carried from the category ---------
+def test_abbreviated_compound_two_components_carries_the_family():
+    pairs = _resolved("CGHS-LB269+270-2025")
+    assert ("LB269", "EXECUTABLE") in pairs
+    assert ("LB270", "EXECUTABLE") in pairs, pairs
+
+
+def test_abbreviated_compound_three_components_from_the_directive():
+    pairs = _resolved("CGHS-LB068+076+126-2025")
+    for expected in ("LB068", "LB076", "LB126"):
+        assert (expected, "EXECUTABLE") in pairs, f"{expected} missing: {pairs}"
+
+
+def test_abbreviated_compound_never_invents_an_unregistered_component():
+    pairs = _resolved("CGHS-LB269+998-2025")
+    assert ("LB269", "EXECUTABLE") in pairs
+    assert not any(c == "LB998" and s == "EXECUTABLE" for c, s in pairs)

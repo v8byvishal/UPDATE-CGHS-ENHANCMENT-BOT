@@ -18,6 +18,8 @@ contents, control values) is deliberately NOT cached across a mutation.
 from __future__ import annotations
 
 import os
+import re
+import socket
 import time
 import uuid
 from dataclasses import dataclass
@@ -43,6 +45,67 @@ from .telemetry import EnterpriseLogger, PerfCounters
 from .txstate import DispatchLedger, TransactionJournal
 
 DEFAULT_DEBUGGER_ADDRESS = "127.0.0.1:9222"
+
+#: How long the pre-flight endpoint probe may take.  This is a LOCAL socket on
+#: the operator's own machine, so a healthy endpoint answers in low single-digit
+#: milliseconds; the budget only bounds the failure case.
+_ENDPOINT_PROBE_TIMEOUT = 1.0
+
+
+def probe_debugger_endpoint(address: str = DEFAULT_DEBUGGER_ADDRESS,
+                            timeout: float = _ENDPOINT_PROBE_TIMEOUT):
+    """Is a Chrome DevTools endpoint actually listening on ``address``?
+
+    Returns ``(True, browser_version)`` or ``(False, reason)``.
+
+    WHY THIS EXISTS (round 17).  ``attach`` used to hand a dead address
+    straight to ``webdriver.Chrome()``.  Selenium then resolves a driver
+    binary and runs its own connection and timeout logic before failing with
+    a generic message - and ``attach`` repeated that up to ``attempts``
+    times with backoff.  The operator paid that whole cost, repeatedly, to
+    be told nothing useful.  One local socket round trip answers the only
+    question that matters first, and costs nothing when Chrome IS up.
+    """
+    host, _, port_text = address.rpartition(":")
+    host = host or "127.0.0.1"
+    try:
+        port = int(port_text)
+    except ValueError:
+        return False, f"{address!r} is not a host:port debugging address"
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.sendall(
+                b"GET /json/version HTTP/1.1\r\n"
+                b"Host: " + host.encode("ascii", "ignore") + b"\r\n"
+                b"Connection: close\r\n\r\n")
+            sock.settimeout(timeout)
+            chunks = []
+            while True:
+                try:
+                    chunk = sock.recv(4096)
+                except socket.timeout:
+                    break
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                if len(b"".join(chunks)) > 8192:
+                    break
+    except OSError:
+        return False, (
+            f"nothing is listening on {address} - start Chrome in remote "
+            f"debugging mode on port {port} before running the automation")
+
+    body = b"".join(chunks).decode("utf-8", "replace")
+    match = re.search(r'"Browser"\s*:\s*"([^"]+)"', body)
+    if match:
+        return True, match.group(1)
+    if body:
+        return True, "DevTools endpoint responded (version not reported)"
+    return False, (
+        f"{address} accepted a connection but returned no DevTools response - "
+        f"check that this is Chrome's remote debugging port and not another "
+        f"process holding it")
 
 
 @dataclass
@@ -118,6 +181,21 @@ class PortalSession:
         # at.  These only read the clock around work that already happens -
         # no extra probe, no extra round trip, no added latency.
         attach_t0 = time.monotonic()
+
+        # Pre-flight: answer "is the endpoint even there?" with one local
+        # socket round trip instead of through Selenium's slow failure path.
+        discovery_t0 = time.monotonic()
+        endpoint_ok, endpoint_detail = probe_debugger_endpoint(debugger_address)
+        discovery_ms = (time.monotonic() - discovery_t0) * 1000.0
+        if not endpoint_ok:
+            logger.error(f"[SESSION] endpoint check failed in {discovery_ms:.0f}ms: "
+                         f"{endpoint_detail}")
+            raise WebDriverException(
+                f"Could not attach Chrome Debug at {debugger_address}: "
+                f"{endpoint_detail}")
+        logger.info(f"[SESSION] debugging endpoint alive in {discovery_ms:.0f}ms "
+                    f"({endpoint_detail})")
+
         for attempt in range(1, attempts + 1):
             try:
                 connect_t0 = time.monotonic()

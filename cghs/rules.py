@@ -73,9 +73,16 @@ LOCKED_CATEGORY_COMPOSITION = {
 
 #: Categories that are already a full family prefix and so take a bare numeric
 #: (CGHS-RI + 034 -> RI034, CGHS-CI + 005 -> CI005).
-LOCKED_NUMERIC_CATEGORIES = frozenset({
-    "LB", "RI", "CI", "RP", "GP", "PT", "CN", "CC", "WC", "MG",
-})
+#: ROUND 17: DERIVED from the master registry instead of hand-maintained.  The
+#: previous hand-written subset silently withheld real families - "CGHS-NI
+#: 001" (EEG, 3 rows on bill 39538) and "CGHS-NU 004" could never resolve
+#: because NI/NU were simply missing from the list, not because any rule
+#: rejected them.  Listing a family here only means "this category can carry a
+#: bare numeric"; executability still requires the composed code to be in
+#: VALID_CODES, so a wider list can never make an unregistered code
+#: executable - it can only stop a REAL code from being lost.
+LOCKED_NUMERIC_CATEGORIES = frozenset(
+    CGHS_CODE_FAMILIES | {"WC", "ST", "OT"})
 
 #: Families that may appear as a complete explicit token in the bill.
 #:
@@ -101,11 +108,23 @@ LOCKED_CONTEXT_MAPPINGS = {
     "C011": ("CC011", re.compile(r'CENTRAL\s*LINE'), "Central Line"),
     "C012": ("CC012", re.compile(r'NEBULI[SZ]'), "Nebulizer Therapy"),
     "C014": ("CC014", re.compile(r"RYLE'?S?\s*TUBE"), "Ryles Tube Insertion Charge"),
+    # ROUND 17, operator-authorised.  C003 used to sit in a never-resolve
+    # blacklist whose stated reason was that CC003 is "a code nobody ever
+    # defined".  That reason is now FALSE: the active master registry defines
+    # CC003 = "Ventilator charges (Per day)" @ 2250->2700 (sr_no 1146), and
+    # VALID_CODES is derived exactly from those 1998 records, so the
+    # CC001..CC100 wildcard hazard the blacklist guarded against no longer
+    # exists.  Evidence bill 39538 carries 26 rows reading "VENTILATOR
+    # CHARGES FULL DAY" at exactly the registry rate, wrapped by the PDF as
+    # "CGHS-C" / "C003-20" / "25".  C003 therefore joins the SAME same-row
+    # evidence mechanism as every other C-alias - it is not blanket-accepted.
+    "C003": ("CC003", re.compile(r'VENTILATOR'), "Ventilator charges (Per day)"),
 }
 
-#: C003 has NO approved target.  Both known contexts stay unresolved: inventing
-#: CC003 is explicitly forbidden until a locked source-of-truth rule exists.
-_NEVER_RESOLVED_ALIASES = frozenset({"C003"})
+#: No alias is permanently blacklisted any more.  An alias resolves only
+#: through a locked, evidence-backed rule above, and only when the resulting
+#: code is in the master registry.
+_NEVER_RESOLVED_ALIASES = frozenset()
 
 #: C002 is Oxygen ONLY.  In a Blood Bank / Packed Cells row the same alias
 #: means something else entirely and must not become CC002.
@@ -893,16 +912,16 @@ def resolve_cghs_codes(row_text: str, page: Any = None, section: str = "",
                     f"'{raw_expression}' => {carried}; the compound is "
                     f"unambiguous and {carried} is in the CGHS code registry",
                     None)
-            elif not pref and count > 1 and index > 0:
-                # Section 17: the bill omitted the prefix on a later component
-                # ("CGHS-LB269+270").  The first component is itself bare, so
-                # there is no explicit family to carry: that would be a guess,
-                # and the component is preserved for review instead.
-                final, status, reason, locked_qty = (
-                    None, REVIEW_REQUIRED,
-                    f"{UNRESOLVED_MAPPING}: component '{part}' of "
-                    f"'{raw_expression}' omits its code prefix; prefix carry "
-                    f"is ambiguous and is not performed", None)
+            # Section 17 (ROUND 17, operator-authorised): a later component
+            # that omits its prefix ("CGHS-LB269+270", "CGHS-LB068+076+126")
+            # used to be parked at REVIEW because carrying the prefix was
+            # considered a guess.  It is not a guess when the CATEGORY itself
+            # is the family: "LB" + "270" is the identical operation
+            # _resolve_component already performs for the FIRST component of
+            # the very same expression, and it is still gated on registry
+            # membership.  Falling through keeps ONE resolution path - no
+            # second parser - so an unregistered component (LB998) still
+            # reviews with a precise reason.
             else:
                 final, status, reason, locked_qty = _resolve_component(
                     cat, part, pref, num, upper)

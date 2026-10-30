@@ -1,0 +1,80 @@
+ROUND 17 - CODE RESOLUTION TRACES (generated from the active registry)
+==============================================================================
+
+A. THE FIVE NAMED CODES vs THE ACTIVE MASTER REGISTRY
+
+  NU004
+    registry      : sr_no=1568 rate=900 'Uroflow Study (Uroflowmetry)'
+    speciality    : Nephrology And Urology Investigation
+    source row    : UROFLOW STUDY UROFLOWMETRY 1.00 16716 900.00 CGHS-NU 004-2025...
+    resolution    : EXECUTABLE
+    reason        : Locked composition CGHS-NU + 004 => NU004
+
+  NI007
+    registry      : sr_no=1739 rate=8100 'Polysomnography (PSG) / Level I Sleep study including Room Rent and Titration'
+    speciality    : Neurology Investigation
+    source row    : POLYSOMNOGRAPHY LEVEL I SLEEP STUDY 1.00 14835 8,100.00 CGHS-NI 007-20...
+    resolution    : EXECUTABLE
+    reason        : Locked composition CGHS-NI + 007 => NI007
+
+  CI016
+    registry      : sr_no=1201 rate=12060 'Coronary Angiography'
+    speciality    : Cardiology Investigation
+    source row    : CORONARY ANGIOGRAPHY 1.00 16716 12,060.00 CGHS-CI 016-2025...
+    resolution    : EXECUTABLE
+    reason        : Locked composition CGHS-CI + 016 => CI016
+
+  NU001
+    registry      : sr_no=1565 rate=8280 'Ultrasound guided kidney Biopsy'
+    speciality    : Nephrology And Urology - Biopsy
+    source row    : ULTRASOUND GUIDED KIDNEY BIOPSY 1.00 16716 8,280.00 CGHS-NU 001-2025...
+    resolution    : EXECUTABLE
+    reason        : Locked composition CGHS-NU + 001 => NU001
+
+  CC003
+    registry      : sr_no=1146 rate=2700 'Ventilator charges (Per day) inclusive of associated disposables'
+    speciality    : Critical Care
+    source row    : VENTILATOR CHARGES FULL DAY 3050140 2,700.00 CGHS-C C003-2025 2,700.00...
+    resolution    : EXECUTABLE
+    reason        : C003 + 'Ventilator charges (Per day)' evidence in the same row => CC003
+
+
+B. COMPOUND EXAMPLES
+
+  CGHS-LB269+LB270-2025
+     [0/2] LB269     @360  EXECUTABLE
+     [1/2] LB270     @720  EXECUTABLE
+
+  CGHS-LB067+LB075+LB126-2025
+     [0/3] LB067     @135  EXECUTABLE
+     [1/3] LB075     @270  EXECUTABLE
+     [2/3] LB126     @315  EXECUTABLE
+
+  CGHS-LB269+270-2025
+     [0/2] LB269     @360  EXECUTABLE
+     [1/2] LB270     @720  EXECUTABLE
+
+  CGHS-LB068+076+126-2025
+     [0/3] LB068     @225  EXECUTABLE
+     [1/3] LB076      @72  EXECUTABLE
+     [2/3] LB126     @315  EXECUTABLE
+
+  CGHS-L B042+0 43+044- 2025
+     [0/3] LB042     @270  EXECUTABLE
+     [1/3] LB043     @450  EXECUTABLE
+     [2/3] LB044     @347  EXECUTABLE
+
+  CGHS-LB269+998-2025
+     [0/2] LB269     @360  EXECUTABLE
+     [1/2] None            REVIEW_REQUIRED
+
+
+C. REAL BILL 39538 - RECOVERED CODES
+
+warning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+  CC003 qty=26  'Ventilator charges (Per day) inclusive of associated disposables' @2700
+  NI001 qty=3  'Electroencephalogram (EEG)/ Video EEG' @900
+
+  total occurrences : 371  (was 342 at r16)
+  distinct codes    : 57  (was 55 at r16)
+  rows left to review: 88  (was 117 at r16)
