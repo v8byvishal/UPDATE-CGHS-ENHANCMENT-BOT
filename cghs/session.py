@@ -17,6 +17,7 @@ contents, control values) is deliberately NOT cached across a mutation.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import socket
@@ -44,17 +45,94 @@ from .tabs import (
 from .telemetry import EnterpriseLogger, PerfCounters
 from .txstate import DispatchLedger, TransactionJournal
 
-DEFAULT_DEBUGGER_ADDRESS = "127.0.0.1:9222"
+# ---------------------------------------------------------------------------
+# CHROME ENDPOINT CONFIGURATION - the single source of truth
+#
+# The launcher (START_CGHS_CHROME.cmd) and this module MUST agree on the port,
+# otherwise the operator starts Chrome on one port and the application waits
+# on another.  Both read the same environment variable, and both fall back to
+# the same default.
+# ---------------------------------------------------------------------------
+DEFAULT_DEBUGGER_HOST = "127.0.0.1"
+DEFAULT_DEBUGGER_PORT = 9222
+DEFAULT_DEBUGGER_ADDRESS = f"{DEFAULT_DEBUGGER_HOST}:{DEFAULT_DEBUGGER_PORT}"
+
+#: Environment variable shared with the Chrome launcher.
+CHROME_PORT_ENV = "CGHS_CHROME_PORT"
+
+#: Only the operator's own machine may be addressed.  Attaching to a remote
+#: host would mean driving someone else's browser over the network.
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 #: How long the pre-flight endpoint probe may take.  This is a LOCAL socket on
 #: the operator's own machine, so a healthy endpoint answers in low single-digit
 #: milliseconds; the budget only bounds the failure case.
 _ENDPOINT_PROBE_TIMEOUT = 1.0
 
+#: The honest connection ladder.  Each rung is a DIFFERENT fact.  A verified
+#: debugging endpoint says nothing about whether Selenium attached, whether the
+#: portal tab exists, or whether a patient's Treatment Plan is open - so the UI
+#: must never collapse these into one "connected" claim.
+CONNECTION_STAGES = (
+    "CHROME PROCESS AVAILABLE",
+    "CDP ENDPOINT VERIFIED",
+    "SELENIUM ATTACHED",
+    "PORTAL TAB FOUND",
+    "PATIENT VERIFIED",
+    "TREATMENT PLAN READY",
+)
 
-def probe_debugger_endpoint(address: str = DEFAULT_DEBUGGER_ADDRESS,
+
+def resolve_debugger_port(env: Optional[Dict[str, str]] = None) -> int:
+    """The debugging port, from the shared setting or the default.
+
+    Raises ``ValueError`` on anything that is not a usable TCP port, rather
+    than silently falling back - a typo must not send the application to a
+    different port than the launcher used.
+    """
+    source = os.environ if env is None else env
+    raw = (source.get(CHROME_PORT_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_DEBUGGER_PORT
+    try:
+        port = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"{CHROME_PORT_ENV}={raw!r} is not a whole number; "
+            f"expected a TCP port between 1 and 65535")
+    if not 1 <= port <= 65535:
+        raise ValueError(
+            f"{CHROME_PORT_ENV}={raw!r} is outside the valid TCP port "
+            f"range 1-65535")
+    return port
+
+
+def resolve_debugger_address(env: Optional[Dict[str, str]] = None) -> str:
+    """The full ``host:port`` the application will attach to."""
+    return f"{DEFAULT_DEBUGGER_HOST}:{resolve_debugger_port(env)}"
+
+
+def validate_debugger_address(address: str) -> Tuple[str, int]:
+    """Split and validate a debugging address, loopback only."""
+    host, _, port_text = str(address).rpartition(":")
+    host = (host or DEFAULT_DEBUGGER_HOST).strip().strip("[]").lower()
+    try:
+        port = int(port_text)
+    except (TypeError, ValueError):
+        raise ValueError(f"{address!r} is not a host:port debugging address")
+    if not 1 <= port <= 65535:
+        raise ValueError(
+            f"{address!r} has a port outside the valid range 1-65535")
+    if host not in _LOOPBACK_HOSTS:
+        raise ValueError(
+            f"{address!r} is not a loopback address - this application only "
+            f"attaches to a browser on the operator's own machine")
+    return host, port
+
+
+def probe_debugger_endpoint(address: Optional[str] = None,
                             timeout: float = _ENDPOINT_PROBE_TIMEOUT):
-    """Is a Chrome DevTools endpoint actually listening on ``address``?
+    """Is a real Chrome DevTools endpoint actually usable at ``address``?
 
     Returns ``(True, browser_version)`` or ``(False, reason)``.
 
@@ -62,63 +140,119 @@ def probe_debugger_endpoint(address: str = DEFAULT_DEBUGGER_ADDRESS,
     straight to ``webdriver.Chrome()``.  Selenium then resolves a driver
     binary and runs its own connection and timeout logic before failing with
     a generic message - and ``attach`` repeated that up to ``attempts``
-    times with backoff.  The operator paid that whole cost, repeatedly, to
-    be told nothing useful.  One local socket round trip answers the only
+    times with backoff.  One local socket round trip answers the only
     question that matters first, and costs nothing when Chrome IS up.
-    """
-    host, _, port_text = address.rpartition(":")
-    host = host or "127.0.0.1"
-    try:
-        port = int(port_text)
-    except ValueError:
-        return False, f"{address!r} is not a host:port debugging address"
 
+    STRICT VALIDATION (round 18 corrective).  The first version scanned the
+    raw response for a ``"Browser"`` substring, so an HTTP 500 error page or
+    a truncated body that happened to contain that word was accepted.  Every
+    layer is now checked in order: loopback host, valid port, successful HTTP
+    status, complete body, parsable JSON object, Chrome/Chromium identity,
+    and DevTools WebSocket metadata.  Each failure names the actual problem,
+    because "could not connect" sends the operator looking in the wrong
+    place.
+    """
+    if address is None:
+        address = resolve_debugger_address()
+    try:
+        host, port = validate_debugger_address(address)
+    except ValueError as exc:
+        return False, str(exc)
+
+    deadline = time.monotonic() + max(0.1, float(timeout))
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
             sock.sendall(
                 b"GET /json/version HTTP/1.1\r\n"
                 b"Host: " + host.encode("ascii", "ignore") + b"\r\n"
+                b"Accept: application/json\r\n"
                 b"Connection: close\r\n\r\n")
-            sock.settimeout(timeout)
             chunks = []
+            total = 0
             while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                sock.settimeout(remaining)
                 try:
-                    chunk = sock.recv(4096)
+                    chunk = sock.recv(8192)
                 except socket.timeout:
                     break
                 if not chunk:
                     break
                 chunks.append(chunk)
-                if len(b"".join(chunks)) > 8192:
+                total += len(chunk)
+                if total > 262144:          # a /json/version reply is tiny
                     break
     except OSError:
         return False, (
             f"nothing is listening on {address} - start Chrome in remote "
             f"debugging mode on port {port} before running the automation")
 
-    body = b"".join(chunks).decode("utf-8", "replace")
-    if not body:
+    raw = b"".join(chunks)
+    if not raw:
         return False, (
             f"{address} accepted a connection but returned nothing - "
             f"check that this is Chrome's remote debugging port and not "
             f"another process holding it")
 
-    # Only a real DevTools endpoint may be accepted.  Anything can listen on
-    # 9222; reporting an arbitrary HTTP service as "Chrome" would send the
-    # operator chasing the wrong problem, and would let attach() burn its
-    # whole retry budget against a service that can never answer CDP.
-    match = re.search(r'"Browser"\s*:\s*"([^"]+)"', body)
-    if not match:
+    # ---- HTTP status ----------------------------------------------------
+    head, sep, body_bytes = raw.partition(b"\r\n\r\n")
+    if not sep:
+        return False, (
+            f"{address} returned a truncated HTTP response with no complete "
+            f"header section")
+    header_text = head.decode("latin-1", "replace")
+    status_line = header_text.split("\r\n", 1)[0]
+    status_match = re.match(r"HTTP/\d(?:\.\d)?\s+(\d{3})", status_line)
+    if not status_match:
+        return False, (
+            f"{address} did not answer with HTTP - it is not a DevTools "
+            f"endpoint ({status_line.strip()!r})")
+    status = int(status_match.group(1))
+    if not 200 <= status < 300:
+        return False, (
+            f"{address} answered /json/version with HTTP status {status} - "
+            f"the endpoint is not healthy")
+
+    # ---- completeness ---------------------------------------------------
+    declared = re.search(r"(?im)^Content-Length:\s*(\d+)\s*$", header_text)
+    if declared and len(body_bytes) < int(declared.group(1)):
+        return False, (
+            f"{address} returned a truncated body "
+            f"({len(body_bytes)} of {declared.group(1)} bytes) - the "
+            f"response is incomplete")
+
+    # ---- JSON -----------------------------------------------------------
+    try:
+        payload = json.loads(body_bytes.decode("utf-8", "replace"))
+    except ValueError as exc:
+        return False, (
+            f"{address} did not return valid JSON from /json/version "
+            f"({exc}) - another process is holding the port")
+    if not isinstance(payload, dict):
+        return False, (
+            f"{address} returned JSON that is not a DevTools version object")
+
+    # ---- Chrome identity -------------------------------------------------
+    browser = str(payload.get("Browser") or "").strip()
+    if not browser:
         return False, (
             f"{address} answered, but not as a Chrome DevTools endpoint "
-            f"(no \"Browser\" field in /json/version) - another process is "
+            f"(no Browser field in /json/version) - another process is "
             f"holding the port")
-
-    browser = match.group(1).strip()
-    if not re.match(r'(?i)\s*(chrome|chromium|headlesschrome|edg)', browser):
+    if not re.match(r"(?i)\s*(chrome|chromium|headlesschrome|edg)", browser):
         return False, (
             f"{address} is a DevTools endpoint but reports {browser!r}, "
             f"which is not Chrome/Chromium")
+
+    # ---- DevTools metadata ----------------------------------------------
+    socket_url = str(payload.get("webSocketDebuggerUrl") or "").strip()
+    if not socket_url.startswith(("ws://", "wss://")):
+        return False, (
+            f"{address} reports {browser!r} but exposes no DevTools "
+            f"WebSocket URL - the endpoint cannot accept a CDP session")
+
     return True, browser
 
 
@@ -203,7 +337,7 @@ class PortalSession:
     # ---- lifecycle ----------------------------------------------------
     @classmethod
     def attach(cls, logger: EnterpriseLogger,
-               debugger_address: str = DEFAULT_DEBUGGER_ADDRESS,
+               debugger_address: Optional[str] = None,
                attempts: int = 3, backoff: float = 0.6, **kwargs) -> "PortalSession":
         """Attach ONCE to the operator's already-authenticated Chrome.
 
@@ -215,6 +349,11 @@ class PortalSession:
         from selenium.webdriver.chrome.options import Options
 
         options = Options()
+        if debugger_address is None:
+            # One configuration source, shared with the Chrome launcher, so
+            # the operator cannot start Chrome on one port while the
+            # application waits on another.
+            debugger_address = resolve_debugger_address()
         options.add_experimental_option("debuggerAddress", debugger_address)
         last_error: Optional[Exception] = None
         # Stage timings, so a slow start can be ATTRIBUTED instead of guessed
@@ -242,20 +381,23 @@ class PortalSession:
                 driver = webdriver.Chrome(options=options)
                 connect_ms = (time.monotonic() - connect_t0) * 1000.0
                 logger.info(f"[SESSION] CDP attached on {debugger_address} (attempt {attempt})")
-                validate_t0 = time.monotonic()
+                wrapper_t0 = time.monotonic()
                 session = cls(driver, logger, **kwargs)
-                validate_ms = (time.monotonic() - validate_t0) * 1000.0
+                # Honest label: this times Python wrapper construction only.
+                # Nothing about the portal has been validated at this point -
+                # no tab discovery, no patient check, no Treatment Plan.
+                wrapper_ms = (time.monotonic() - wrapper_t0) * 1000.0
                 # time spent locating a WORKING endpoint = everything before
                 # the connect that finally succeeded (failed attempts+backoff)
                 session.counters.endpoint_discovery_ms = max(
                     0.0, (connect_t0 - attach_t0) * 1000.0)
                 session.counters.cdp_connect_ms = connect_ms
-                session.counters.session_validate_ms = validate_ms
+                session.counters.session_validate_ms = wrapper_ms
                 logger.info(
                     f"[SESSION-TIMING] endpoint_discovery="
                     f"{session.counters.endpoint_discovery_ms:.0f}ms "
                     f"cdp_connect={connect_ms:.0f}ms "
-                    f"session_validate={validate_ms:.0f}ms "
+                    f"wrapper_init={wrapper_ms:.0f}ms "
                     f"(attempt {attempt}/{attempts})")
                 return session
             except Exception as exc:                        # noqa: BLE001

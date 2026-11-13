@@ -33,7 +33,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QLabel, QTableWidget, QTableWidgetItem, QHeaderView,
     QHBoxLayout, QMessageBox, QComboBox
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve, QPoint
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve, QPoint, QMutex
 from PyQt5.QtGui import QFont, QColor
 
 import ui_theme  # UI THEME (presentation only)
@@ -229,39 +229,93 @@ class ChromeStatusProbe(QThread):
     The console used to flip this label to ONLINE 800ms after layout without
     checking anything at all.  This asks the debugging endpoint instead.
 
-    Deliberately OUTSIDE the enhancement hot path: polling is paused for the
-    whole duration of a batch (``set_batch_running``), so it can never add a
-    Selenium call, a DOM round trip or a heartbeat to per-item processing.
+    LIFECYCLE (round 18 corrective).  The thread is PAUSED during a batch and
+    RESUMED afterwards; it is stopped exactly once, at application shutdown.
+    An earlier version stopped the thread when the operator pressed STOP
+    AUTOMATION, which permanently killed Chrome monitoring for the rest of
+    the session - a stopped QThread cannot be restarted by clearing a flag.
+
+    Pausing (not stopping) also keeps this strictly OUTSIDE the enhancement
+    hot path: while a batch runs the probe issues no socket call at all, so
+    it can never add a Selenium call, a DOM round trip or a per-item
+    heartbeat.
+
+    ``_mutex`` guards the two flags, which are written from the UI thread and
+    read from this worker thread.
     """
 
-    status_signal = pyqtSignal(str, str)   # state, detail
+    status_signal = pyqtSignal(str, str)   # stage, detail
 
     POLL_SECONDS = 5.0
+    _TICK_MS = 100
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._mutex = QMutex()
         self._stop = False
-        self._batch_running = False
+        self._paused = False
 
-    def set_batch_running(self, running):
-        self._batch_running = bool(running)
+    # -- state, all mutex-guarded ----------------------------------------
+    def pause(self):
+        """Suspend polling for the duration of a batch."""
+        self._mutex.lock()
+        try:
+            self._paused = True
+        finally:
+            self._mutex.unlock()
+
+    def resume(self):
+        """Resume polling once the batch has finished or been cancelled."""
+        self._mutex.lock()
+        try:
+            self._paused = False
+        finally:
+            self._mutex.unlock()
 
     def stop(self):
-        self._stop = True
+        """Ask the thread to finish.  Only at application shutdown."""
+        self._mutex.lock()
+        try:
+            self._stop = True
+        finally:
+            self._mutex.unlock()
 
+    def set_batch_running(self, running):
+        """Backwards-compatible alias for pause/resume."""
+        self.pause() if running else self.resume()
+
+    def is_stopping(self):
+        self._mutex.lock()
+        try:
+            return self._stop
+        finally:
+            self._mutex.unlock()
+
+    def _should_poll(self):
+        self._mutex.lock()
+        try:
+            return not self._stop and not self._paused
+        finally:
+            self._mutex.unlock()
+
+    # -- worker ------------------------------------------------------------
     def run(self):
-        while not self._stop:
-            if not self._batch_running:
+        while not self.is_stopping():
+            if self._should_poll():
                 try:
                     ok, detail = probe_debugger_endpoint()
+                    # An answering endpoint proves ONE thing: CDP is
+                    # reachable.  It does NOT mean Selenium is attached, the
+                    # portal tab exists, or a Treatment Plan is open.
                     self.status_signal.emit(
-                        "CONNECTED" if ok else "NOT STARTED", detail)
+                        "CDP ENDPOINT VERIFIED" if ok else "NOT STARTED",
+                        detail)
                 except Exception as exc:                    # noqa: BLE001
                     self.status_signal.emit("CHECK FAILED", str(exc))
             waited = 0.0
-            while waited < self.POLL_SECONDS and not self._stop:
-                self.msleep(100)
-                waited += 0.1
+            while waited < self.POLL_SECONDS and not self.is_stopping():
+                self.msleep(self._TICK_MS)
+                waited += self._TICK_MS / 1000.0
 
 
 class DropZone(QFrame):
@@ -524,6 +578,10 @@ class CounterCard(QFrame):
             self.timer.stop()
 
 class BatchCGHSApp(QWidget):
+    #: How long to wait for an owned thread to finish before
+    #: reporting it is still busy.  Never a forced kill.
+    SHUTDOWN_WAIT_MS = 15000
+
     def __init__(self):
         super().__init__()
         self.batch_queue = []
@@ -615,7 +673,7 @@ class BatchCGHSApp(QWidget):
         left_panel.setObjectName("leftPanel")
         left_panel.setStyleSheet("""
             QFrame#leftPanel {
-                background: rgba(10, 12, 18, 0.88);
+                background: #FFFFFF;
                 border: 1px solid #C2CCD4;
                 border-radius: 14px;
             }
@@ -681,12 +739,12 @@ class BatchCGHSApp(QWidget):
         self.file_cards_container.setLayout(self.file_cards_layout)
         self.file_cards_scroll.setWidget(self.file_cards_container)
         uploaded_title = QLabel("UPLOADED BILLS")
-        uploaded_title.setStyleSheet(ui_theme.section_header(ui_theme.NEON_CYAN))
+        uploaded_title.setStyleSheet(ui_theme.section_header(ui_theme.BRAND))
         left_layout.addWidget(uploaded_title)
         left_layout.addWidget(self.file_cards_scroll)
 
         counters_title = QLabel("LIVE COUNTERS")
-        counters_title.setStyleSheet(ui_theme.section_header(ui_theme.NEON_PURPLE))
+        counters_title.setStyleSheet(ui_theme.section_header(ui_theme.BRAND))
         left_layout.addWidget(counters_title)
 
         counters_grid = QGridLayout()
@@ -794,7 +852,7 @@ class BatchCGHSApp(QWidget):
         right_panel.setObjectName("rightPanel")
         right_panel.setStyleSheet("""
             QFrame#rightPanel {
-                background: rgba(10, 12, 18, 0.70);
+                background: #F4F7F9;
                 border: 1px solid #C2CCD4;
                 border-radius: 14px;
             }
@@ -804,7 +862,7 @@ class BatchCGHSApp(QWidget):
         right_layout.setSpacing(12)
 
         bills_header = QLabel("PATIENT QUEUE")
-        bills_header.setStyleSheet(ui_theme.section_header(ui_theme.NEON_CYAN))
+        bills_header.setStyleSheet(ui_theme.section_header(ui_theme.BRAND))
         right_layout.addWidget(bills_header)
 
         self.queue_table = QTableWidget()
@@ -838,7 +896,7 @@ class BatchCGHSApp(QWidget):
                 border-bottom: 1px solid #F4F7F9;
             }
             QTableWidget::item:selected {
-                background: rgba(0, 229, 255, 0.14);
+                background: #FCF2D6;
                 color: #1C2126;
             }
         """)
@@ -847,7 +905,7 @@ class BatchCGHSApp(QWidget):
 
         results_header = QHBoxLayout()
         results_title = QLabel("EXTRACTED CODES")
-        results_title.setStyleSheet(ui_theme.section_header(ui_theme.NEON_CYAN))
+        results_title.setStyleSheet(ui_theme.section_header(ui_theme.BRAND))
         results_header.addWidget(results_title)
         results_header.addStretch()
         self.results_count_label = QLabel("0 CODES")
@@ -890,7 +948,7 @@ class BatchCGHSApp(QWidget):
 
         log_header = QHBoxLayout()
         log_title = QLabel("EXECUTION LOG")
-        log_title.setStyleSheet(ui_theme.section_header(ui_theme.NEON_GREEN))
+        log_title.setStyleSheet(ui_theme.section_header(ui_theme.STATUS_OK))
         log_header.addWidget(log_title)
         log_header.addStretch()
         self.log_status = QLabel("READY")
@@ -1204,6 +1262,8 @@ class BatchCGHSApp(QWidget):
         return final_items, patient_name
 
     def start_batch(self):
+        if getattr(self, '_shutting_down', False):
+            return
         self.log_box.clear()
         self.log(f"[{time.strftime('%H:%M:%S')}] [NEW EXECUTION] Starting batch - log reset - NEW SESSION INITIALIZED")
         self.start_btn.setEnabled(False)
@@ -1221,7 +1281,7 @@ class BatchCGHSApp(QWidget):
         self.thread.finished_signal.connect(self.batch_finished)
         self.thread.performance_signal.connect(self.show_performance_summary)
         if getattr(self, 'chrome_probe', None):
-            self.chrome_probe.set_batch_running(True)
+            self.chrome_probe.pause()
         self.thread.start()
         self.log(f"[{time.strftime('%H:%M:%S')}] [BATCH START] {len(self.batch_queue)} patient(s) queued - starting")
 
@@ -1244,9 +1304,6 @@ class BatchCGHSApp(QWidget):
 
     def stop_batch(self):
         self.log(f"[{time.strftime('%H:%M:%S')}] [STOP REQUESTED] User requested graceful stop - finishing current Selenium action, preventing next procedure")
-        if getattr(self, 'chrome_probe', None):
-            self.chrome_probe.stop()
-            self.chrome_probe.wait(2000)
         if self.thread and self.thread.isRunning():
             self.log(f"[{time.strftime('%H:%M:%S')}] [STOP] Requesting cancellation via existing safe hook thread.stop() - current action will finish safely")
             self.thread.stop()
@@ -1313,8 +1370,10 @@ class BatchCGHSApp(QWidget):
         self.counter_cards["QTY"].set_value(total_qty)
 
     def batch_finished(self, success: bool, msg: str):
+        # Resume Chrome monitoring - whether the batch completed or was
+        # cancelled, the probe must come back to life.
         if getattr(self, 'chrome_probe', None):
-            self.chrome_probe.set_batch_running(False)
+            self.chrome_probe.resume()
         self.start_btn.setEnabled(True)
         self.upload_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
@@ -1330,25 +1389,57 @@ class BatchCGHSApp(QWidget):
         self.update_counters()
         QMessageBox.information(self, "Batch Status", msg)
 
-    def update_chrome_status(self, state, detail):
-        """Render the REAL connection state reported by the probe thread."""
-        colours = {
-            "CONNECTED": ui_theme.STATUS_OK,
-            "NOT STARTED": ui_theme.STATUS_WARN,
-            "CHECK FAILED": ui_theme.STATUS_ERROR,
-        }
-        colour = colours.get(state, ui_theme.TEXT_SECONDARY)
-        marker = "\u25cf " if state == "CONNECTED" else ""
-        self.chrome_status_label.setText("CHROME/CDP: " + marker + state)
+    def update_chrome_status(self, stage, detail):
+        """Render the REAL stage reported by the probe thread.
+
+        The probe can only establish the first two rungs of the connection
+        ladder.  It must never imply Selenium is attached or the portal is
+        ready - those are proven later, by the batch worker.
+        """
+        colour = ui_theme.status_colour(stage)
+        marker = "\u25cf " if stage == "CDP ENDPOINT VERIFIED" else ""
+        self.chrome_status_label.setText("CHROME/CDP: " + marker + stage)
         self.chrome_status_label.setStyleSheet(
             "font-size: 10px; color: " + colour +
             "; background: transparent; border: none;")
         self.chrome_status_label.setToolTip(detail)
 
     def closeEvent(self, event):
+        """Shut down every thread this window owns, in a safe order.
+
+        Nothing is force-terminated: QThread.terminate() can kill a worker in
+        the middle of a Selenium call or a portal transaction.  The worker is
+        asked to cancel, then joined; the driver service is stopped by
+        PortalSession.close(); finally the status probe is stopped and
+        joined.  Only then is the close accepted, so no QThread is ever
+        destroyed while still running.
+        """
+        self._shutting_down = True
+
+        # 1. the enhancement worker - graceful cancellation, generous join
         if self.thread and self.thread.isRunning():
-            self.thread.stop()
-            self.thread.wait(3000)
+            self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] Waiting for the current action to finish safely")
+            try:
+                self.thread.stop()
+            except Exception:                               # noqa: BLE001
+                pass
+            if not self.thread.wait(self.SHUTDOWN_WAIT_MS):
+                # Do NOT terminate(): a half-finished portal mutation is far
+                # worse than a slow exit.  Keep the window open and let the
+                # operator decide.
+                self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] Worker still busy - close again to retry; the automation is NOT being killed")
+                self._shutting_down = False
+                event.ignore()
+                return
+
+        # 2. the Chrome status probe - stopped exactly once, here
+        probe = getattr(self, 'chrome_probe', None)
+        if probe is not None:
+            probe.stop()
+            if not probe.wait(self.SHUTDOWN_WAIT_MS):
+                self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] Chrome monitor did not stop in time")
+            self.chrome_probe = None
+
         event.accept()
 
 

@@ -79,6 +79,16 @@ STATUS_INFO_WASH = "#E4EDF5"
 ACCENT_WASH = "#FCF2D6"         #: marigold at low intensity
 
 # ---------------------------------------------------------------------------
+# semantic tokens - what widgets should reference
+# ---------------------------------------------------------------------------
+BRAND = DEEP_AUBERGINE          #: brand/identity accents, section headers
+ACCENT = MARIGOLD               #: selection, focus, emphasis
+SURFACE_PANEL = SURFACE         #: a plain card/panel face
+SURFACE_OVERLAY = SURFACE_RAISED  #: an overlay sitting above a panel
+HIGHLIGHT_WASH = ACCENT_WASH    #: marigold at low intensity
+
+
+# ---------------------------------------------------------------------------
 # legacy aliases - kept so existing widget code keeps working unchanged
 # ---------------------------------------------------------------------------
 NEON_CYAN = DEEP_AUBERGINE
@@ -171,6 +181,10 @@ def status_colour(state):
     if state in ("CONNECTION LOST", "CHECK FAILED", "FAILED", "ERROR",
                  "CONNECTION_FAILED"):
         return STATUS_ERROR
+    if state in ("CDP ENDPOINT VERIFIED", "CHROME PROCESS AVAILABLE",
+                 "SELENIUM ATTACHED", "PORTAL TAB FOUND", "PATIENT VERIFIED"):
+        # Real, proven progress - but NOT yet "everything is ready".
+        return STATUS_INFO
     if state in ("NOT STARTED", "STARTING", "CHECKING CONNECTION",
                  "CONNECTION SLOW", "RECONNECTING", "PORTAL TAB NOT FOUND",
                  "PATIENT VERIFICATION REQUIRED", "OPERATOR ACTION REQUIRED",

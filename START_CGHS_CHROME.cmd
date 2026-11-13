@@ -20,8 +20,35 @@ REM  NOT automate any login, password, OTP, CAPTCHA or MFA.  The operator
 REM  signs in to the portal manually in the window this opens.
 REM ===================================================================
 
+REM ---- PORT CONFIGURATION (shared with the Python application) -------
+REM  Resolution order, IDENTICAL to cghs/session.py:
+REM     1. the first command-line argument (this launcher only)
+REM     2. the CGHS_CHROME_PORT environment variable
+REM     3. the default, 9222
+REM  If you pass a port as an argument, this script also exports
+REM  CGHS_CHROME_PORT for you, so the application attaches to the same port.
+
 set "DEBUG_PORT=9222"
-if not "%~1"=="" set "DEBUG_PORT=%~1"
+if not "%CGHS_CHROME_PORT%"=="" set "DEBUG_PORT=%CGHS_CHROME_PORT%"
+set "PORT_FROM_ARG="
+if not "%~1"=="" (
+    set "DEBUG_PORT=%~1"
+    set "PORT_FROM_ARG=1"
+)
+
+REM ---- validate the port is a number in 1..65535 ----------------------
+echo %DEBUG_PORT%| findstr /r "^[1-9][0-9]*$" >nul
+if errorlevel 1 (
+    echo  [ERROR] Port "%DEBUG_PORT%" is not a whole number.
+    echo          Give a TCP port between 1 and 65535.
+    pause
+    exit /b 3
+)
+if %DEBUG_PORT% GTR 65535 (
+    echo  [ERROR] Port %DEBUG_PORT% is above the maximum TCP port 65535.
+    pause
+    exit /b 3
+)
 
 set "PROFILE_DIR=%LOCALAPPDATA%\CGHS-Enhancement-Bot\ChromeProfile"
 
@@ -110,16 +137,30 @@ start "" "%CHROME_EXE%" ^
     --no-first-run ^
     --no-default-browser-check
 
-REM ---- 4. confirm the port actually came up --------------------------
-echo  [..]    Waiting for the debugging endpoint to answer...
+REM ---- 4. VALIDATE the endpoint - not just a TCP connect --------------
+REM  A successful TCP connect proves only that SOMETHING holds the port.
+REM  Chrome is only READY when /json/version returns HTTP 200, valid JSON,
+REM  a Chrome/Chromium browser identity AND DevTools WebSocket metadata.
 
-set "ENDPOINT_UP="
-for /l %%I in (1,1,20) do (
-    if not defined ENDPOINT_UP (
+echo  [..]    Validating the DevTools endpoint...
+
+set "DEVTOOLS_OK="
+for /l %%I in (1,1,25) do (
+    if not defined DEVTOOLS_OK (
         powershell -NoProfile -Command ^
-          "try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', %DEBUG_PORT%); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
+          "$ErrorActionPreference='Stop';" ^
+          "try {" ^
+          "  $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 -Uri 'http://127.0.0.1:%DEBUG_PORT%/json/version';" ^
+          "  if ($r.StatusCode -ne 200) { exit 1 };" ^
+          "  $j = $r.Content | ConvertFrom-Json;" ^
+          "  if (-not $j.Browser) { exit 1 };" ^
+          "  if ($j.Browser -notmatch '^(?i)(chrome|chromium|headlesschrome|edg)') { exit 1 };" ^
+          "  if (-not $j.webSocketDebuggerUrl) { exit 1 };" ^
+          "  if ($j.webSocketDebuggerUrl -notmatch '^wss?://') { exit 1 };" ^
+          "  exit 0" ^
+          "} catch { exit 1 }" >nul 2>&1
         if !ERRORLEVEL!==0 (
-            set "ENDPOINT_UP=1"
+            set "DEVTOOLS_OK=1"
         ) else (
             powershell -NoProfile -Command "Start-Sleep -Milliseconds 400" >nul 2>&1
         )
@@ -127,35 +168,59 @@ for /l %%I in (1,1,20) do (
 )
 
 echo.
-if defined ENDPOINT_UP (
+if not defined DEVTOOLS_OK (
     echo  ================================================================
-    echo   [READY] Chrome is listening on 127.0.0.1:%DEBUG_PORT%
+    echo   CONNECTION FAILED
     echo  ================================================================
     echo.
-    powershell -NoProfile -Command ^
-      "try { $r = Invoke-RestMethod -TimeoutSec 3 -Uri 'http://127.0.0.1:%DEBUG_PORT%/json/version'; Write-Host ('   Browser : ' + $r.Browser) } catch { }"
+    echo   Port %DEBUG_PORT% did not pass DevTools validation. Chrome is NOT
+    echo   ready, and the automation will not be able to attach.
     echo.
-    echo   NEXT STEPS
-    echo     1. Sign in to the CGHS / NHA portal in the window that opened.
-    echo     2. Open the patient's Treatment Plan page.
-    echo     3. Start the CGHS Automation Console and run the batch.
-    echo.
-    echo   This profile is remembered, so you will not have to sign in
-    echo   every time. Your normal Chrome profile is untouched.
-) else (
-    echo  [ERROR] Chrome was started but the debugging endpoint on port
-    echo          %DEBUG_PORT% never answered.
+    echo   Checked: TCP reachable, HTTP 200, valid JSON, Chrome identity,
+    echo            and a DevTools WebSocket URL.
     echo.
     echo   Most likely causes:
     echo     - Chrome was already running on your NORMAL profile. Chrome 136+
     echo       will not open a debugging port in that case. Close ALL Chrome
     echo       windows and run this launcher again.
-    echo     - Port %DEBUG_PORT% is blocked by security software.
-    echo     - Another program is using the port.
+    echo     - Another program is occupying port %DEBUG_PORT%.
+    echo     - Security software is blocking the port.
     echo.
-    echo   You can try a different port:  START_CGHS_CHROME.cmd 9333
+    echo   To use a different port, run:   START_CGHS_CHROME.cmd 9333
+    echo   and make the application match: setx CGHS_CHROME_PORT 9333
+    echo.
+    pause
+    exit /b 1
 )
 
+echo  ================================================================
+echo   CHROME DEVTOOLS READY
+echo  ================================================================
+echo.
+powershell -NoProfile -Command ^
+  "try { $r = Invoke-RestMethod -TimeoutSec 3 -Uri 'http://127.0.0.1:%DEBUG_PORT%/json/version'; Write-Host ('   Browser  : ' + $r.Browser); Write-Host ('   Protocol : ' + $r.'Protocol-Version') } catch { }"
+echo    Endpoint : 127.0.0.1:%DEBUG_PORT%
+echo.
+
+REM ---- keep the application in step with a custom port -----------------
+if defined PORT_FROM_ARG (
+    if not "%DEBUG_PORT%"=="9222" (
+        setx CGHS_CHROME_PORT %DEBUG_PORT% >nul 2>&1
+        echo   [SYNC] CGHS_CHROME_PORT has been set to %DEBUG_PORT% so the
+        echo          application attaches to this same port. Restart the
+        echo          application if it is already open.
+        echo.
+    )
+)
+
+echo   NEXT STEPS
+echo     1. Sign in to the CGHS / NHA portal in the window that opened.
+echo     2. Open the patient's Treatment Plan page.
+echo     3. Start the CGHS Automation Console and run the batch.
+echo.
+echo   This profile is remembered, so you will not have to sign in
+echo   every time. Your normal Chrome profile is untouched.
 echo.
 pause
 endlocal
+exit /b 0
