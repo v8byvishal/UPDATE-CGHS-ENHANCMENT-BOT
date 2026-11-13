@@ -813,8 +813,12 @@ class BatchRunner:
 # ---------------------------------------------------------------------------
 
 def execute_item(item: Dict[str, Any], logger: Optional[EnterpriseLogger] = None,
-                 debugger_address: str = "127.0.0.1:9222") -> ItemResult:
+                 debugger_address: Optional[str] = None) -> ItemResult:
     """Single-item, attach-per-call execution.
+
+    ``debugger_address`` defaults to None so the shared Chrome endpoint
+    configuration is used; a hardcoded port here would override the port the
+    launcher actually started Chrome on.
 
     EXPLICIT COMPATIBILITY / TEST FALLBACK ONLY.  Production batches must use
     :class:`BatchRunner`, which attaches once and reuses the verified session;

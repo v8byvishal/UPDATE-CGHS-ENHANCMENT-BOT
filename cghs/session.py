@@ -24,6 +24,7 @@ import socket
 import time
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from selenium.common.exceptions import WebDriverException
@@ -60,6 +61,15 @@ DEFAULT_DEBUGGER_ADDRESS = f"{DEFAULT_DEBUGGER_HOST}:{DEFAULT_DEBUGGER_PORT}"
 #: Environment variable shared with the Chrome launcher.
 CHROME_PORT_ENV = "CGHS_CHROME_PORT"
 
+#: Overrides the location of the shared configuration file (tests, and
+#: unusual installations).
+CHROME_CONFIG_ENV = "CGHS_CHROME_CONFIG"
+
+#: Folder shared with the Chrome launcher: it holds the dedicated automation
+#: profile and the shared endpoint configuration.
+_CONFIG_DIR_NAME = "CGHS-Enhancement-Bot"
+_CONFIG_FILE_NAME = "chrome_config.json"
+
 #: Only the operator's own machine may be addressed.  Attaching to a remote
 #: host would mean driving someone else's browser over the network.
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -83,33 +93,119 @@ CONNECTION_STAGES = (
 )
 
 
-def resolve_debugger_port(env: Optional[Dict[str, str]] = None) -> int:
-    """The debugging port, from the shared setting or the default.
+def chrome_config_path() -> Path:
+    """Where the launcher and the application agree on the endpoint.
 
-    Raises ``ValueError`` on anything that is not a usable TCP port, rather
-    than silently falling back - a typo must not send the application to a
-    different port than the launcher used.
+    Windows:  %LOCALAPPDATA%\\CGHS-Enhancement-Bot\\chrome_config.json
+    Other:    ~/.local/share/CGHS-Enhancement-Bot/chrome_config.json
+
+    An environment variable cannot carry this setting on its own: ``setx``
+    writes the user profile but does NOT update any shell that is already
+    open, so a launcher that only exported a variable would leave the
+    already-running application on the old port.  A file is read fresh on
+    every attach, so both sides always agree.
     """
-    source = os.environ if env is None else env
-    raw = (source.get(CHROME_PORT_ENV) or "").strip()
-    if not raw:
-        return DEFAULT_DEBUGGER_PORT
+    override = (os.environ.get(CHROME_CONFIG_ENV) or "").strip()
+    if override:
+        return Path(override)
+    base = os.environ.get("LOCALAPPDATA")
+    if base:
+        return Path(base) / _CONFIG_DIR_NAME / _CONFIG_FILE_NAME
+    return (Path.home() / ".local" / "share"
+            / _CONFIG_DIR_NAME / _CONFIG_FILE_NAME)
+
+
+def load_chrome_config(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Read the shared configuration.
+
+    Returns ``{"host": ..., "port": ..., "source": "file"|"env"|"default"}``.
+
+    A corrupt or malformed file raises ``ValueError`` naming the file.  It
+    must never silently fall back to 9222: that is exactly how the launcher
+    and the application end up on different ports.
+    """
+    target = Path(path) if path is not None else chrome_config_path()
+    host = DEFAULT_DEBUGGER_HOST
+    port = DEFAULT_DEBUGGER_PORT
+    source = "default"
+
+    env_port = (os.environ.get(CHROME_PORT_ENV) or "").strip()
+    if env_port:
+        port = _coerce_port(env_port, f"{CHROME_PORT_ENV}={env_port!r}")
+        source = "env"
+
+    if target.exists():
+        try:
+            raw = target.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValueError(f"could not read {target}: {exc}")
+        try:
+            data = json.loads(raw)
+        except ValueError as exc:
+            raise ValueError(
+                f"{target} is not valid JSON ({exc}). Fix or delete the file; "
+                f"the launcher will recreate it.")
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"{target} must contain a JSON object such as "
+                f'{{"host": "127.0.0.1", "port": 9222}}')
+        # The file is authoritative: the launcher writes it, so it reflects
+        # the port Chrome was ACTUALLY started on.
+        if "port" in data:
+            port = _coerce_port(data.get("port"), f"port in {target}")
+            source = "file"
+        if data.get("host"):
+            host = str(data["host"]).strip()
+            source = "file"
+
+    return {"host": host, "port": port, "source": source, "path": str(target)}
+
+
+def _coerce_port(value: Any, where: str) -> int:
+    """A TCP port, or a ValueError that says what was wrong."""
+    if isinstance(value, bool) or value is None:
+        raise ValueError(f"{where} is not a port number")
+    if isinstance(value, float) and not value.is_integer():
+        raise ValueError(f"{where} is not a whole port number")
     try:
-        port = int(raw)
+        port = int(value)
     except (TypeError, ValueError):
         raise ValueError(
-            f"{CHROME_PORT_ENV}={raw!r} is not a whole number; "
-            f"expected a TCP port between 1 and 65535")
+            f"{where} is not a whole number; expected a TCP port 1-65535")
     if not 1 <= port <= 65535:
         raise ValueError(
-            f"{CHROME_PORT_ENV}={raw!r} is outside the valid TCP port "
-            f"range 1-65535")
+            f"{where} is outside the valid TCP port range 1-65535")
     return port
+
+
+def resolve_debugger_port(env: Optional[Dict[str, str]] = None) -> int:
+    """The debugging port, from the one shared configuration source.
+
+    Order: the shared file (written by the launcher) > CGHS_CHROME_PORT >
+    the default.  The file wins because ``setx`` cannot update a shell that
+    is already open, so an environment variable may be stale while the file
+    always reflects the port Chrome was started on.
+
+    Raises ``ValueError`` on anything invalid rather than falling back - a
+    silent fallback is what puts the launcher and the application on
+    different ports.
+    """
+    if env is not None:
+        raw = (env.get(CHROME_PORT_ENV) or "").strip()
+        if not raw:
+            return DEFAULT_DEBUGGER_PORT
+        return _coerce_port(raw, f"{CHROME_PORT_ENV}={raw!r}")
+    return int(load_chrome_config()["port"])
 
 
 def resolve_debugger_address(env: Optional[Dict[str, str]] = None) -> str:
     """The full ``host:port`` the application will attach to."""
-    return f"{DEFAULT_DEBUGGER_HOST}:{resolve_debugger_port(env)}"
+    if env is not None:
+        return f"{DEFAULT_DEBUGGER_HOST}:{resolve_debugger_port(env)}"
+    config = load_chrome_config()
+    address = f"{config['host']}:{config['port']}"
+    validate_debugger_address(address)
+    return address
 
 
 def validate_debugger_address(address: str) -> Tuple[str, int]:

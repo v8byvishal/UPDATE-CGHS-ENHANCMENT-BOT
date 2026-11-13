@@ -7,50 +7,65 @@ REM
 REM  WHY THIS FILE EXISTS
 REM  Chrome 136 and later REFUSE to expose the remote debugging port
 REM  when Chrome is running on its DEFAULT user data directory.  The
-REM  previous instructions told the operator to run
-REM      chrome.exe --remote-debugging-port=9222
-REM  with no profile flag, so on current Chrome the port silently never
-REM  opens and the bot waits on an endpoint that will never answer.
+REM  old instructions told the operator to launch chrome.exe with only
+REM  a debugging port flag, so on current Chrome the port silently
+REM  never opens and the bot waits on an endpoint that never answers.
 REM
 REM  This launcher starts Chrome on a DEDICATED, PERSISTENT automation
-REM  profile, which is what makes the debugging port work again.
+REM  profile, which is what makes the debugging port work again, and
+REM  records the chosen port in a shared configuration file that the
+REM  Python application reads.
 REM
 REM  It does NOT touch the operator's normal Chrome profile, and it does
-REM  NOT automate any login, password, OTP, CAPTCHA or MFA.  The operator
-REM  signs in to the portal manually in the window this opens.
+REM  NOT automate any login, password, OTP, CAPTCHA or MFA.  The
+REM  operator signs in to the portal manually.
+REM
+REM  EXIT CODES
+REM     0  Chrome DevTools verified and ready
+REM     1  endpoint did not pass verification (CONNECTION FAILED)
+REM     2  Chrome could not be found
+REM     3  invalid port argument
+REM     4  the port is held by something that is not Chrome
 REM ===================================================================
 
-REM ---- PORT CONFIGURATION (shared with the Python application) -------
-REM  Resolution order, IDENTICAL to cghs/session.py:
-REM     1. the first command-line argument (this launcher only)
-REM     2. the CGHS_CHROME_PORT environment variable
-REM     3. the default, 9222
-REM  If you pass a port as an argument, this script also exports
-REM  CGHS_CHROME_PORT for you, so the application attaches to the same port.
+set "CONFIG_DIR=%LOCALAPPDATA%\CGHS-Enhancement-Bot"
+set "CONFIG_FILE=%CONFIG_DIR%\chrome_config.json"
+set "PROFILE_DIR=%CONFIG_DIR%\ChromeProfile"
+set "DEBUG_HOST=127.0.0.1"
+
+REM ---- 1. resolve the port -------------------------------------------
+REM  Order: command-line argument > existing shared config > default.
+REM  The shared file is the authority the Python application reads, so a
+REM  port given here is written to it BEFORE anything else happens.
 
 set "DEBUG_PORT=9222"
-if not "%CGHS_CHROME_PORT%"=="" set "DEBUG_PORT=%CGHS_CHROME_PORT%"
-set "PORT_FROM_ARG="
-if not "%~1"=="" (
-    set "DEBUG_PORT=%~1"
-    set "PORT_FROM_ARG=1"
+
+if exist "%CONFIG_FILE%" (
+    for /f "usebackq delims=" %%P in (`
+        powershell -NoProfile -Command ^
+          "try { $c = Get-Content -Raw '%CONFIG_FILE%' | ConvertFrom-Json; if ($c.port) { $c.port } } catch { }"
+    `) do set "DEBUG_PORT=%%P"
 )
 
-REM ---- validate the port is a number in 1..65535 ----------------------
+if not "%~1"=="" set "DEBUG_PORT=%~1"
+
+REM ---- 2. validate the port ------------------------------------------
 echo %DEBUG_PORT%| findstr /r "^[1-9][0-9]*$" >nul
 if errorlevel 1 (
+    echo.
     echo  [ERROR] Port "%DEBUG_PORT%" is not a whole number.
     echo          Give a TCP port between 1 and 65535.
+    echo.
     pause
     exit /b 3
 )
 if %DEBUG_PORT% GTR 65535 (
+    echo.
     echo  [ERROR] Port %DEBUG_PORT% is above the maximum TCP port 65535.
+    echo.
     pause
     exit /b 3
 )
-
-set "PROFILE_DIR=%LOCALAPPDATA%\CGHS-Enhancement-Bot\ChromeProfile"
 
 echo.
 echo  ================================================================
@@ -58,9 +73,81 @@ echo   CGHS Automation Console - Chrome launcher
 echo  ================================================================
 echo   Debug port : %DEBUG_PORT%
 echo   Profile    : %PROFILE_DIR%
+echo   Config     : %CONFIG_FILE%
 echo.
 
-REM ---- 1. locate Chrome ---------------------------------------------
+REM ---- 3. PERSIST the port BEFORE any connection check ----------------
+REM  This must happen before the already-running check, otherwise that
+REM  branch can exit while the application is still pointed at the old
+REM  port.  setx is deliberately NOT relied upon: it does not update a
+REM  Command Prompt that is already open, so the file is the real source.
+
+if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%" 2>nul
+
+powershell -NoProfile -Command ^
+  "$cfg = [ordered]@{ host = '%DEBUG_HOST%'; port = [int]'%DEBUG_PORT%' };" ^
+  "$cfg | ConvertTo-Json | Set-Content -Encoding UTF8 '%CONFIG_FILE%'" >nul 2>&1
+
+if exist "%CONFIG_FILE%" (
+    echo  [OK]    Shared configuration written - the application will use
+    echo          %DEBUG_HOST%:%DEBUG_PORT%
+) else (
+    echo  [WARN]  Could not write %CONFIG_FILE%
+    echo          The application may fall back to its default port.
+)
+echo.
+
+REM ---- 4. is a usable Chrome ALREADY on this port? --------------------
+call :PORT_IN_USE
+if "!PORT_BUSY!"=="1" (
+    echo  [INFO]  Something is ALREADY listening on %DEBUG_HOST%:%DEBUG_PORT%.
+    echo  [..]    Verifying whether it is really Chrome...
+    echo.
+
+    call :VERIFY_DEVTOOLS
+    if !VERIFY_RESULT!==0 (
+        call :SHOW_READY
+        echo   Chrome was already running on this port - no new window was
+        echo   opened. Sign in to the portal there and start the automation.
+        echo.
+        pause
+        exit /b 0
+    )
+
+    if !VERIFY_RESULT!==2 (
+        echo  ================================================================
+        echo   PORT CONFLICT - NOT CHROME
+        echo  ================================================================
+        echo.
+        echo   Port %DEBUG_PORT% is held by a program that is NOT Chrome, so
+        echo   the automation cannot attach to it.
+        echo.
+        echo   Fix it in one of two ways:
+        echo     1. Close whatever is using port %DEBUG_PORT%, then run this
+        echo        launcher again.
+        echo     2. Use a different port, for example:
+        echo            START_CGHS_CHROME.cmd 9333
+        echo        The launcher records the port in the shared configuration
+        echo        file, so the application follows automatically.
+        echo.
+        pause
+        exit /b 4
+    )
+
+    echo  ================================================================
+    echo   CONNECTION FAILED
+    echo  ================================================================
+    echo.
+    echo   Something answered on port %DEBUG_PORT% but did not pass DevTools
+    echo   verification. Chrome is NOT ready.
+    echo.
+    echo   If Chrome is starting up, wait a moment and run this again.
+    echo.
+    pause
+    exit /b 1
+)
+
+REM ---- 5. locate Chrome ------------------------------------------------
 set "CHROME_EXE="
 for %%P in (
     "%ProgramFiles%\Google\Chrome\Application\chrome.exe"
@@ -85,8 +172,6 @@ if not defined CHROME_EXE (
     echo     %LOCALAPPDATA%\Google\Chrome\Application\
     echo     and the Windows App Paths registry key.
     echo.
-    echo   Install Chrome, or edit this file and set CHROME_EXE manually.
-    echo.
     pause
     exit /b 2
 )
@@ -94,33 +179,7 @@ if not defined CHROME_EXE (
 echo  [OK]    Chrome found:
 echo          %CHROME_EXE%
 
-REM ---- 2. is the automation profile already running? -----------------
-REM  If the debug port already answers, a usable Chrome is up.  Re-launching
-REM  would either steal the port or open a second window for no reason.
-powershell -NoProfile -Command ^
-  "try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', %DEBUG_PORT%); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
-
-if %ERRORLEVEL%==0 (
-    echo.
-    echo  [INFO]  Something is ALREADY listening on 127.0.0.1:%DEBUG_PORT%.
-    echo.
-    powershell -NoProfile -Command ^
-      "try { $r = Invoke-RestMethod -TimeoutSec 3 -Uri 'http://127.0.0.1:%DEBUG_PORT%/json/version'; Write-Host ('         It identifies itself as: ' + $r.Browser) } catch { Write-Host '         It did NOT answer the DevTools /json/version request.' }"
-    echo.
-    echo          If that is Chrome, you are ready - just use that window
-    echo          and start the automation.
-    echo.
-    echo          If it is NOT Chrome, another program is holding port
-    echo          %DEBUG_PORT%.  Close it, or start this launcher with a
-    echo          different port, for example:
-    echo              START_CGHS_CHROME.cmd 9333
-    echo          and set the same port in the application.
-    echo.
-    pause
-    exit /b 0
-)
-
-REM ---- 3. launch on the dedicated profile ----------------------------
+REM ---- 6. launch on the dedicated profile ------------------------------
 if not exist "%PROFILE_DIR%" (
     mkdir "%PROFILE_DIR%" 2>nul
     echo  [OK]    Created the dedicated automation profile directory.
@@ -132,35 +191,20 @@ echo  [..]    Starting Chrome on the automation profile...
 
 start "" "%CHROME_EXE%" ^
     --remote-debugging-port=%DEBUG_PORT% ^
-    --remote-debugging-address=127.0.0.1 ^
+    --remote-debugging-address=%DEBUG_HOST% ^
     --user-data-dir="%PROFILE_DIR%" ^
     --no-first-run ^
     --no-default-browser-check
 
-REM ---- 4. VALIDATE the endpoint - not just a TCP connect --------------
-REM  A successful TCP connect proves only that SOMETHING holds the port.
-REM  Chrome is only READY when /json/version returns HTTP 200, valid JSON,
-REM  a Chrome/Chromium browser identity AND DevTools WebSocket metadata.
-
+REM ---- 7. verify the NEWLY launched Chrome, same routine ---------------
 echo  [..]    Validating the DevTools endpoint...
 
-set "DEVTOOLS_OK="
+set "LAUNCH_OK="
 for /l %%I in (1,1,25) do (
-    if not defined DEVTOOLS_OK (
-        powershell -NoProfile -Command ^
-          "$ErrorActionPreference='Stop';" ^
-          "try {" ^
-          "  $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 -Uri 'http://127.0.0.1:%DEBUG_PORT%/json/version';" ^
-          "  if ($r.StatusCode -ne 200) { exit 1 };" ^
-          "  $j = $r.Content | ConvertFrom-Json;" ^
-          "  if (-not $j.Browser) { exit 1 };" ^
-          "  if ($j.Browser -notmatch '^(?i)(chrome|chromium|headlesschrome|edg)') { exit 1 };" ^
-          "  if (-not $j.webSocketDebuggerUrl) { exit 1 };" ^
-          "  if ($j.webSocketDebuggerUrl -notmatch '^wss?://') { exit 1 };" ^
-          "  exit 0" ^
-          "} catch { exit 1 }" >nul 2>&1
-        if !ERRORLEVEL!==0 (
-            set "DEVTOOLS_OK=1"
+    if not defined LAUNCH_OK (
+        call :VERIFY_DEVTOOLS
+        if !VERIFY_RESULT!==0 (
+            set "LAUNCH_OK=1"
         ) else (
             powershell -NoProfile -Command "Start-Sleep -Milliseconds 400" >nul 2>&1
         )
@@ -168,13 +212,13 @@ for /l %%I in (1,1,25) do (
 )
 
 echo.
-if not defined DEVTOOLS_OK (
+if not defined LAUNCH_OK (
     echo  ================================================================
     echo   CONNECTION FAILED
     echo  ================================================================
     echo.
-    echo   Port %DEBUG_PORT% did not pass DevTools validation. Chrome is NOT
-    echo   ready, and the automation will not be able to attach.
+    echo   Port %DEBUG_PORT% did not pass DevTools verification, so Chrome
+    echo   is NOT ready and the automation will not be able to attach.
     echo.
     echo   Checked: TCP reachable, HTTP 200, valid JSON, Chrome identity,
     echo            and a DevTools WebSocket URL.
@@ -183,35 +227,13 @@ if not defined DEVTOOLS_OK (
     echo     - Chrome was already running on your NORMAL profile. Chrome 136+
     echo       will not open a debugging port in that case. Close ALL Chrome
     echo       windows and run this launcher again.
-    echo     - Another program is occupying port %DEBUG_PORT%.
     echo     - Security software is blocking the port.
-    echo.
-    echo   To use a different port, run:   START_CGHS_CHROME.cmd 9333
-    echo   and make the application match: setx CGHS_CHROME_PORT 9333
     echo.
     pause
     exit /b 1
 )
 
-echo  ================================================================
-echo   CHROME DEVTOOLS READY
-echo  ================================================================
-echo.
-powershell -NoProfile -Command ^
-  "try { $r = Invoke-RestMethod -TimeoutSec 3 -Uri 'http://127.0.0.1:%DEBUG_PORT%/json/version'; Write-Host ('   Browser  : ' + $r.Browser); Write-Host ('   Protocol : ' + $r.'Protocol-Version') } catch { }"
-echo    Endpoint : 127.0.0.1:%DEBUG_PORT%
-echo.
-
-REM ---- keep the application in step with a custom port -----------------
-if defined PORT_FROM_ARG (
-    if not "%DEBUG_PORT%"=="9222" (
-        setx CGHS_CHROME_PORT %DEBUG_PORT% >nul 2>&1
-        echo   [SYNC] CGHS_CHROME_PORT has been set to %DEBUG_PORT% so the
-        echo          application attaches to this same port. Restart the
-        echo          application if it is already open.
-        echo.
-    )
-)
+call :SHOW_READY
 
 echo   NEXT STEPS
 echo     1. Sign in to the CGHS / NHA portal in the window that opened.
@@ -222,5 +244,61 @@ echo   This profile is remembered, so you will not have to sign in
 echo   every time. Your normal Chrome profile is untouched.
 echo.
 pause
-endlocal
 exit /b 0
+
+
+REM ===================================================================
+REM  SUBROUTINES
+REM ===================================================================
+
+:PORT_IN_USE
+REM  Sets PORT_BUSY=1 when any process holds the port.
+set "PORT_BUSY=0"
+powershell -NoProfile -Command ^
+  "try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('%DEBUG_HOST%', %DEBUG_PORT%); $c.Close(); exit 0 } catch { exit 1 }" >nul 2>&1
+if %ERRORLEVEL%==0 set "PORT_BUSY=1"
+goto :eof
+
+
+:VERIFY_DEVTOOLS
+REM  THE SINGLE DevTools verification used by BOTH the already-running and
+REM  the newly-launched paths.  There is deliberately only one
+REM  implementation, so the two can never disagree.
+REM
+REM  Checks, in order: HTTP 200, valid JSON, a Chrome/Chromium Browser
+REM  identity, and a usable ws:// DevTools URL.
+REM
+REM  VERIFY_RESULT  0 = verified Chrome
+REM                 1 = no usable answer (not running / malformed / error)
+REM                 2 = an HTTP service answered, but it is NOT Chrome
+powershell -NoProfile -Command ^
+  "$ErrorActionPreference='Stop';" ^
+  "try {" ^
+  "  $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 -Uri 'http://%DEBUG_HOST%:%DEBUG_PORT%/json/version';" ^
+  "  if ($r.StatusCode -ne 200) { exit 2 };" ^
+  "  $j = $r.Content | ConvertFrom-Json;" ^
+  "  if (-not $j.Browser) { exit 2 };" ^
+  "  if ($j.Browser -notmatch '^(?i)(chrome|chromium|headlesschrome|edg)') { exit 2 };" ^
+  "  if (-not $j.webSocketDebuggerUrl) { exit 2 };" ^
+  "  if ($j.webSocketDebuggerUrl -notmatch '^wss?://') { exit 2 };" ^
+  "  exit 0" ^
+  "} catch {" ^
+  "  try {" ^
+  "    $c = New-Object Net.Sockets.TcpClient; $c.Connect('%DEBUG_HOST%', %DEBUG_PORT%); $c.Close(); exit 2" ^
+  "  } catch { exit 1 }" ^
+  "}" >nul 2>&1
+set "VERIFY_RESULT=%ERRORLEVEL%"
+goto :eof
+
+
+:SHOW_READY
+echo  ================================================================
+echo   CHROME DEVTOOLS READY
+echo  ================================================================
+echo.
+powershell -NoProfile -Command ^
+  "try { $r = Invoke-RestMethod -TimeoutSec 3 -Uri 'http://%DEBUG_HOST%:%DEBUG_PORT%/json/version'; Write-Host ('   Browser  : ' + $r.Browser); Write-Host ('   Protocol : ' + $r.'Protocol-Version') } catch { }"
+echo    Endpoint : %DEBUG_HOST%:%DEBUG_PORT%
+echo    Config   : %CONFIG_FILE%
+echo.
+goto :eof

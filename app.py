@@ -37,6 +37,7 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QE
 from PyQt5.QtGui import QFont, QColor
 
 import ui_theme  # UI THEME (presentation only)
+from app_shutdown import plan_shutdown  # thread-safe shutdown sequencing
 import selenium.webdriver as webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -1405,41 +1406,38 @@ class BatchCGHSApp(QWidget):
         self.chrome_status_label.setToolTip(detail)
 
     def closeEvent(self, event):
-        """Shut down every thread this window owns, in a safe order.
+        """Close only once EVERY thread this window owns has finished.
 
-        Nothing is force-terminated: QThread.terminate() can kill a worker in
-        the middle of a Selenium call or a portal transaction.  The worker is
-        asked to cancel, then joined; the driver service is stopped by
-        PortalSession.close(); finally the status probe is stopped and
-        joined.  Only then is the close accepted, so no QThread is ever
-        destroyed while still running.
+        Delegates the sequencing to app_shutdown.plan_shutdown(), which is
+        unit-tested directly - including the branch where a thread refuses
+        to stop.  Previously this method logged a warning, dropped the probe
+        reference and accepted the close anyway, destroying a running
+        QThread.
+
+        Nothing is force-terminated and the operator's Chrome is never
+        closed; PortalSession.close() stops only the chromedriver service.
         """
         self._shutting_down = True
 
-        # 1. the enhancement worker - graceful cancellation, generous join
-        if self.thread and self.thread.isRunning():
-            self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] Waiting for the current action to finish safely")
-            try:
-                self.thread.stop()
-            except Exception:                               # noqa: BLE001
-                pass
-            if not self.thread.wait(self.SHUTDOWN_WAIT_MS):
-                # Do NOT terminate(): a half-finished portal mutation is far
-                # worse than a slow exit.  Keep the window open and let the
-                # operator decide.
-                self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] Worker still busy - close again to retry; the automation is NOT being killed")
-                self._shutting_down = False
-                event.ignore()
-                return
+        decision = plan_shutdown(
+            worker=self.thread,
+            probe=getattr(self, "chrome_probe", None),
+            wait_ms=self.SHUTDOWN_WAIT_MS,
+            log=lambda message: self.log(
+                f"[{time.strftime('%H:%M:%S')}] {message}"),
+        )
 
-        # 2. the Chrome status probe - stopped exactly once, here
-        probe = getattr(self, 'chrome_probe', None)
-        if probe is not None:
-            probe.stop()
-            if not probe.wait(self.SHUTDOWN_WAIT_MS):
-                self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] Chrome monitor did not stop in time")
+        if not decision.accept:
+            self.log(f"[{time.strftime('%H:%M:%S')}] [SHUTDOWN] "
+                     f"{decision.stage}: {decision.reason}")
+            # Keep every thread reference: dropping one would leak the
+            # thread and lose the handle needed to join it on the retry.
+            self._shutting_down = decision.keep_shutdown_latch
+            event.ignore()
+            return
+
+        if decision.clear_probe:
             self.chrome_probe = None
-
         event.accept()
 
 

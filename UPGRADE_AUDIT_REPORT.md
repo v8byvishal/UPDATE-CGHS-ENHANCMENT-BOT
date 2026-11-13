@@ -273,3 +273,145 @@ noise, not a code effect.
 * **UI rendering and 100/125/150% scaling** — BLOCKED, PyQt5 not installable here. The QThread fixes are verified statically and via pure-Python lifecycle execution, **not** by running the GUI.
 * **Live portal** — `LIVE_PORTAL = NOT_VERIFIED`.
 * The launcher is verified by **structural analysis only**; it has not been executed on Windows.
+
+---
+---
+
+# ROUND 18 — FINAL CORRECTIVE PATCH (defects 1–3)
+
+Three independently reported defects. Each verified against real source
+before change; each has regression tests that **failed pre-fix**. Application
+name, window title, executable and branding unchanged.
+
+## FIX 1 — QThread shutdown was still unsafe
+
+**Defect (confirmed verbatim):** `closeEvent()` ran
+
+```python
+if not probe.wait(self.SHUTDOWN_WAIT_MS):
+    self.log("Chrome monitor did not stop in time")
+self.chrome_probe = None
+event.accept()
+```
+
+A probe that missed the deadline produced a log line, then the reference was
+dropped and the close **accepted anyway** — destroying a live `QThread`.
+
+**Root cause:** the timeout result was computed and discarded. There was no
+path from "a thread is still running" to "refuse to close".
+
+**Fix:** sequencing extracted into **`app_shutdown.plan_shutdown()`** — pure
+Python, no PyQt import, so the failure branch is *executable in tests* rather
+than inferred from source. It returns a `ShutdownDecision`
+(`accept`, `clear_probe`, `stage`, `reason`, `keep_shutdown_latch`).
+
+* Worker settled **first** (only it can be mid-transaction), probe second.
+* Any thread still alive → `accept=False`, `clear_probe=False`, `event.ignore()`, **return immediately**.
+* References are **preserved** on failure — dropping one would leak the thread and lose the only handle able to join it on a retry.
+* `_shutting_down` **stays latched** while a close is pending, so no new batch can start mid-shutdown; a second close succeeds once the thread exits.
+* No `terminate()`, no `quit()`, operator's Chrome never closed. All helpers are exception-safe: shutdown cannot itself raise.
+
+**Tests (9)** executing the real logic: both stopped · probe refuses to stop ·
+worker still running (probe untouched) · worker done but probe running ·
+second close attempt succeeds · idle app · latch retained · no force-terminate
+· `closeEvent` delegates to the tested logic.
+
+## FIX 2 — Launcher returned success for a foreign service
+
+**Defect (confirmed):** the existing-port branch printed advice and ran
+`exit /b 0` at line 120 **whatever held the port** — including a non-Chrome
+service.
+
+**Fix:** a single `:VERIFY_DEVTOOLS` subroutine, called by **both** the
+already-running and newly-launched paths (requirement: no duplicated
+validation). It returns a tri-state:
+
+| Result | Meaning | Operator sees | Exit |
+|---|---|---|---|
+| `0` | HTTP 200 + valid JSON + Chrome identity + `ws://` DevTools URL | `CHROME DEVTOOLS READY` | **0** |
+| `2` | an HTTP/TCP service answered but is **not** Chrome | `PORT CONFLICT — NOT CHROME` | **4** |
+| `1` | no usable answer | `CONNECTION FAILED` | **1** |
+
+Chrome not found → **2**; invalid port → **3**. The launcher never reports
+Chrome ready without passing the full check, and never silently continues.
+
+## FIX 3 — Custom port did not reliably reach Python
+
+**Defect (confirmed):** `setx` does not update an already-open Command
+Prompt, and the sync block sat *after* the existing-port branch's early
+`exit /b 0` — so the launcher could use 9333 while Python stayed on 9222.
+
+**Fix:** one persistent shared configuration file.
+
+```json
+{ "host": "127.0.0.1", "port": 9222 }
+```
+
+* Windows `%LOCALAPPDATA%\CGHS-Enhancement-Bot\chrome_config.json`; elsewhere `~/.local/share/CGHS-Enhancement-Bot/chrome_config.json`. Overridable via `CGHS_CHROME_CONFIG`.
+* The launcher **writes it before any connection check** (requirement 4), so the early-exit path can no longer skip synchronisation.
+* The **file is authoritative over `CGHS_CHROME_PORT`**, precisely because a stale exported variable is the failure mode being fixed. It is re-read on every attach, so a change between runs is picked up.
+* `probe_debugger_endpoint()` and `PortalSession.attach()` both resolve it; a hardcoded `9222` in `execute_item()` was removed.
+* Invalid port, non-object JSON, corrupt JSON and non-loopback host all **raise a `ValueError` naming the file** — never a silent fallback.
+* The operator never edits Python to change the port.
+
+**Tests (20+)**: default 9222 · custom 9333 · custom 9444 · file beats stale
+env · config changed between runs · 7 invalid port values · corrupt file ·
+non-object file · non-loopback host · source reporting · launcher writes the
+same filename · launcher writes before probing · no module hardcodes a port.
+
+## PROTECTED MODULES
+
+```
+UNCHANGED  cghs/parsing.py   UNCHANGED  cghs/dom.py
+UNCHANGED  cghs/rules.py     UNCHANGED  cghs/tabs.py
+UNCHANGED  cghs/locators.py
+CHANGED    cghs/orchestrator.py  (+5/-1)
+```
+
+**The one protected-module change, and why it was required.** FIX 3
+requirement 8 states *"No hardcoded 9222 elsewhere overrides it."*
+`execute_item()` had `debugger_address: str = "127.0.0.1:9222"`, which would
+override the shared configuration. The change is the signature default →
+`Optional[str] = None` plus three docstring lines. **No logic, no DOM
+sequence, no dispatch behaviour altered**; callers passing an explicit
+address are unaffected.
+
+`NETWORK_DELAY`: **0 diffs.** Parser output on `39538.pdf` **bit-identical** —
+sha256 `dcdad30a7e0e5a65…`, **57 items / 371 occurrences**, matching the
+previous baseline exactly. Because `parsing.py`/`rules.py`/`locators.py` are
+byte-identical, the enhancement path is unchanged by construction.
+
+## THREE PREVIOUS-ROUND TESTS RETARGETED (disclosed, not weakened)
+
+The patch deliberately moved two implementations, so three tests that
+asserted the *old internals* were retargeted. Each still enforces the same
+guarantee or a stronger one; **no assertion was softened and none deleted**:
+
+| Test | Before | After |
+|---|---|---|
+| `test_2_close_event_stops_and_joins_the_status_probe` | `.stop()`/`.wait(` inline in `closeEvent` | delegation to `plan_shutdown` **plus** the stop/join asserted in `app_shutdown.py` |
+| `test_2_close_event_prevents_new_work_and_waits_for_the_worker` | worker `.wait(` inline | latch in `closeEvent` **plus** `_wait(worker, …)` in `app_shutdown.py` |
+| `test_4_launcher_and_application_share_the_same_setting` | launcher mentions `CGHS_CHROME_PORT` | **stronger** — launcher writes the exact filename Python reads |
+
+## VERIFIED FINAL TEST RESULT
+
+| | |
+|---|---|
+| Command | `python3 -m pytest -p no:cacheprovider -q` |
+| Total collected | **860** |
+| Passed | **852** |
+| Failed | **0** |
+| Skipped | **8** |
+| New tests this patch | **38** (`tests/test_round18_final.py`) |
+| Packaged files | **68** |
+
+The 8 skips are environment-gated (no PyQt5, no Windows, no live portal).
+**None is skipped to manufacture a pass.**
+
+## NOT VERIFIED ON WINDOWS — stated plainly
+
+* **`START_CGHS_CHROME.cmd` has never been executed.** There is no Windows host and no `cmd.exe` here. Its branch structure, exit codes and single-verification-routine property are verified by **static analysis of the real file only**. The PowerShell/batch behaviour itself is **NOT VERIFIED**.
+* **The GUI has never been rendered.** PyQt5 is not installable here. FIX 1 is verified by executing the extracted decision logic with stand-in threads — real branch execution, but **not** a running Qt event loop. Window behaviour, 100/125/150 % scaling: **NOT VERIFIED**.
+* **Windows EXE build:** **BLOCKED** (no PyInstaller/Windows).
+* **`LIVE_PORTAL` = NOT_VERIFIED.** No live portal test was performed and no live success is claimed.
+* The config-file path under `%LOCALAPPDATA%` is exercised on Linux via the `CGHS_CHROME_CONFIG` override; the literal Windows path is **NOT VERIFIED**.

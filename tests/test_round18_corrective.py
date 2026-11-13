@@ -128,19 +128,31 @@ def _close_event_source():
 
 
 def test_2_close_event_stops_and_joins_the_status_probe():
+    """Unchanged guarantee; the sequencing now lives in app_shutdown.
+
+    The stop+join moved into plan_shutdown() so the wait-failure branch is
+    directly testable, so the guarantee is checked across the delegation.
+    """
     body = _close_event_source()
     assert "chrome_probe" in body, (
         "closeEvent() ignores ChromeStatusProbe - a running QThread would be "
         "destroyed when the window is garbage collected")
-    assert ".stop()" in body and ".wait(" in body, (
-        "closeEvent() must stop AND join the probe thread")
+    assert "plan_shutdown" in body, (
+        "closeEvent() must delegate to the tested shutdown logic")
+    shutdown_src = (REPO / "app_shutdown.py").read_text(encoding="utf-8")
+    assert '_call(probe, "stop")' in shutdown_src and "_wait(probe" in shutdown_src, (
+        "the shutdown logic must stop AND join the probe thread")
 
 
 def test_2_close_event_prevents_new_work_and_waits_for_the_worker():
+    """Unchanged guarantee, checked across the delegation."""
     body = _close_event_source()
     assert "_shutting_down" in body, (
         "closeEvent() must latch a shutdown flag so no new batch can start")
-    assert "self.thread" in body and ".wait(" in body
+    assert "self.thread" in body, "the worker must be handed to the shutdown"
+    shutdown_src = (REPO / "app_shutdown.py").read_text(encoding="utf-8")
+    assert "_wait(worker, wait_ms)" in shutdown_src, (
+        "the shutdown logic must join the enhancement worker")
 
 
 def test_2_shutdown_never_force_terminates_a_thread():
@@ -295,15 +307,22 @@ def test_4_only_loopback_is_accepted(monkeypatch):
 
 
 def test_4_launcher_and_application_share_the_same_setting():
-    assert CHROME_PORT_ENV in LAUNCHER, (
-        f"the launcher must read {CHROME_PORT_ENV} so a custom port reaches "
-        f"the application")
+    """Strengthened: the shared setting is now a file, not just an env var.
+
+    setx cannot update an already-open shell, so the launcher persists the
+    port to the same file the application reads.
+    """
+    from cghs.session import chrome_config_path
+    filename = chrome_config_path().name
+    assert filename in LAUNCHER, (
+        f"the launcher must write {filename}, which the application reads")
+    assert "CGHS-Enhancement-Bot" in LAUNCHER
     assert "9222" in LAUNCHER
 
 
 def test_4_launcher_tells_the_operator_how_to_sync_a_custom_port():
     lowered = LAUNCHER.lower()
-    assert "setx" in lowered or "environment variable" in lowered, (
+    assert "shared configuration" in lowered or "setx" in lowered, (
         "a custom port is useless unless the operator is told how to make "
         "the application use it too")
 

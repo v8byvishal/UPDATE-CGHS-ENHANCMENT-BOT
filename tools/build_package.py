@@ -37,6 +37,7 @@ ZIP_NAME = "CGHS_AUTOMATION_SPEED_HARDENED_BUILD_FINAL.zip"
 CRITICAL_FILES = [
     "app.py",
     "ui_theme.py",
+    "app_shutdown.py",
     "CGHS_Enhancement_Bot.spec",
     "BUILD_WINDOWS.cmd",
     # Chrome 136+ will not open a debugging port on the default profile, so
@@ -74,6 +75,7 @@ REQUIRED_FIXTURES = {
 INCLUDE_GLOBS = [
     "app.py",
     "ui_theme.py",
+    "app_shutdown.py",
     "CGHS_Enhancement_Bot.spec",
     "BUILD_WINDOWS.cmd",
     "START_CGHS_CHROME.cmd",
