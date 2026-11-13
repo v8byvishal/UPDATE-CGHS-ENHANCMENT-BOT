@@ -97,15 +97,29 @@ def probe_debugger_endpoint(address: str = DEFAULT_DEBUGGER_ADDRESS,
             f"debugging mode on port {port} before running the automation")
 
     body = b"".join(chunks).decode("utf-8", "replace")
+    if not body:
+        return False, (
+            f"{address} accepted a connection but returned nothing - "
+            f"check that this is Chrome's remote debugging port and not "
+            f"another process holding it")
+
+    # Only a real DevTools endpoint may be accepted.  Anything can listen on
+    # 9222; reporting an arbitrary HTTP service as "Chrome" would send the
+    # operator chasing the wrong problem, and would let attach() burn its
+    # whole retry budget against a service that can never answer CDP.
     match = re.search(r'"Browser"\s*:\s*"([^"]+)"', body)
-    if match:
-        return True, match.group(1)
-    if body:
-        return True, "DevTools endpoint responded (version not reported)"
-    return False, (
-        f"{address} accepted a connection but returned no DevTools response - "
-        f"check that this is Chrome's remote debugging port and not another "
-        f"process holding it")
+    if not match:
+        return False, (
+            f"{address} answered, but not as a Chrome DevTools endpoint "
+            f"(no \"Browser\" field in /json/version) - another process is "
+            f"holding the port")
+
+    browser = match.group(1).strip()
+    if not re.match(r'(?i)\s*(chrome|chromium|headlesschrome|edg)', browser):
+        return False, (
+            f"{address} is a DevTools endpoint but reports {browser!r}, "
+            f"which is not Chrome/Chromium")
+    return True, browser
 
 
 @dataclass
@@ -125,6 +139,32 @@ class PortalIdentity:
 
     def as_dict(self) -> Dict[str, Any]:
         return dict(self.__dict__)
+
+
+#: Attach failures that will NEVER succeed on a retry.  Retrying these just
+#: multiplies the operator's wait by `attempts` and then reports the same
+#: fault.  Matched on the driver's own message because Selenium raises the
+#: same exception type for recoverable and unrecoverable causes alike.
+_PERMANENT_ATTACH_SIGNATURES = (
+    "only supports chrome version",
+    "this version of chromedriver",
+    "unable to find chromedriver",
+    "cannot find chrome binary",
+    "no chrome binary",
+    "unable to obtain",
+    "executable needs to be in path",
+    "unsupported chrome version",
+)
+
+
+def is_transient_attach_error(exc: BaseException) -> bool:
+    """Is retrying this attach failure worth the operator's time?
+
+    Conservative: anything we do not positively recognise as permanent is
+    treated as transient, so an unfamiliar fault still gets its retries.
+    """
+    message = f"{exc}".lower()
+    return not any(sig in message for sig in _PERMANENT_ATTACH_SIGNATURES)
 
 
 class PortalSession:
@@ -221,6 +261,11 @@ class PortalSession:
             except Exception as exc:                        # noqa: BLE001
                 last_error = exc
                 logger.warn(f"[SESSION] CDP attach attempt {attempt}/{attempts} failed: {exc}")
+                if not is_transient_attach_error(exc):
+                    logger.error(
+                        "[SESSION] this failure is permanent (driver/browser "
+                        "mismatch or missing binary) - not retrying")
+                    break
                 if attempt < attempts:
                     time.sleep(backoff)
         logger.warn(
@@ -430,5 +475,28 @@ class PortalSession:
         return (time.time() - self.started_at) * 1000.0
 
     def close(self):
-        """Never quits the operator's browser - the session is only detached."""
+        """Detach, and stop the local chromedriver SERVICE.
+
+        ``quit()`` is deliberately NOT called: on a ``debuggerAddress``
+        session that would close the operator's own Chrome window.  But the
+        previous implementation only logged, so every batch left a
+        ``chromedriver.exe`` running - the orphan-process leak.  Stopping the
+        service terminates that child process and leaves the browser alone.
+
+        Idempotent and never raises: shutdown must not be able to fail.
+        """
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+
+        service = getattr(getattr(self, "driver", None), "service", None)
+        if service is None:
+            service = getattr(self.raw_driver, "service", None)
+        if service is not None:
+            try:
+                service.stop()
+                self.logger.info("[SESSION] chromedriver service stopped")
+            except Exception as exc:                        # noqa: BLE001
+                self.logger.warn(f"[SESSION] chromedriver service "
+                                 f"did not stop cleanly: {exc}")
         self.logger.info("[SESSION] detached (operator Chrome left running)")

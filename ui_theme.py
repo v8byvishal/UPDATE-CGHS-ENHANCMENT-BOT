@@ -1,396 +1,395 @@
-"""Centralised visual theme for the desktop UI - BLACK + NEON.
+"""Central design system for the CGHS Automation Console.
 
-PRESENTATION ONLY.  This module contains colour tokens and Qt stylesheet
-strings and nothing else: no business rules, no portal logic, no automation,
-no state.  It deliberately imports nothing from PyQt5 (or from ``cghs``) so
-it stays trivially importable and testable.
+PRESENTATION ONLY.  This module defines colour, type and widget styling.  It
+contains no business logic, performs no I/O and must never import from the
+``cghs`` package - a styling change can therefore never alter extraction,
+code resolution, quantities, enhancement behaviour or timing.
 
-Surface hierarchy (task section 7) - each level stays distinguishable:
+THE APPLICATION NAME, WINDOW TITLE, EXECUTABLE NAME AND PRODUCT IDENTITY ARE
+NOT DEFINED HERE AND ARE NOT CHANGED BY THIS MODULE.
 
-    BG  #04050a   application background, the deepest black
-     |
-    SURFACE  #0a0c12        docked panels
-     |
-    SURFACE_RAISED  #11141c  cards sitting on a panel
-     |
-    BORDER  #1d2230         hairline separation
-     |
-    NEON                    accents only - never whole panels
+------------------------------------------------------------------------
+PALETTE - the three brand colours, used exactly as specified
+------------------------------------------------------------------------
+    ICE SILVER       #DDE3E8   backgrounds, surfaces, panels, workspace
+    DEEP AUBERGINE   #3A0F34   sidebar, navigation, brand, primary buttons
+    MARIGOLD         #EAAA00   active selection, highlight, focus, emphasis
 
-Semantics (task section 6):
-
-    CYAN / BLUE  -> active, primary, running
-    GREEN        -> success, verified
-    AMBER        -> warning, review, pending
-    RED / PINK   -> error, failed
-    PURPLE       -> enhancement, secondary accent
+Everything else is a neutral grey, a readable dark text tone, or a muted
+semantic status colour chosen to sit calmly beside those three.  The previous
+neon-on-black console palette is retired; the legacy ``NEON_*`` names are kept
+as aliases so no widget reference breaks, but they now resolve to the
+professional palette.
 """
 
-from __future__ import annotations
+# ---------------------------------------------------------------------------
+# brand
+# ---------------------------------------------------------------------------
+ICE_SILVER = "#DDE3E8"
+DEEP_AUBERGINE = "#3A0F34"
+MARIGOLD = "#EAAA00"
 
 # ---------------------------------------------------------------------------
-# tokens
+# surfaces - layered from the page background upward
 # ---------------------------------------------------------------------------
+BG = ICE_SILVER                 #: application background / workspace
+SURFACE = "#FFFFFF"             #: cards, panels, tables
+SURFACE_RAISED = "#F4F7F9"      #: headers, toolbars, table headers
+SURFACE_HOVER = "#E7ECF0"       #: hover state on a light surface
+SURFACE_ACTIVE = "#D2DAE1"      #: pressed / selected light surface
+SURFACE_SUNKEN = "#C9D3DA"      #: wells, log background, track
 
-#: application background - near-black, very slightly cool
-BG = "#04050a"
-#: docked panel
-SURFACE = "#0a0c12"
-#: raised card on a panel
-SURFACE_RAISED = "#11141c"
-#: hover fill for rows / list items / nav entries
-SURFACE_HOVER = "#171b25"
-#: pressed / selected fill
-SURFACE_ACTIVE = "#1c2130"
-
-#: hairline border
-BORDER = "#1d2230"
-#: border of a hovered or focused container
-BORDER_ACTIVE = "#2c3444"
-
-#: primary copy - bright, high contrast
-TEXT_PRIMARY = "#e9edf6"
-#: secondary copy - cool gray, still comfortably readable on BG
-TEXT_SECONDARY = "#a3adc2"
-#: de-emphasised copy - captions, hints
-TEXT_MUTED = "#747f95"
-#: text on a neon fill
-TEXT_ON_ACCENT = "#04050a"
-
-# -- neon accents -----------------------------------------------------------
-NEON_CYAN = "#00e5ff"
-NEON_BLUE = "#4d9fff"
-NEON_GREEN = "#2fe08a"
-NEON_YELLOW = "#ffb637"
-NEON_RED = "#ff4d6d"
-NEON_PURPLE = "#b06cff"
-
-#: dim variants, for borders and de-emphasised accents
-CYAN_DIM = "#0b7f93"
-GREEN_DIM = "#1b7a4e"
-YELLOW_DIM = "#8a6320"
-RED_DIM = "#8f2c3e"
-PURPLE_DIM = "#5f3a8f"
-BLUE_DIM = "#2a5a99"
-
-#: very dark status washes - a tint of the accent over near-black, used as a
-#: badge/row background.  Kept extremely dark so panels never read as neon.
-WASH_CYAN = "#06161c"
-WASH_GREEN = "#06170f"
-WASH_YELLOW = "#191206"
-WASH_RED = "#1a080c"
-WASH_PURPLE = "#130a1e"
-WASH_BLUE = "#081020"
-
-#: translucent neon, for selection fills and soft glows
-SEL_CYAN = "rgba(0, 229, 255, 0.14)"
-SEL_CYAN_SOFT = "rgba(0, 229, 255, 0.07)"
-
-FONT_STACK = "'Segoe UI', 'Inter', 'Roboto', Arial, sans-serif"
-FONT_MONO = "'JetBrains Mono', 'Cascadia Mono', 'Consolas', monospace"
-
+#: sidebar / navigation shades, derived from the brand aubergine
+SIDEBAR = DEEP_AUBERGINE
+SIDEBAR_HOVER = "#4D1746"
+SIDEBAR_ACTIVE = "#5C1D54"
+SIDEBAR_BORDER = "#2A0A26"
 
 # ---------------------------------------------------------------------------
-# semantic helpers
+# borders
 # ---------------------------------------------------------------------------
+BORDER = "#C2CCD4"
+BORDER_STRONG = "#A9B6C0"
+BORDER_ACTIVE = MARIGOLD
 
-#: status name -> (foreground, wash background, border)
-STATUS = {
-    "active":   (NEON_CYAN,   WASH_CYAN,   CYAN_DIM),
-    "running":  (NEON_CYAN,   WASH_CYAN,   CYAN_DIM),
-    "success":  (NEON_GREEN,  WASH_GREEN,  GREEN_DIM),
-    "verified": (NEON_GREEN,  WASH_GREEN,  GREEN_DIM),
-    "warning":  (NEON_YELLOW, WASH_YELLOW, YELLOW_DIM),
-    "review":   (NEON_YELLOW, WASH_YELLOW, YELLOW_DIM),
-    "pending":  (TEXT_MUTED,  SURFACE_RAISED, BORDER),
-    "error":    (NEON_RED,    WASH_RED,    RED_DIM),
-    "failed":   (NEON_RED,    WASH_RED,    RED_DIM),
-    "blocked":  (NEON_RED,    WASH_RED,    RED_DIM),
-    "secondary": (NEON_PURPLE, WASH_PURPLE, PURPLE_DIM),
-}
+# ---------------------------------------------------------------------------
+# text
+# ---------------------------------------------------------------------------
+TEXT_PRIMARY = "#1C2126"        #: body text on light surfaces
+TEXT_SECONDARY = "#55606B"      #: labels, secondary information
+TEXT_MUTED = "#7E8A95"          #: hints, disabled, timestamps
+TEXT_ON_DARK = "#F2EFF1"        #: text on the aubergine sidebar
+TEXT_ON_DARK_MUTED = "#C3AFBE"  #: secondary text on aubergine
+TEXT_ON_ACCENT = "#2A1A00"      #: text on marigold
+TEXT_ON_PRIMARY = "#F7F4F6"     #: text on aubergine buttons
 
+# ---------------------------------------------------------------------------
+# semantic status - muted, professional, never neon
+# ---------------------------------------------------------------------------
+STATUS_OK = "#1F7A4D"
+STATUS_WARN = "#A8700A"
+STATUS_ERROR = "#A32638"
+STATUS_INFO = "#2A5E8C"
+STATUS_PENDING = TEXT_MUTED
 
-def badge(status: str) -> str:
-    """Qt stylesheet for a small status pill."""
-    fg, bg, border = STATUS.get(status, STATUS["pending"])
-    return (f"color: {fg}; background: {bg}; border: 1px solid {border};"
-            f" border-radius: 9px; padding: 3px 10px;"
-            f" font-size: 11px; font-weight: 700; letter-spacing: 0.6px;")
+STATUS_OK_WASH = "#E3F1EA"
+STATUS_WARN_WASH = "#FBF0D8"
+STATUS_ERROR_WASH = "#F8E4E7"
+STATUS_INFO_WASH = "#E4EDF5"
+ACCENT_WASH = "#FCF2D6"         #: marigold at low intensity
 
+# ---------------------------------------------------------------------------
+# legacy aliases - kept so existing widget code keeps working unchanged
+# ---------------------------------------------------------------------------
+NEON_CYAN = DEEP_AUBERGINE
+NEON_BLUE = STATUS_INFO
+NEON_GREEN = STATUS_OK
+NEON_YELLOW = MARIGOLD
+NEON_RED = STATUS_ERROR
+NEON_PURPLE = DEEP_AUBERGINE
+CYAN_DIM = SIDEBAR_HOVER
+BLUE_DIM = STATUS_INFO
+GREEN_DIM = STATUS_OK
+YELLOW_DIM = STATUS_WARN
+RED_DIM = STATUS_ERROR
+PURPLE_DIM = SIDEBAR_HOVER
+WASH_CYAN = ACCENT_WASH
+WASH_BLUE = STATUS_INFO_WASH
+WASH_GREEN = STATUS_OK_WASH
+WASH_YELLOW = STATUS_WARN_WASH
+WASH_RED = STATUS_ERROR_WASH
+WASH_PURPLE = ACCENT_WASH
+SEL_CYAN = MARIGOLD
+SEL_CYAN_SOFT = ACCENT_WASH
+STATUS = STATUS_INFO
+PRESENTATION = True
 
-def section_header(accent: str = NEON_CYAN) -> str:
-    """One consistent caption style for every panel section.
+# ---------------------------------------------------------------------------
+# typography
+# ---------------------------------------------------------------------------
+FONT_STACK = "'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+FONT_MONO = "'Cascadia Mono', 'Consolas', 'SF Mono', 'Menlo', monospace"
 
-    Headings stay cool gray - neon is reserved for the thin accent rule, so
-    the eye is drawn to DATA and STATUS rather than to six differently
-    coloured titles.
-    """
-    return (f"color: {TEXT_SECONDARY}; background: transparent;"
-            f" border: none; border-left: 2px solid {accent};"
-            f" padding-left: 9px; margin-top: 2px;"
-            f" font-size: 11px; font-weight: 700; letter-spacing: 1.4px;")
+FONT_SIZE_XS = "10px"
+FONT_SIZE_SM = "11px"
+FONT_SIZE_MD = "12px"
+FONT_SIZE_LG = "14px"
+FONT_SIZE_XL = "17px"
 
-
-def accent_button(accent: str, dim: str) -> str:
-    """A restrained neon button: tinted surface, neon text and border."""
-    return f"""
-        QPushButton {{
-            background: {SURFACE_RAISED};
-            color: {accent};
-            border: 1px solid {dim};
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-        }}
-        QPushButton:hover {{
-            background: {SURFACE_HOVER};
-            border: 1px solid {accent};
-            color: {accent};
-        }}
-        QPushButton:pressed {{
-            background: {SURFACE_ACTIVE};
-        }}
-        QPushButton:disabled {{
-            background: {SURFACE};
-            color: {TEXT_MUTED};
-            border: 1px solid {BORDER};
-        }}
-    """
+RADIUS_SM = "4px"
+RADIUS_MD = "6px"
+RADIUS_LG = "8px"
 
 
 # ---------------------------------------------------------------------------
-# the application stylesheet
+# helpers used by individual widgets
 # ---------------------------------------------------------------------------
+def section_header(accent=None):
+    """Styling for a small uppercase section title."""
+    accent = accent or TEXT_SECONDARY
+    return (
+        "font-size: %s; font-weight: 700; color: %s; letter-spacing: 1px; "
+        "text-transform: uppercase; background: transparent; border: none;"
+        % (FONT_SIZE_SM, accent))
 
-def app_stylesheet() -> str:
-    """Global QSS.
 
-    Covers every widget that does not carry its own inline stylesheet, so
-    scrollbars, menus, tooltips, dialogs and headers all pick up the theme
-    instead of falling back to the platform default (which, on a black
-    window, is what makes controls vanish).
-    """
-    return f"""
-    QWidget {{
-        background-color: {BG};
-        color: {TEXT_PRIMARY};
-        font-family: {FONT_STACK};
-        font-size: 12px;
-    }}
+def accent_button(colour=None):
+    """A filled call-to-action button."""
+    colour = colour or DEEP_AUBERGINE
+    on_colour = TEXT_ON_ACCENT if colour == MARIGOLD else TEXT_ON_PRIMARY
+    return (
+        "QPushButton {"
+        " background: %s; color: %s; border: none; border-radius: %s;"
+        " padding: 9px 18px; font-size: %s; font-weight: 600;"
+        " letter-spacing: 0.3px; }"
+        "QPushButton:hover { background: %s; }"
+        "QPushButton:pressed { background: %s; }"
+        "QPushButton:disabled { background: %s; color: %s; }"
+        % (colour, on_colour, RADIUS_MD, FONT_SIZE_MD,
+           SIDEBAR_HOVER if colour == DEEP_AUBERGINE else "#D59B00",
+           SIDEBAR_ACTIVE if colour == DEEP_AUBERGINE else "#C08C00",
+           SURFACE_ACTIVE, TEXT_MUTED))
 
-    /* A bare QLabel must not paint the app background over a panel -
-       without this, every unstyled label punches a darker rectangle into
-       whatever surface it sits on. */
-    QLabel {{
-        background: transparent;
-    }}
 
-    QToolTip {{
-        background: {SURFACE_RAISED};
-        color: {TEXT_PRIMARY};
-        border: 1px solid {BORDER_ACTIVE};
-        padding: 6px 9px;
-        border-radius: 6px;
-    }}
+def badge(colour=None, wash=None):
+    """A small status pill."""
+    colour = colour or STATUS_INFO
+    wash = wash or STATUS_INFO_WASH
+    return (
+        "background: %s; color: %s; border: 1px solid %s;"
+        " border-radius: %s; padding: 2px 9px; font-size: %s;"
+        " font-weight: 700; letter-spacing: 0.4px;"
+        % (wash, colour, colour, RADIUS_SM, FONT_SIZE_XS))
 
-    /* ---- buttons -------------------------------------------------- */
-    QPushButton {{
-        background: {SURFACE_RAISED};
-        color: {TEXT_PRIMARY};
-        border: 1px solid {BORDER};
-        border-radius: 8px;
-        padding: 9px 18px;
-        font-size: 12px;
+
+def status_colour(state):
+    """Map a connection/processing state to its semantic colour."""
+    state = (state or "").upper()
+    if state in ("CONNECTED", "READY", "TREATMENT PLAN READY", "COMPLETED",
+                 "SUCCESS", "VERIFIED"):
+        return STATUS_OK
+    if state in ("CONNECTION LOST", "CHECK FAILED", "FAILED", "ERROR",
+                 "CONNECTION_FAILED"):
+        return STATUS_ERROR
+    if state in ("NOT STARTED", "STARTING", "CHECKING CONNECTION",
+                 "CONNECTION SLOW", "RECONNECTING", "PORTAL TAB NOT FOUND",
+                 "PATIENT VERIFICATION REQUIRED", "OPERATOR ACTION REQUIRED",
+                 "RECONCILIATION_REQUIRED"):
+        return STATUS_WARN
+    return TEXT_SECONDARY
+
+
+def app_stylesheet():
+    """The single global stylesheet for the whole console."""
+    return """
+    QWidget {
+        background: %(bg)s;
+        color: %(text)s;
+        font-family: %(font)s;
+        font-size: %(md)s;
+    }
+
+    QFrame#Card, QFrame[card="true"] {
+        background: %(surface)s;
+        border: 1px solid %(border)s;
+        border-radius: %(radius_lg)s;
+    }
+
+    QFrame#Sidebar {
+        background: %(sidebar)s;
+        border: none;
+        border-right: 1px solid %(sidebar_border)s;
+    }
+    QFrame#Sidebar QLabel { color: %(on_dark)s; background: transparent; }
+
+    QFrame#Header {
+        background: %(sidebar)s;
+        border: none;
+        border-bottom: 1px solid %(sidebar_border)s;
+    }
+    QFrame#Header QLabel { color: %(on_dark)s; background: transparent; }
+
+    QLabel { background: transparent; border: none; color: %(text)s; }
+    QLabel[muted="true"] { color: %(muted)s; }
+
+    /* ---------------- buttons ---------------- */
+    QPushButton {
+        background: %(surface)s;
+        color: %(text)s;
+        border: 1px solid %(border_strong)s;
+        border-radius: %(radius_md)s;
+        padding: 8px 16px;
+        font-size: %(md)s;
         font-weight: 600;
-    }}
-    QPushButton:hover {{
-        background: {SURFACE_HOVER};
-        border: 1px solid {BORDER_ACTIVE};
-    }}
-    QPushButton:pressed {{
-        background: {SURFACE_ACTIVE};
-    }}
-    QPushButton:focus {{
-        border: 1px solid {NEON_CYAN};
-        outline: none;
-    }}
-    QPushButton:disabled {{
-        background: {SURFACE};
-        color: {TEXT_MUTED};
-        border: 1px solid {BORDER};
-    }}
+    }
+    QPushButton:hover   { background: %(hover)s; border-color: %(marigold)s; }
+    QPushButton:pressed { background: %(active)s; }
+    QPushButton:disabled{ background: %(active)s; color: %(muted)s;
+                          border-color: %(border)s; }
 
-    /* ---- inputs --------------------------------------------------- */
-    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {{
-        background: {SURFACE};
-        color: {TEXT_PRIMARY};
-        border: 1px solid {BORDER};
-        border-radius: 7px;
-        padding: 8px 11px;
-        selection-background-color: {SEL_CYAN};
-        selection-color: {TEXT_PRIMARY};
-    }}
-    QLineEdit:hover, QComboBox:hover {{
-        border: 1px solid {BORDER_ACTIVE};
-    }}
-    QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus {{
-        border: 1px solid {NEON_CYAN};
-        background: {SURFACE_RAISED};
-    }}
-    QLineEdit[error="true"] {{
-        border: 1px solid {NEON_RED};
-    }}
-    QLineEdit:disabled, QComboBox:disabled {{
-        background: {BG};
-        color: {TEXT_MUTED};
-        border: 1px solid {BORDER};
-    }}
-    QComboBox::drop-down {{
+    QPushButton[primary="true"] {
+        background: %(aubergine)s; color: %(on_primary)s; border: none;
+    }
+    QPushButton[primary="true"]:hover   { background: %(sidebar_hover)s; }
+    QPushButton[primary="true"]:pressed { background: %(sidebar_active)s; }
+    QPushButton[primary="true"]:disabled{ background: %(active)s;
+                                          color: %(muted)s; }
+
+    QPushButton[accent="true"] {
+        background: %(marigold)s; color: %(on_accent)s; border: none;
+    }
+    QPushButton[accent="true"]:hover   { background: #D59B00; }
+    QPushButton[accent="true"]:pressed { background: #C08C00; }
+
+    /* ---------------- inputs ---------------- */
+    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit, QTextEdit {
+        background: %(surface)s;
+        border: 1px solid %(border_strong)s;
+        border-radius: %(radius_md)s;
+        padding: 6px 10px;
+        color: %(text)s;
+        selection-background-color: %(marigold)s;
+        selection-color: %(on_accent)s;
+    }
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus,
+    QPlainTextEdit:focus, QTextEdit:focus {
+        border: 1px solid %(marigold)s;
+    }
+    QComboBox::drop-down { border: none; width: 22px; }
+    QComboBox QAbstractItemView {
+        background: %(surface)s;
+        border: 1px solid %(border_strong)s;
+        selection-background-color: %(accent_wash)s;
+        selection-color: %(text)s;
+        outline: none;
+    }
+
+    /* ---------------- lists & tables ---------------- */
+    QListWidget, QTableWidget, QTreeWidget {
+        background: %(surface)s;
+        border: 1px solid %(border)s;
+        border-radius: %(radius_md)s;
+        gridline-color: %(border)s;
+        alternate-background-color: %(raised)s;
+        outline: none;
+    }
+    QListWidget::item, QTableWidget::item {
+        padding: 6px 8px;
+        border-bottom: 1px solid %(border)s;
+    }
+    QListWidget::item:hover, QTableWidget::item:hover {
+        background: %(hover)s;
+    }
+    QListWidget::item:selected, QTableWidget::item:selected {
+        background: %(accent_wash)s;
+        color: %(text)s;
+        border-left: 3px solid %(marigold)s;
+    }
+    QHeaderView::section {
+        background: %(raised)s;
+        color: %(secondary)s;
         border: none;
-        width: 22px;
-    }}
-    QComboBox::down-arrow {{
-        width: 0; height: 0;
-        border-left: 4px solid transparent;
-        border-right: 4px solid transparent;
-        border-top: 5px solid {TEXT_SECONDARY};
-        margin-right: 8px;
-    }}
-    QComboBox QAbstractItemView {{
-        background: {SURFACE_RAISED};
-        color: {TEXT_PRIMARY};
-        border: 1px solid {BORDER_ACTIVE};
-        selection-background-color: {SEL_CYAN};
-        selection-color: {NEON_CYAN};
-        outline: none;
-        padding: 4px;
-    }}
-
-    /* ---- tables --------------------------------------------------- */
-    QTableWidget, QTableView {{
-        background: {SURFACE};
-        alternate-background-color: {SURFACE_RAISED};
-        gridline-color: {BORDER};
-        border: 1px solid {BORDER};
-        border-radius: 10px;
-        font-size: 12px;
-    }}
-    QHeaderView::section {{
-        background: {SURFACE_RAISED};
-        color: {TEXT_SECONDARY};
+        border-bottom: 1px solid %(border_strong)s;
+        border-right: 1px solid %(border)s;
+        padding: 8px;
+        font-size: %(sm)s;
         font-weight: 700;
-        font-size: 11px;
-        letter-spacing: 0.8px;
-        padding: 10px 8px;
-        border: none;
-        border-bottom: 1px solid {CYAN_DIM};
-    }}
-    QTableWidget::item {{
-        padding: 7px 6px;
-        border-bottom: 1px solid {BORDER};
-    }}
-    QTableWidget::item:hover {{
-        background: {SURFACE_HOVER};
-    }}
-    QTableWidget::item:selected {{
-        background: {SEL_CYAN};
-        color: {TEXT_PRIMARY};
-    }}
-    QTableCornerButton::section {{
-        background: {SURFACE_RAISED};
-        border: none;
-    }}
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    QTableCornerButton::section { background: %(raised)s; border: none; }
 
-    /* ---- text / logs ---------------------------------------------- */
-    QTextEdit {{
-        background: {SURFACE};
-        color: {TEXT_PRIMARY};
-        border: 1px solid {BORDER};
-        border-radius: 10px;
-        selection-background-color: {SEL_CYAN};
-    }}
+    /* ---------------- tabs ---------------- */
+    QTabWidget::pane {
+        border: 1px solid %(border)s;
+        border-radius: %(radius_md)s;
+        background: %(surface)s;
+        top: -1px;
+    }
+    QTabBar::tab {
+        background: transparent;
+        color: %(secondary)s;
+        padding: 9px 18px;
+        margin-right: 2px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-weight: 600;
+    }
+    QTabBar::tab:hover     { color: %(text)s; }
+    QTabBar::tab:selected  { color: %(aubergine)s;
+                             border-bottom: 2px solid %(marigold)s; }
 
-    /* ---- progress -------------------------------------------------- */
-    QProgressBar {{
-        background: {SURFACE};
-        border: 1px solid {BORDER};
-        border-radius: 7px;
+    /* ---------------- progress ---------------- */
+    QProgressBar {
+        background: %(sunken)s;
+        border: none;
+        border-radius: %(radius_sm)s;
+        height: 8px;
         text-align: center;
-        color: {TEXT_SECONDARY};
-        font-size: 11px;
-        font-weight: 700;
-    }}
-    QProgressBar::chunk {{
-        background: {NEON_CYAN};
-        border-radius: 6px;
-    }}
+        color: %(text)s;
+    }
+    QProgressBar::chunk {
+        background: %(marigold)s;
+        border-radius: %(radius_sm)s;
+    }
 
-    /* ---- scrollbars ------------------------------------------------ */
-    QScrollBar:vertical {{
-        background: transparent;
-        width: 10px;
-        margin: 2px;
-    }}
-    QScrollBar::handle:vertical {{
-        background: {BORDER_ACTIVE};
-        border-radius: 5px;
-        min-height: 30px;
-    }}
-    QScrollBar::handle:vertical:hover {{
-        background: {CYAN_DIM};
-    }}
-    QScrollBar:horizontal {{
-        background: transparent;
-        height: 10px;
-        margin: 2px;
-    }}
-    QScrollBar::handle:horizontal {{
-        background: {BORDER_ACTIVE};
-        border-radius: 5px;
-        min-width: 30px;
-    }}
-    QScrollBar::handle:horizontal:hover {{
-        background: {CYAN_DIM};
-    }}
-    QScrollBar::add-line, QScrollBar::sub-line {{
-        height: 0; width: 0; border: none; background: none;
-    }}
-    QScrollBar::add-page, QScrollBar::sub-page {{
-        background: none;
-    }}
+    /* ---------------- scrollbars ---------------- */
+    QScrollBar:vertical {
+        background: transparent; width: 11px; margin: 2px;
+    }
+    QScrollBar::handle:vertical {
+        background: %(border_strong)s; border-radius: 5px; min-height: 28px;
+    }
+    QScrollBar::handle:vertical:hover { background: %(secondary)s; }
+    QScrollBar:horizontal {
+        background: transparent; height: 11px; margin: 2px;
+    }
+    QScrollBar::handle:horizontal {
+        background: %(border_strong)s; border-radius: 5px; min-width: 28px;
+    }
+    QScrollBar::handle:horizontal:hover { background: %(secondary)s; }
+    QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
+    QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 
-    /* ---- containers ------------------------------------------------ */
-    QScrollArea {{
-        background: transparent;
-        border: none;
-    }}
-    QSplitter::handle {{
-        background: {BORDER};
-    }}
-    QSplitter::handle:hover {{
-        background: {CYAN_DIM};
-    }}
-
-    /* ---- panels (object names already present in the UI) ----------- */
-    QFrame#topBar {{
-        background: {SURFACE};
-        border: 1px solid {BORDER};
-        border-radius: 12px;
-    }}
-    QFrame#leftPanel, QFrame#rightPanel {{
-        background: {SURFACE};
-        border: 1px solid {BORDER};
-        border-radius: 14px;
-    }}
-
-    /* ---- dialogs ---------------------------------------------------- */
-    QMessageBox {{
-        background: {SURFACE};
-    }}
-    QMessageBox QLabel {{
-        color: {TEXT_PRIMARY};
-        background: transparent;
-    }}
-    """
+    /* ---------------- misc ---------------- */
+    QCheckBox, QRadioButton { spacing: 7px; color: %(text)s; }
+    QCheckBox::indicator, QRadioButton::indicator {
+        width: 15px; height: 15px;
+        border: 1px solid %(border_strong)s;
+        background: %(surface)s;
+        border-radius: 3px;
+    }
+    QCheckBox::indicator:checked, QRadioButton::indicator:checked {
+        background: %(marigold)s; border-color: %(marigold)s;
+    }
+    QToolTip {
+        background: %(aubergine)s;
+        color: %(on_primary)s;
+        border: 1px solid %(sidebar_border)s;
+        border-radius: %(radius_sm)s;
+        padding: 5px 9px;
+    }
+    QMenu {
+        background: %(surface)s;
+        border: 1px solid %(border_strong)s;
+        border-radius: %(radius_md)s;
+        padding: 4px;
+    }
+    QMenu::item { padding: 6px 22px; border-radius: %(radius_sm)s; }
+    QMenu::item:selected { background: %(accent_wash)s; color: %(text)s; }
+    QSplitter::handle { background: %(border)s; }
+    """ % {
+        "bg": BG, "surface": SURFACE, "raised": SURFACE_RAISED,
+        "hover": SURFACE_HOVER, "active": SURFACE_ACTIVE,
+        "sunken": SURFACE_SUNKEN,
+        "sidebar": SIDEBAR, "sidebar_hover": SIDEBAR_HOVER,
+        "sidebar_active": SIDEBAR_ACTIVE, "sidebar_border": SIDEBAR_BORDER,
+        "border": BORDER, "border_strong": BORDER_STRONG,
+        "text": TEXT_PRIMARY, "secondary": TEXT_SECONDARY, "muted": TEXT_MUTED,
+        "on_dark": TEXT_ON_DARK, "on_accent": TEXT_ON_ACCENT,
+        "on_primary": TEXT_ON_PRIMARY,
+        "aubergine": DEEP_AUBERGINE, "marigold": MARIGOLD,
+        "accent_wash": ACCENT_WASH,
+        "font": FONT_STACK, "sm": FONT_SIZE_SM, "md": FONT_SIZE_MD,
+        "radius_sm": RADIUS_SM, "radius_md": RADIUS_MD, "radius_lg": RADIUS_LG,
+    }

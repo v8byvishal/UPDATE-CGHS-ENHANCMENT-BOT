@@ -39,6 +39,9 @@ CRITICAL_FILES = [
     "ui_theme.py",
     "CGHS_Enhancement_Bot.spec",
     "BUILD_WINDOWS.cmd",
+    # Chrome 136+ will not open a debugging port on the default profile, so
+    # the operator cannot connect at all without this launcher.
+    "START_CGHS_CHROME.cmd",
     "cghs/__init__.py",
     "cghs/locators.py",
     "cghs/rules.py",
@@ -73,6 +76,8 @@ INCLUDE_GLOBS = [
     "ui_theme.py",
     "CGHS_Enhancement_Bot.spec",
     "BUILD_WINDOWS.cmd",
+    "START_CGHS_CHROME.cmd",
+    "UPGRADE_AUDIT_REPORT.md",
     "requirements.txt",
     ".gitignore",
     "pytest.ini",

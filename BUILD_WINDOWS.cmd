@@ -143,7 +143,12 @@ echo  Reminder - the bot ATTACHES to a Chrome you have already
 echo  authenticated yourself. It performs no login, MFA, cookie or
 echo  profile automation. Start Chrome with:
 echo.
-echo     chrome.exe --remote-debugging-port=9222
+echo     START_CGHS_CHROME.cmd
+echo.
+echo  Chrome 136+ will NOT open a debugging port on the default
+echo  profile, so that launcher starts Chrome on a dedicated
+echo  automation profile. Launching chrome.exe by hand with only
+echo  a debugging port flag no longer works on current Chrome.
 echo.
 echo  then log in manually and open the patient Treatment Plan.
 echo.

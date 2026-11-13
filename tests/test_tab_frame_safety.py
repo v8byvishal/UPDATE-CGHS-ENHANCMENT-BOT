@@ -419,3 +419,94 @@ def test_attach_refuses_to_call_selenium_when_the_endpoint_is_dead():
         assert "remote debugging mode" in str(exc), str(exc)
     else:
         raise AssertionError("a dead endpoint must not produce a session")
+
+
+# =====================================================================
+# ROUND 18 - PHASE 2/3: honest connection status, strict endpoint
+# identification, permanent-vs-transient attach failures, and driver
+# service cleanup that does NOT close the operator's browser.
+# =====================================================================
+
+def test_the_ui_never_fakes_an_online_status_on_a_timer():
+    """app.py used to flip CHROME/CDP to ONLINE 800ms after layout, with
+    no check of Chrome, CDP, Selenium or the portal."""
+    source = (REPO / "app.py").read_text(encoding="utf-8", errors="replace")
+    offender = "singleShot(800"
+    assert offender not in source, (
+        "a timed, unconditional ONLINE transition is a fabricated status")
+    assert "CHROME/CDP: \u25cf ONLINE" not in source, (
+        "ONLINE must come from a real probe, not a literal set on a timer")
+
+
+def test_a_non_chrome_service_on_the_port_is_not_reported_as_chrome():
+    """Anything can listen on 9222.  Only Chrome may be accepted."""
+    import threading, socketserver, http.server, json as _json
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = _json.dumps({"service": "something else"}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = socketserver.TCPServer(("127.0.0.1", 0), Handler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        ok, detail = probe_debugger_endpoint(f"127.0.0.1:{port}", timeout=2.0)
+        assert ok is False, f"a non-Chrome HTTP service was accepted: {detail}"
+        assert "chrome" in detail.lower() or "devtools" in detail.lower(), detail
+    finally:
+        srv.shutdown()
+
+
+def test_a_permanent_attach_failure_is_not_retried():
+    """Retrying a permanent fault just multiplies the operator's wait."""
+    from cghs.session import is_transient_attach_error
+    from selenium.common.exceptions import SessionNotCreatedException
+
+    permanent = SessionNotCreatedException(
+        "session not created: This version of ChromeDriver only supports "
+        "Chrome version 131")
+    assert is_transient_attach_error(permanent) is False
+
+    transient = OSError("connection reset by peer")
+    assert is_transient_attach_error(transient) is True
+
+
+def test_close_stops_the_driver_service_without_quitting_the_browser():
+    """The orphan chromedriver.exe leak: close() only logged."""
+    from cghs.telemetry import EnterpriseLogger
+
+    class FakeService:
+        def __init__(self):
+            self.stopped = 0
+
+        def stop(self):
+            self.stopped += 1
+
+    class FakeDriver:
+        def __init__(self):
+            self.service = FakeService()
+            self.quit_calls = 0
+            self.session_id = "s1"
+
+        def quit(self):
+            self.quit_calls += 1
+
+        def execute_script(self, *a, **k):
+            return None
+
+    from cghs.session import PortalSession
+    driver = FakeDriver()
+    session = PortalSession(driver, EnterpriseLogger())
+    session.close()
+    assert driver.service.stopped == 1, "chromedriver service must be stopped"
+    assert driver.quit_calls == 0, (
+        "quit() would close the operator's own Chrome window")
+    session.close()
+    assert driver.service.stopped == 1, "close() must be idempotent"

@@ -56,7 +56,7 @@ from cghs.parsing import (
     CGHSParsingEngine, extract_room_rent_section, extract_service_rows,
 )
 from cghs.telemetry import EnterpriseLogger
-from cghs.session import PortalSession
+from cghs.session import PortalSession, probe_debugger_endpoint
 from cghs.orchestrator import BatchRunner
 from cghs.tabs import AmbiguousPatientTab, NoPatientTab
 from cghs.txstate import TransactionJournal
@@ -223,6 +223,47 @@ class BatchAutomationThread(QThread):
 
 
 
+class ChromeStatusProbe(QThread):
+    """Reports the REAL Chrome/CDP state, on a worker thread.
+
+    The console used to flip this label to ONLINE 800ms after layout without
+    checking anything at all.  This asks the debugging endpoint instead.
+
+    Deliberately OUTSIDE the enhancement hot path: polling is paused for the
+    whole duration of a batch (``set_batch_running``), so it can never add a
+    Selenium call, a DOM round trip or a heartbeat to per-item processing.
+    """
+
+    status_signal = pyqtSignal(str, str)   # state, detail
+
+    POLL_SECONDS = 5.0
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._stop = False
+        self._batch_running = False
+
+    def set_batch_running(self, running):
+        self._batch_running = bool(running)
+
+    def stop(self):
+        self._stop = True
+
+    def run(self):
+        while not self._stop:
+            if not self._batch_running:
+                try:
+                    ok, detail = probe_debugger_endpoint()
+                    self.status_signal.emit(
+                        "CONNECTED" if ok else "NOT STARTED", detail)
+                except Exception as exc:                    # noqa: BLE001
+                    self.status_signal.emit("CHECK FAILED", str(exc))
+            waited = 0.0
+            while waited < self.POLL_SECONDS and not self._stop:
+                self.msleep(100)
+                waited += 0.1
+
+
 class DropZone(QFrame):
     """Drag-and-drop upload zone."""
     fileDropped = pyqtSignal(list)
@@ -233,14 +274,14 @@ class DropZone(QFrame):
         self.setObjectName("dropZone")
         self.setStyleSheet("""
             QFrame#dropZone {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0c12, stop:1 #0d1016);
-                border: 2px dashed #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FFFFFF, stop:1 #FFFFFF);
+                border: 2px dashed #3A0F34;
                 border-radius: 16px;
                 min-height: 140px;
             }
             QFrame#dropZone:hover {
-                border: 2px dashed #b06cff;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #11141c, stop:1 #171b25);
+                border: 2px dashed #3A0F34;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F4F7F9, stop:1 #E7ECF0);
             }
         """)
         layout = QVBoxLayout()
@@ -250,10 +291,10 @@ class DropZone(QFrame):
         self.icon_label.setStyleSheet("font-size: 42px; background: transparent; border: none;")
         self.title_label = QLabel("DROP HOSPITAL BILLS HERE")
         self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("font-size: 16px; font-weight: 800; color: #00e5ff; letter-spacing: 2px; background: transparent; border: none;")
+        self.title_label.setStyleSheet("font-size: 16px; font-weight: 800; color: #3A0F34; letter-spacing: 1px; background: transparent; border: none;")
         self.sub_label = QLabel("CLICK TO UPLOAD OR DRAG AND DROP - PDF ONLY")
         self.sub_label.setAlignment(Qt.AlignCenter)
-        self.sub_label.setStyleSheet("font-size: 11px; color: #a3adc2; letter-spacing: 1px; background: transparent; border: none;")
+        self.sub_label.setStyleSheet("font-size: 11px; color: #55606B; letter-spacing: 1px; background: transparent; border: none;")
         layout.addWidget(self.icon_label)
         layout.addWidget(self.title_label)
         layout.addWidget(self.sub_label)
@@ -261,7 +302,7 @@ class DropZone(QFrame):
         try:
             glow = QGraphicsDropShadowEffect()
             glow.setBlurRadius(20)
-            glow.setColor(QColor("#00e5ff"))
+            glow.setColor(QColor("#3A0F34"))
             glow.setOffset(0, 0)
             self.setGraphicsEffect(glow)
         except:
@@ -274,7 +315,7 @@ class DropZone(QFrame):
     def pulse_animation(self):
         self.pulse_state = not self.pulse_state
         if self.pulse_state:
-            self.icon_label.setStyleSheet("font-size: 44px; background: transparent; border: none; color: #b06cff;")
+            self.icon_label.setStyleSheet("font-size: 44px; background: transparent; border: none; color: #3A0F34;")
         else:
             self.icon_label.setStyleSheet("font-size: 42px; background: transparent; border: none;")
 
@@ -283,8 +324,8 @@ class DropZone(QFrame):
             event.acceptProposedAction()
             self.setStyleSheet("""
                 QFrame#dropZone {
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #11141c, stop:1 #1c2130);
-                    border: 2px solid #b06cff;
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F4F7F9, stop:1 #D2DAE1);
+                    border: 2px solid #3A0F34;
                     border-radius: 16px;
                     min-height: 140px;
                 }
@@ -294,8 +335,8 @@ class DropZone(QFrame):
     def dragLeaveEvent(self, event):
         self.setStyleSheet("""
             QFrame#dropZone {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0c12, stop:1 #0d1016);
-                border: 2px dashed #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FFFFFF, stop:1 #FFFFFF);
+                border: 2px dashed #3A0F34;
                 border-radius: 16px;
                 min-height: 140px;
             }
@@ -309,8 +350,8 @@ class DropZone(QFrame):
             self.fileDropped.emit(files)
         self.setStyleSheet("""
             QFrame#dropZone {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0c12, stop:1 #0d1016);
-                border: 2px dashed #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FFFFFF, stop:1 #FFFFFF);
+                border: 2px dashed #3A0F34;
                 border-radius: 16px;
                 min-height: 140px;
             }
@@ -333,14 +374,14 @@ class FileCard(QFrame):
         self.setObjectName("fileCard")
         self.setStyleSheet("""
             QFrame#fileCard {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0a0c12, stop:1 #11141c);
-                border: 1px solid #1d2230;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #FFFFFF, stop:1 #F4F7F9);
+                border: 1px solid #C2CCD4;
                 border-radius: 12px;
                 padding: 8px;
             }
             QFrame#fileCard:hover {
-                border: 1px solid #00e5ff;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #11141c, stop:1 #171b25);
+                border: 1px solid #3A0F34;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F4F7F9, stop:1 #E7ECF0);
             }
         """)
         layout = QHBoxLayout()
@@ -350,17 +391,17 @@ class FileCard(QFrame):
         layout.addWidget(icon)
         info_layout = QVBoxLayout()
         self.name_label = QLabel(filename)
-        self.name_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #e9edf6; background: transparent; border: none;")
+        self.name_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #1C2126; background: transparent; border: none;")
         self.size_label = QLabel(filesize)
-        self.size_label.setStyleSheet("font-size: 10px; color: #a3adc2; background: transparent; border: none;")
+        self.size_label.setStyleSheet("font-size: 10px; color: #55606B; background: transparent; border: none;")
         info_layout.addWidget(self.name_label)
         info_layout.addWidget(self.size_label)
         layout.addLayout(info_layout)
         layout.addStretch()
         self.status_label = QLabel("QUEUED")
         self.status_label.setStyleSheet("""
-            background: #1d2230;
-            color: #4d9fff;
+            background: #C2CCD4;
+            color: #2A5E8C;
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 10px;
@@ -381,28 +422,28 @@ class FileCard(QFrame):
         self.status_label.setText(status_text)
         if "COMPLETED" in status_text:
             self.status_label.setStyleSheet("""
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #06170f, stop:1 #0a2416);
-                color: #2fe08a;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3F1EA, stop:1 #E3F1EA);
+                color: #1F7A4D;
                 padding: 4px 10px;
                 border-radius: 12px;
                 font-size: 10px;
                 font-weight: 700;
-                border: 1px solid #2fe08a;
+                border: 1px solid #1F7A4D;
             """)
         elif "IN_PROGRESS" in status_text or "PROCESSING" in status_text:
             self.status_label.setStyleSheet("""
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #081020, stop:1 #101a2e);
-                color: #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E4EDF5, stop:1 #E4EDF5);
+                color: #3A0F34;
                 padding: 4px 10px;
                 border-radius: 12px;
                 font-size: 10px;
                 font-weight: 700;
-                border: 1px solid #00e5ff;
+                border: 1px solid #3A0F34;
             """)
         elif "QUEUED" in status_text:
             self.status_label.setStyleSheet("""
-                background: #1d2230;
-                color: #4d9fff;
+                background: #C2CCD4;
+                color: #2A5E8C;
                 padding: 4px 10px;
                 border-radius: 12px;
                 font-size: 10px;
@@ -410,18 +451,18 @@ class FileCard(QFrame):
             """)
         else:
             self.status_label.setStyleSheet("""
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1a080c, stop:1 #240d11);
-                color: #ff4d6d;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F8E4E7, stop:1 #F8E4E7);
+                color: #A32638;
                 padding: 4px 10px;
                 border-radius: 12px;
                 font-size: 10px;
                 font-weight: 700;
-                border: 1px solid #ff4d6d;
+                border: 1px solid #A32638;
             """)
 
 class CounterCard(QFrame):
     """Premium dashboard counter with animated number"""
-    def __init__(self, title, initial=0, color="#00e5ff", parent=None):
+    def __init__(self, title, initial=0, color="#3A0F34", parent=None):
         super().__init__(parent)
         self.setObjectName("counterCard")
         self.target_value = initial
@@ -429,8 +470,8 @@ class CounterCard(QFrame):
         self.color = color
         self.setStyleSheet(f"""
             QFrame#counterCard {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0c12, stop:1 #0a0c12);
-                border: 1px solid #1d2230;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #FFFFFF, stop:1 #FFFFFF);
+                border: 1px solid #C2CCD4;
                 border-radius: 14px;
                 min-width: 110px;
                 min-height: 80px;
@@ -444,7 +485,7 @@ class CounterCard(QFrame):
         layout.setSpacing(4)
         self.title_label = QLabel(title)
         self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet(f"font-size: 10px; font-weight: 700; color: #a3adc2; letter-spacing: 1.5px; background: transparent; border: none;")
+        self.title_label.setStyleSheet(f"font-size: 10px; font-weight: 700; color: #55606B; letter-spacing: 1.5px; background: transparent; border: none;")
         self.value_label = QLabel("0")
         self.value_label.setAlignment(Qt.AlignCenter)
         self.value_label.setStyleSheet(f"font-size: 28px; font-weight: 900; color: {color}; background: transparent; border: none;")
@@ -508,8 +549,8 @@ class BatchCGHSApp(QWidget):
         top_bar.setFixedHeight(72)
         top_bar.setStyleSheet("""
             QFrame#topBar {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0a0c12, stop:0.5 #0a0c12, stop:1 #0a0c12);
-                border: 1px solid #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #FFFFFF, stop:0.5 #FFFFFF, stop:1 #FFFFFF);
+                border: 1px solid #3A0F34;
                 border-radius: 14px;
             }
         """)
@@ -519,20 +560,20 @@ class BatchCGHSApp(QWidget):
         left_title_layout = QVBoxLayout()
         title_row = QHBoxLayout()
         title_label = QLabel("CGHS AUTOMATION")
-        title_label.setStyleSheet("font-size: 18px; font-weight: 900; color: #00e5ff; letter-spacing: 2px; background: transparent; border: none;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: 900; color: #3A0F34; letter-spacing: 1px; background: transparent; border: none;")
         title_row.addWidget(title_label)
         title_label2 = QLabel("COMMAND CENTER")
-        title_label2.setStyleSheet("font-size: 18px; font-weight: 400; color: #e9edf6; letter-spacing: 2px; background: transparent; border: none;")
+        title_label2.setStyleSheet("font-size: 18px; font-weight: 400; color: #1C2126; letter-spacing: 1px; background: transparent; border: none;")
         title_row.addWidget(title_label2)
         title_row.addStretch()
         left_title_layout.addLayout(title_row)
 
         user_row = QHBoxLayout()
         self.header_user_label = QLabel("VISHAL SINGH CHAUHAN")
-        self.header_user_label.setStyleSheet("font-size: 13px; font-weight: 800; color: #b06cff; letter-spacing: 1px; background: transparent; border: none;")
+        self.header_user_label.setStyleSheet("font-size: 13px; font-weight: 800; color: #3A0F34; letter-spacing: 1px; background: transparent; border: none;")
         user_row.addWidget(self.header_user_label)
         user_role = QLabel("AUTOMATION CONSOLE")
-        user_role.setStyleSheet("font-size: 10px; color: #2fe08a; background: transparent; border: none; margin-left: 12px;")
+        user_role.setStyleSheet("font-size: 10px; color: #1F7A4D; background: transparent; border: none; margin-left: 12px;")
         user_row.addWidget(user_role)
         user_row.addStretch()
         left_title_layout.addLayout(user_row)
@@ -541,24 +582,24 @@ class BatchCGHSApp(QWidget):
 
         center_status_layout = QVBoxLayout()
         self.system_online_label = QLabel("● SYSTEM ONLINE")
-        self.system_online_label.setStyleSheet("font-size: 11px; font-weight: 800; color: #2fe08a; letter-spacing: 1px; background: transparent; border: none;")
+        self.system_online_label.setStyleSheet("font-size: 11px; font-weight: 800; color: #1F7A4D; letter-spacing: 1px; background: transparent; border: none;")
         center_status_layout.addWidget(self.system_online_label, alignment=Qt.AlignCenter)
 
         self.energy_line = QFrame()
         self.energy_line.setFixedHeight(2)
         self.energy_line.setFixedWidth(200)
-        self.energy_line.setStyleSheet("background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00e5ff, stop:0.5 #b06cff, stop:1 #ff2d6f); border: none;")
+        self.energy_line.setStyleSheet("background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3A0F34, stop:0.5 #3A0F34, stop:1 #A32638); border: none;")
         center_status_layout.addWidget(self.energy_line, alignment=Qt.AlignCenter)
 
         top_bar_layout.addLayout(center_status_layout)
 
         right_status_layout = QVBoxLayout()
         self.batch_status_label = QLabel("BATCH: IDLE")
-        self.batch_status_label.setStyleSheet("font-size: 10px; color: #a3adc2; background: transparent; border: none;")
+        self.batch_status_label.setStyleSheet("font-size: 10px; color: #55606B; background: transparent; border: none;")
         self.chrome_status_label = QLabel("CHROME/CDP: CHECKING...")
-        self.chrome_status_label.setStyleSheet("font-size: 10px; color: #a3adc2; background: transparent; border: none;")
+        self.chrome_status_label.setStyleSheet("font-size: 10px; color: #55606B; background: transparent; border: none;")
         self.automation_status_label = QLabel("AUTOMATION: READY")
-        self.automation_status_label.setStyleSheet("font-size: 10px; color: #4d9fff; background: transparent; border: none;")
+        self.automation_status_label.setStyleSheet("font-size: 10px; color: #2A5E8C; background: transparent; border: none;")
         right_status_layout.addWidget(self.batch_status_label, alignment=Qt.AlignRight)
         right_status_layout.addWidget(self.chrome_status_label, alignment=Qt.AlignRight)
         right_status_layout.addWidget(self.automation_status_label, alignment=Qt.AlignRight)
@@ -575,7 +616,7 @@ class BatchCGHSApp(QWidget):
         left_panel.setStyleSheet("""
             QFrame#leftPanel {
                 background: rgba(10, 12, 18, 0.88);
-                border: 1px solid #1d2230;
+                border: 1px solid #C2CCD4;
                 border-radius: 14px;
             }
         """)
@@ -589,22 +630,22 @@ class BatchCGHSApp(QWidget):
 
         network_row = QHBoxLayout()
         network_label = QLabel("NETWORK SPEED:")
-        network_label.setStyleSheet("font-size: 10px; color: #a3adc2; letter-spacing: 1px; background: transparent; border: none;")
+        network_label.setStyleSheet("font-size: 10px; color: #55606B; letter-spacing: 1px; background: transparent; border: none;")
         network_row.addWidget(network_label)
         self.delay_combo = QComboBox()
         self.delay_combo.addItems(list(NETWORK_DELAY.keys()))
         self.delay_combo.setCurrentText("Medium Network (2.5s)")
         self.delay_combo.setStyleSheet("""
             QComboBox {
-                background: #11141c;
-                border: 1px solid #1d2230;
+                background: #F4F7F9;
+                border: 1px solid #C2CCD4;
                 border-radius: 8px;
                 padding: 6px 12px;
                 font-size: 11px;
-                color: #e9edf6;
+                color: #1C2126;
             }
             QComboBox:hover {
-                border: 1px solid #00e5ff;
+                border: 1px solid #3A0F34;
             }
         """)
         network_row.addWidget(self.delay_combo)
@@ -620,16 +661,16 @@ class BatchCGHSApp(QWidget):
                 border: none;
             }
             QScrollBar:vertical {
-                background: #04050a;
+                background: #DDE3E8;
                 width: 6px;
                 border-radius: 3px;
             }
             QScrollBar::handle:vertical {
-                background: #1d2230;
+                background: #C2CCD4;
                 border-radius: 3px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #00e5ff;
+                background: #3A0F34;
             }
         """)
         self.file_cards_container = QWidget()
@@ -650,12 +691,12 @@ class BatchCGHSApp(QWidget):
 
         counters_grid = QGridLayout()
         counters_grid.setSpacing(8)
-        self.counter_cards["BILLS"] = CounterCard("TOTAL BILLS", 0, "#00e5ff")
-        self.counter_cards["PROCESSED"] = CounterCard("PROCESSED", 0, "#4d9fff")
-        self.counter_cards["SUCCESS"] = CounterCard("SUCCESSFUL", 0, "#2fe08a")
-        self.counter_cards["FAILED"] = CounterCard("FAILED", 0, "#ff4d6d")
-        self.counter_cards["CODES"] = CounterCard("TOTAL CODES", 0, "#b06cff")
-        self.counter_cards["QTY"] = CounterCard("TOTAL QTY", 0, "#ffb637")
+        self.counter_cards["BILLS"] = CounterCard("TOTAL BILLS", 0, "#3A0F34")
+        self.counter_cards["PROCESSED"] = CounterCard("PROCESSED", 0, "#2A5E8C")
+        self.counter_cards["SUCCESS"] = CounterCard("SUCCESSFUL", 0, "#1F7A4D")
+        self.counter_cards["FAILED"] = CounterCard("FAILED", 0, "#A32638")
+        self.counter_cards["CODES"] = CounterCard("TOTAL CODES", 0, "#3A0F34")
+        self.counter_cards["QTY"] = CounterCard("TOTAL QTY", 0, "#EAAA00")
 
         counters_grid.addWidget(self.counter_cards["BILLS"], 0, 0)
         counters_grid.addWidget(self.counter_cards["PROCESSED"], 0, 1)
@@ -672,18 +713,18 @@ class BatchCGHSApp(QWidget):
         self.upload_btn.setFixedHeight(42)
         self.upload_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #11141c, stop:1 #1d2230);
-                border: 1px solid #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F4F7F9, stop:1 #C2CCD4);
+                border: 1px solid #3A0F34;
                 border-radius: 10px;
-                color: #00e5ff;
+                color: #3A0F34;
                 font-size: 11px;
                 font-weight: 800;
                 letter-spacing: 1px;
             }
             QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #081020, stop:1 #101a2e);
-                border: 1px solid #00e5ff;
-                color: #00e5ff;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E4EDF5, stop:1 #E4EDF5);
+                border: 1px solid #3A0F34;
+                color: #3A0F34;
             }
         """)
         self.upload_btn.clicked.connect(self.upload_bills)
@@ -694,23 +735,23 @@ class BatchCGHSApp(QWidget):
         self.start_btn.setFixedHeight(42)
         self.start_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #06170f, stop:1 #0a2416);
-                border: 1px solid #2fe08a;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3F1EA, stop:1 #E3F1EA);
+                border: 1px solid #1F7A4D;
                 border-radius: 10px;
-                color: #2fe08a;
+                color: #1F7A4D;
                 font-size: 11px;
                 font-weight: 800;
                 letter-spacing: 1px;
             }
             QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0e2a1c, stop:1 #12351f);
-                border: 1px solid #7dffb8;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #E3F1EA, stop:1 #E3F1EA);
+                border: 1px solid #1F7A4D;
                 color: #ffffff;
             }
             QPushButton:disabled {
-                background: #11141c;
-                border: 1px solid #1d2230;
-                color: #2c3444;
+                background: #F4F7F9;
+                border: 1px solid #C2CCD4;
+                color: #A9B6C0;
             }
         """)
         self.start_btn.clicked.connect(self.start_batch)
@@ -722,23 +763,23 @@ class BatchCGHSApp(QWidget):
         self.stop_btn.setFixedHeight(42)
         self.stop_btn.setStyleSheet("""
             QPushButton#stopBtn {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1a080c, stop:1 #240d11);
-                border: 1px solid #ff4d6d;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F8E4E7, stop:1 #F8E4E7);
+                border: 1px solid #A32638;
                 border-radius: 10px;
-                color: #ff4d6d;
+                color: #A32638;
                 font-size: 11px;
                 font-weight: 800;
                 letter-spacing: 1px;
             }
             QPushButton#stopBtn:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2a0b0d, stop:1 #341113);
-                border: 1px solid #ff7a94;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F8E4E7, stop:1 #F8E4E7);
+                border: 1px solid #A32638;
                 color: #ffffff;
             }
             QPushButton#stopBtn:disabled {
-                background: #11141c;
-                border: 1px solid #1d2230;
-                color: #2c3444;
+                background: #F4F7F9;
+                border: 1px solid #C2CCD4;
+                color: #A9B6C0;
             }
         """)
         self.stop_btn.clicked.connect(self.stop_batch)
@@ -754,7 +795,7 @@ class BatchCGHSApp(QWidget):
         right_panel.setStyleSheet("""
             QFrame#rightPanel {
                 background: rgba(10, 12, 18, 0.70);
-                border: 1px solid #1d2230;
+                border: 1px solid #C2CCD4;
                 border-radius: 14px;
             }
         """)
@@ -776,29 +817,29 @@ class BatchCGHSApp(QWidget):
         self.queue_table.setFixedHeight(140)
         self.queue_table.setStyleSheet("""
             QTableWidget {
-                background: #07080e;
-                gridline-color: #11141c;
-                border: 1px solid #1d2230;
+                background: #DDE3E8;
+                gridline-color: #F4F7F9;
+                border: 1px solid #C2CCD4;
                 border-radius: 10px;
                 font-size: 11px;
             }
             QHeaderView::section {
-                background: #11141c;
-                color: #a3adc2;
+                background: #F4F7F9;
+                color: #55606B;
                 font-weight: 800;
                 font-size: 10px;
                 letter-spacing: 1px;
                 padding: 8px;
                 border: none;
-                border-bottom: 1px solid #00e5ff;
+                border-bottom: 1px solid #3A0F34;
             }
             QTableWidget::item {
                 padding: 6px;
-                border-bottom: 1px solid #11141c;
+                border-bottom: 1px solid #F4F7F9;
             }
             QTableWidget::item:selected {
                 background: rgba(0, 229, 255, 0.14);
-                color: #e9edf6;
+                color: #1C2126;
             }
         """)
         self.queue_table.itemClicked.connect(self.on_bill_selected)
@@ -810,7 +851,7 @@ class BatchCGHSApp(QWidget):
         results_header.addWidget(results_title)
         results_header.addStretch()
         self.results_count_label = QLabel("0 CODES")
-        self.results_count_label.setStyleSheet("font-size: 10px; color: #a3adc2; background: transparent; border: none;")
+        self.results_count_label.setStyleSheet("font-size: 10px; color: #55606B; background: transparent; border: none;")
         results_header.addWidget(self.results_count_label)
         right_layout.addLayout(results_header)
 
@@ -824,25 +865,25 @@ class BatchCGHSApp(QWidget):
         self.results_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.results_table.setStyleSheet("""
             QTableWidget {
-                background: #07080e;
-                gridline-color: #0d1016;
-                border: 1px solid #1d2230;
+                background: #DDE3E8;
+                gridline-color: #FFFFFF;
+                border: 1px solid #C2CCD4;
                 border-radius: 10px;
                 font-size: 11px;
             }
             QHeaderView::section {
-                background: #11141c;
-                color: #a3adc2;
+                background: #F4F7F9;
+                color: #55606B;
                 font-weight: 800;
                 font-size: 10px;
                 letter-spacing: 1px;
                 padding: 8px;
                 border: none;
-                border-bottom: 1px solid #b06cff;
+                border-bottom: 1px solid #3A0F34;
             }
             QTableWidget::item {
                 padding: 6px;
-                border-bottom: 1px solid #0a0c12;
+                border-bottom: 1px solid #FFFFFF;
             }
         """)
         right_layout.addWidget(self.results_table)
@@ -853,7 +894,7 @@ class BatchCGHSApp(QWidget):
         log_header.addWidget(log_title)
         log_header.addStretch()
         self.log_status = QLabel("READY")
-        self.log_status.setStyleSheet("font-size: 9px; color: #2c3444; background: transparent; border: none;")
+        self.log_status.setStyleSheet("font-size: 9px; color: #A9B6C0; background: transparent; border: none;")
         log_header.addWidget(self.log_status)
         right_layout.addLayout(log_header)
 
@@ -861,25 +902,25 @@ class BatchCGHSApp(QWidget):
         self.log_box.setReadOnly(True)
         self.log_box.setStyleSheet("""
             QTextEdit {
-                background: #04050a;
-                color: #2fe08a;
+                background: #DDE3E8;
+                color: #1F7A4D;
                 font-family: 'Consolas', 'Courier New', monospace;
                 font-size: 11px;
-                border: 1px solid #06170f;
+                border: 1px solid #E3F1EA;
                 border-radius: 10px;
                 padding: 10px;
             }
             QScrollBar:vertical {
-                background: #04050a;
+                background: #DDE3E8;
                 width: 6px;
                 border-radius: 3px;
             }
             QScrollBar::handle:vertical {
-                background: #06170f;
+                background: #E3F1EA;
                 border-radius: 3px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #2fe08a;
+                background: #1F7A4D;
             }
         """)
         right_layout.addWidget(self.log_box)
@@ -897,8 +938,10 @@ class BatchCGHSApp(QWidget):
         final_layout.addWidget(container)
         self.setLayout(final_layout)
 
-        self.chrome_status_label.setText("CHROME/CDP: CHECKING...")
-        QTimer.singleShot(800, lambda: self.chrome_status_label.setText("CHROME/CDP: ● ONLINE"))
+        self.chrome_status_label.setText("CHROME/CDP: CHECKING CONNECTION")
+        self.chrome_probe = ChromeStatusProbe(self)
+        self.chrome_probe.status_signal.connect(self.update_chrome_status)
+        self.chrome_probe.start()
 
 
 
@@ -935,16 +978,16 @@ class BatchCGHSApp(QWidget):
             if rejected:
                 summary += f" | {len(rejected)} flagged"
             name_item = QTableWidgetItem(f" {patient_name}")
-            name_item.setForeground(QColor("#e9edf6"))
+            name_item.setForeground(QColor("#1C2126"))
             self.queue_table.setItem(row, 0, name_item)
             summary_item = QTableWidgetItem(f" {summary}")
-            summary_item.setForeground(QColor("#a3adc2"))
+            summary_item.setForeground(QColor("#55606B"))
             self.queue_table.setItem(row, 1, summary_item)
             status_item = QTableWidgetItem("QUEUED")
-            status_item.setForeground(QColor("#4d9fff"))
+            status_item.setForeground(QColor("#2A5E8C"))
             self.queue_table.setItem(row, 2, status_item)
             codes_item = QTableWidgetItem(f" {codes_preview if codes_preview else 'No Codes'}")
-            codes_item.setForeground(QColor("#2fe08a"))
+            codes_item.setForeground(QColor("#1F7A4D"))
             self.queue_table.setItem(row, 3, codes_item)
             ParserDiagnosticAuditor.export_audit_report(patient_name, raw_occs, parsed_items, rejected, agg_log)
         self.start_btn.setEnabled(True)
@@ -959,52 +1002,52 @@ class BatchCGHSApp(QWidget):
         timestamp_match = re.search(r'\[(\d{2}:\d{2}:\d{2})\]', msg)
         timestamp = timestamp_match.group(1) if timestamp_match else time.strftime('%H:%M:%S')
         category = "SYSTEM"
-        badge_color = "#a3adc2"
-        badge_bg = "#11141c"
+        badge_color = "#55606B"
+        badge_bg = "#F4F7F9"
         severity = "INFO"
         upper_msg = msg.upper()
         if "ERROR" in upper_msg or "❌" in msg or "FAILED" in upper_msg or "FAIL" in upper_msg:
             category = "ERROR"
-            badge_color = "#ff4d6d"
-            badge_bg = "#1a080c"
+            badge_color = "#A32638"
+            badge_bg = "#F8E4E7"
             severity = "ERROR"
         elif "WARN" in upper_msg or "⚠️" in msg or "WARNING" in upper_msg:
             category = "WARNING"
-            badge_color = "#ffb637"
-            badge_bg = "#191206"
+            badge_color = "#EAAA00"
+            badge_bg = "#FCF2D6"
             severity = "WARNING"
         elif "SUCCESS" in upper_msg or "VERIFIED" in upper_msg or "COMPLETED" in upper_msg or "✓" in msg:
             category = "SUCCESS"
-            badge_color = "#2fe08a"
-            badge_bg = "#06170f"
+            badge_color = "#1F7A4D"
+            badge_bg = "#E3F1EA"
             severity = "SUCCESS"
         elif "PROCEDURE" in upper_msg or "TYPE_PROCEDURE" in upper_msg:
             category = "PROCEDURE"
-            badge_color = "#00e5ff"
-            badge_bg = "#0a0c12"
+            badge_color = "#3A0F34"
+            badge_bg = "#FFFFFF"
         elif "SPECIALITY" in upper_msg:
             category = "SPECIALITY"
-            badge_color = "#b06cff"
-            badge_bg = "#130a1e"
+            badge_color = "#3A0F34"
+            badge_bg = "#FCF2D6"
         elif "QUANTITY" in upper_msg:
             category = "QUANTITY"
-            badge_color = "#ffb637"
-            badge_bg = "#1a1308"
+            badge_color = "#EAAA00"
+            badge_bg = "#FCF2D6"
         elif "PLUS" in upper_msg:
             category = "PLUS ACTION"
-            badge_color = "#ff2d6f"
-            badge_bg = "#1a0812"
+            badge_color = "#A32638"
+            badge_bg = "#FCF2D6"
         elif "PATIENT" in upper_msg or "BILL" in upper_msg:
             category = "PATIENT"
-            badge_color = "#4d9fff"
-            badge_bg = "#0a0c12"
+            badge_color = "#2A5E8C"
+            badge_bg = "#FFFFFF"
         clean_msg = re.sub(r'\[\d{2}:\d{2}:\d{2}\]\s*', '', msg)
         clean_msg = re.sub(r'\[INFO\]|\[WARN\]|\[ERROR\]', '', clean_msg).strip()
         html = f'''
         <div style="margin: 3px 0; font-family: Consolas, monospace;">
-            <span style="color: #00e5ff; font-weight: 700;">[{timestamp}]</span>
+            <span style="color: #3A0F34; font-weight: 700;">[{timestamp}]</span>
             <span style="background: {badge_bg}; color: {badge_color}; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 800; margin: 0 8px; border: 1px solid {badge_color};">{category}</span>
-            <span style="color: #e9edf6;">{clean_msg}</span>
+            <span style="color: #1C2126;">{clean_msg}</span>
         </div>
         '''
         try:
@@ -1019,24 +1062,24 @@ class BatchCGHSApp(QWidget):
             self.log_box.append(original_msg)
         self.log_status.setText(severity)
         if severity == "ERROR":
-            self.log_status.setStyleSheet("font-size: 10px; font-weight: 800; color: #ff4d6d; background: #1a080c; padding: 2px 6px; border-radius: 6px;")
+            self.log_status.setStyleSheet("font-size: 10px; font-weight: 800; color: #A32638; background: #F8E4E7; padding: 2px 6px; border-radius: 6px;")
         elif severity == "SUCCESS":
-            self.log_status.setStyleSheet("font-size: 10px; font-weight: 800; color: #2fe08a; background: #06170f; padding: 2px 6px; border-radius: 6px;")
+            self.log_status.setStyleSheet("font-size: 10px; font-weight: 800; color: #1F7A4D; background: #E3F1EA; padding: 2px 6px; border-radius: 6px;")
         elif severity == "WARNING":
-            self.log_status.setStyleSheet("font-size: 10px; font-weight: 800; color: #ffb637; background: #191206; padding: 2px 6px; border-radius: 6px;")
+            self.log_status.setStyleSheet("font-size: 10px; font-weight: 800; color: #EAAA00; background: #FCF2D6; padding: 2px 6px; border-radius: 6px;")
         else:
-            self.log_status.setStyleSheet("font-size: 9px; color: #a3adc2; background: transparent;")
+            self.log_status.setStyleSheet("font-size: 9px; color: #55606B; background: transparent;")
 
     def reset_execution_log(self):
         self.log_box.clear()
         init_html = f"""
-        <div style="font-family: Consolas, monospace; color: #00e5ff; margin: 10px 0;">
-            <div style="color: #b06cff; font-weight: 800; letter-spacing: 2px;">╔══════════════════════════════════════╗</div>
-            <div style="color: #b06cff; font-weight: 800;">║  NEW SESSION INITIALIZED - LOG RESET  ║</div>
-            <div style="color: #b06cff; font-weight: 800; letter-spacing: 2px;">╚══════════════════════════════════════╝</div>
-            <div style="margin-top: 8px; color: #a3adc2;">[{time.strftime('%H:%M:%S')}] SYSTEM • Previous logs cleared from visible HUD</div>
-            <div style="color: #a3adc2;">[{time.strftime('%H:%M:%S')}] SYSTEM • Awaiting new bill processing...</div>
-            <div style="color: #00e5ff; margin-top: 8px;">[{time.strftime('%H:%M:%S')}] READY</div>
+        <div style="font-family: Consolas, monospace; color: #3A0F34; margin: 10px 0;">
+            <div style="color: #3A0F34; font-weight: 800; letter-spacing: 1px;">╔══════════════════════════════════════╗</div>
+            <div style="color: #3A0F34; font-weight: 800;">║  NEW SESSION INITIALIZED - LOG RESET  ║</div>
+            <div style="color: #3A0F34; font-weight: 800; letter-spacing: 1px;">╚══════════════════════════════════════╝</div>
+            <div style="margin-top: 8px; color: #55606B;">[{time.strftime('%H:%M:%S')}] SYSTEM • Previous logs cleared from visible HUD</div>
+            <div style="color: #55606B;">[{time.strftime('%H:%M:%S')}] SYSTEM • Awaiting new bill processing...</div>
+            <div style="color: #3A0F34; margin-top: 8px;">[{time.strftime('%H:%M:%S')}] READY</div>
         </div>
         """
         try:
@@ -1102,23 +1145,23 @@ class BatchCGHSApp(QWidget):
             qty = item.get("qty",0)
             amount = item.get("amount","")
             code_item = QTableWidgetItem(f" {code}")
-            code_item.setForeground(QColor("#00e5ff"))
+            code_item.setForeground(QColor("#3A0F34"))
             if code.startswith("CN"):
-                code_item.setForeground(QColor("#4d9fff"))
+                code_item.setForeground(QColor("#2A5E8C"))
             elif code.startswith("CC"):
-                code_item.setForeground(QColor("#ff4d6d"))
+                code_item.setForeground(QColor("#A32638"))
             elif code.startswith("WC"):
-                code_item.setForeground(QColor("#ffb637"))
+                code_item.setForeground(QColor("#EAAA00"))
             self.results_table.setItem(row, 0, code_item)
             desc = code_descriptions.get(code, f"{'Lab' if code.startswith('LB') else 'Radiology' if code.startswith('RI') else 'Procedure' if code.startswith('GP') or code.startswith('PT') or code.startswith('NI') else 'Investigation' if code.startswith('CI') or code.startswith('RP') else 'Charge'} - {code}")
             desc_item = QTableWidgetItem(f" {desc}")
-            desc_item.setForeground(QColor("#e9edf6"))
+            desc_item.setForeground(QColor("#1C2126"))
             self.results_table.setItem(row, 1, desc_item)
             qty_text = f" {qty}" + (f" (₹{amount})" if amount else "")
             qty_item = QTableWidgetItem(qty_text)
-            qty_item.setForeground(QColor("#2fe08a"))
+            qty_item.setForeground(QColor("#1F7A4D"))
             if qty > 10:
-                qty_item.setForeground(QColor("#ffb637"))
+                qty_item.setForeground(QColor("#EAAA00"))
             self.results_table.setItem(row, 2, qty_item)
             status_text = "QUEUED"
             if bill_index < self.queue_table.rowCount():
@@ -1127,16 +1170,16 @@ class BatchCGHSApp(QWidget):
                     status_text = status_item_q.text()
             if "COMPLETED" in status_text:
                 display_status = "✓ ADDED"
-                color = "#2fe08a"
+                color = "#1F7A4D"
             elif "IN_PROGRESS" in status_text or "PROCESSING" in status_text:
                 display_status = "PROCESSING..."
-                color = "#00e5ff"
+                color = "#3A0F34"
             elif "QUEUED" in status_text:
                 display_status = "QUEUED"
-                color = "#a3adc2"
+                color = "#55606B"
             else:
                 display_status = "NOT ADDED"
-                color = "#ff4d6d"
+                color = "#A32638"
             status_display = QTableWidgetItem(f" {display_status}")
             status_display.setForeground(QColor(color))
             self.results_table.setItem(row, 3, status_display)
@@ -1147,7 +1190,7 @@ class BatchCGHSApp(QWidget):
                     source_text = occ.get("source_section","")[:30]
                     break
             source_item = QTableWidgetItem(f" {source_text}")
-            source_item.setForeground(QColor("#a3adc2"))
+            source_item.setForeground(QColor("#55606B"))
             self.results_table.setItem(row, 4, source_item)
         self.results_count_label.setText(f"{len(items)} CODES")
 
@@ -1168,15 +1211,17 @@ class BatchCGHSApp(QWidget):
         self.stop_btn.setEnabled(True)
         self.stop_btn.setText("■ STOP AUTOMATION")
         self.batch_status_label.setText("BATCH: PROCESSING")
-        self.batch_status_label.setStyleSheet("font-size: 10px; font-weight: 800; color: #00e5ff; background: #0a0c12; padding: 2px 8px; border-radius: 6px; border: 1px solid #00e5ff;")
+        self.batch_status_label.setStyleSheet("font-size: 10px; font-weight: 800; color: #3A0F34; background: #FFFFFF; padding: 2px 8px; border-radius: 6px; border: 1px solid #3A0F34;")
         self.automation_status_label.setText("AUTOMATION: RUNNING ●")
-        self.automation_status_label.setStyleSheet("font-size: 10px; font-weight: 800; color: #2fe08a; background: #06170f; padding: 2px 8px; border-radius: 6px; border: 1px solid #2fe08a;")
+        self.automation_status_label.setStyleSheet("font-size: 10px; font-weight: 800; color: #1F7A4D; background: #E3F1EA; padding: 2px 8px; border-radius: 6px; border: 1px solid #1F7A4D;")
         delay_mode = self.delay_combo.currentText()
         self.thread = BatchAutomationThread(self.batch_queue, delay_mode)
         self.thread.log_signal.connect(self.log)
         self.thread.patient_status_signal.connect(self.update_patient_status)
         self.thread.finished_signal.connect(self.batch_finished)
         self.thread.performance_signal.connect(self.show_performance_summary)
+        if getattr(self, 'chrome_probe', None):
+            self.chrome_probe.set_batch_running(True)
         self.thread.start()
         self.log(f"[{time.strftime('%H:%M:%S')}] [BATCH START] {len(self.batch_queue)} patient(s) queued - starting")
 
@@ -1199,13 +1244,16 @@ class BatchCGHSApp(QWidget):
 
     def stop_batch(self):
         self.log(f"[{time.strftime('%H:%M:%S')}] [STOP REQUESTED] User requested graceful stop - finishing current Selenium action, preventing next procedure")
+        if getattr(self, 'chrome_probe', None):
+            self.chrome_probe.stop()
+            self.chrome_probe.wait(2000)
         if self.thread and self.thread.isRunning():
             self.log(f"[{time.strftime('%H:%M:%S')}] [STOP] Requesting cancellation via existing safe hook thread.stop() - current action will finish safely")
             self.thread.stop()
             self.stop_btn.setEnabled(False)
             self.stop_btn.setText("STOPPING...")
             self.batch_status_label.setText("BATCH: STOPPING")
-            self.batch_status_label.setStyleSheet("font-size: 10px; font-weight: 800; color: #ffb637; background: #191206; padding: 2px 8px; border-radius: 6px; border: 1px solid #ffb637;")
+            self.batch_status_label.setStyleSheet("font-size: 10px; font-weight: 800; color: #EAAA00; background: #FCF2D6; padding: 2px 8px; border-radius: 6px; border: 1px solid #EAAA00;")
             self.automation_status_label.setText("AUTOMATION: STOPPING")
             for row in range(self.queue_table.rowCount()):
                 item = self.queue_table.item(row, 2)
@@ -1265,20 +1313,37 @@ class BatchCGHSApp(QWidget):
         self.counter_cards["QTY"].set_value(total_qty)
 
     def batch_finished(self, success: bool, msg: str):
+        if getattr(self, 'chrome_probe', None):
+            self.chrome_probe.set_batch_running(False)
         self.start_btn.setEnabled(True)
         self.upload_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.stop_btn.setText("■ STOP AUTOMATION")
         self.batch_status_label.setText("BATCH: IDLE" if success else "BATCH: STOPPED")
-        self.batch_status_label.setStyleSheet("font-size: 10px; color: #a3adc2; background: transparent; border: none;" if success else "font-size: 10px; font-weight: 800; color: #ff4d6d; background: #1a080c; padding: 2px 8px; border-radius: 6px; border: 1px solid #ff4d6d;")
+        self.batch_status_label.setStyleSheet("font-size: 10px; color: #55606B; background: transparent; border: none;" if success else "font-size: 10px; font-weight: 800; color: #A32638; background: #F8E4E7; padding: 2px 8px; border-radius: 6px; border: 1px solid #A32638;")
         self.automation_status_label.setText("AUTOMATION: READY" if success else "AUTOMATION: STOPPED")
-        self.automation_status_label.setStyleSheet("font-size: 10px; color: #4d9fff; background: transparent; border: none;" if success else "font-size: 10px; color: #a3adc2; background: transparent; border: none;")
+        self.automation_status_label.setStyleSheet("font-size: 10px; color: #2A5E8C; background: transparent; border: none;" if success else "font-size: 10px; color: #55606B; background: transparent; border: none;")
         if not success and ("cancelled" in msg.lower() or "stopped" in msg.lower()):
             self.log(f"[{time.strftime('%H:%M:%S')}] [STOPPED] Automation stopped by user - {msg} - resources cleaned, no corruption")
         else:
             self.log(f"[{time.strftime('%H:%M:%S')}] [FINISHED] Batch finished - {msg} - ALL PROCEDURES VERIFIED")
         self.update_counters()
         QMessageBox.information(self, "Batch Status", msg)
+
+    def update_chrome_status(self, state, detail):
+        """Render the REAL connection state reported by the probe thread."""
+        colours = {
+            "CONNECTED": ui_theme.STATUS_OK,
+            "NOT STARTED": ui_theme.STATUS_WARN,
+            "CHECK FAILED": ui_theme.STATUS_ERROR,
+        }
+        colour = colours.get(state, ui_theme.TEXT_SECONDARY)
+        marker = "\u25cf " if state == "CONNECTED" else ""
+        self.chrome_status_label.setText("CHROME/CDP: " + marker + state)
+        self.chrome_status_label.setStyleSheet(
+            "font-size: 10px; color: " + colour +
+            "; background: transparent; border: none;")
+        self.chrome_status_label.setToolTip(detail)
 
     def closeEvent(self, event):
         if self.thread and self.thread.isRunning():
