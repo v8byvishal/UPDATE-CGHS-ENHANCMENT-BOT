@@ -415,3 +415,136 @@ The 8 skips are environment-gated (no PyQt5, no Windows, no live portal).
 * **Windows EXE build:** **BLOCKED** (no PyInstaller/Windows).
 * **`LIVE_PORTAL` = NOT_VERIFIED.** No live portal test was performed and no live success is claimed.
 * The config-file path under `%LOCALAPPDATA%` is exercised on Linux via the `CGHS_CHROME_CONFIG` override; the literal Windows path is **NOT VERIFIED**.
+
+---
+---
+
+# ROUND 18 — WINDOWS COMPATIBILITY PATCH (fixes 1–4)
+
+Four reported items. **Three were real and are fixed. One was not
+reproducible and no change was fabricated for it.** Application name,
+window title, executable and branding unchanged.
+
+| | |
+|---|---|
+| Baseline | `e85ff8b` (tag `round18-final`) |
+| Total collected | **896** |
+| Passed | **888** |
+| Failed | **0** |
+| Skipped | **8** |
+| New tests | **36** (`tests/test_round18_windows.py`) |
+| Command | `python3 -m pytest -p no:cacheprovider -q` |
+
+## FIX 1 — UTF-8 BOM (REAL, fixed in both layers)
+
+**Confirmed.** The launcher wrote `Set-Content -Encoding UTF8`, which emits a
+**UTF-8 BOM on Windows PowerShell 5.1**, while Python read
+`read_text(encoding="utf-8")`. A BOM makes `json.loads` fail with the opaque
+`Expecting value: line 1 column 1`.
+
+* **Launcher:** now `[System.IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding($false)))` — an explicit **BOM-free** encoder that behaves identically on PowerShell 5.1 and 7. No reliance on PowerShell 7 defaults. The write also **verifies the first three bytes are not `EF BB BF`** and fails if they are.
+* **Python:** `load_chrome_config()` reads with **`utf-8-sig`**, which strips a BOM when present and is identical to `utf-8` when it is not — so both the launcher's output and a hand-edited file work.
+* An **empty file** (and a BOM-only file) now produces a specific, actionable message naming the file and the fix, instead of a bare JSON error.
+* **No silent fallback to 9222** on any parse failure — verified by a test that fails if a port is returned instead of a raise.
+
+**Tests:** plain UTF-8 · UTF-8 **with BOM** (fixture asserts the BOM bytes are really present) · BOM round-trip for 9222/9333/9444 · corrupt JSON · empty file · BOM-only file · missing port key · six invalid port values · no-silent-fallback · reader is BOM-tolerant by construction · launcher uses a BOM-free encoder.
+
+## FIX 2 — Configuration write failure (REAL, fixed)
+
+**Confirmed.** The write sent PowerShell output to `nul`, never checked the
+exit code, and then printed `[OK]` based only on `if exist` — so a **stale
+file produced a false success** and the application silently kept the old
+port.
+
+New `:WRITE_CONFIG` subroutine performs, in order:
+
+1. write to **`chrome_config.json.tmp`**
+2. assert the bytes carry **no BOM**
+3. **parse the temporary file back** (`ConvertFrom-Json`)
+4. validate **host** and **port**
+5. **atomically replace** the live file (`Move-Item -Force`)
+6. **re-read the live file** and compare its port with `DEBUG_PORT`
+
+Distinct internal exit codes (10–16) identify which step failed. On any
+failure the launcher prints **`CONFIGURATION WRITE FAILED`**, deletes the
+temporary file, returns **exit code 5**, and **does not start Chrome** — a
+test asserts the failure path precedes the Chrome launch. The `[OK]` is now
+gated on the verified result, never on file existence.
+
+## FIX 3 — Hardcoded endpoint in the connection log (REAL, fixed)
+
+**Confirmed** at `app.py:150`: `"...attaching to Chrome debug 127.0.0.1:9222..."`,
+wrong whenever a custom port is configured.
+
+The endpoint is now resolved **once per batch** via the existing shared
+resolver, logged, **and passed to `attach()`** — so the logged address is
+provably the address used; they cannot diverge. A configuration error is
+reported through the existing `finished_signal` failure path rather than
+crashing the worker. **No new port source, no new Selenium call**, and the
+resolution happens once per batch — never per item.
+
+## FIX 4 — Duplicate byte counter: **NOT REPRODUCIBLE**
+
+The report states `probe_debugger_endpoint()` contains
+
+```python
+total += len(chunk)
+total += len(chunk)
+```
+
+**It does not.** Verified three ways against the real source:
+
+* `grep -c 'total += len(chunk)' cghs/session.py` → **1**
+* a repo-wide scan for any adjacent duplicated `x += …` line → **0 occurrences in any file**
+* `git log -S` shows the line was introduced once, in `f028987`, already singular
+
+The limit was therefore already being enforced against the true byte count.
+**No correction was fabricated.** What was added instead is genuine value:
+
+* the magic number became the named constant **`_MAX_PROBE_RESPONSE_BYTES`**
+* a **focused byte-limit test** that points the probe at a socket streaming ~1.6 MB of junk and asserts the read stops at the cap (it fails if the limit is ever removed or double-counted)
+* a test pinning the counter to **exactly one** increment, so the reported defect cannot be introduced later
+* a test that an ordinary Chrome response is unaffected by the cap
+
+## PRESERVATION
+
+```
+UNCHANGED  cghs/parsing.py   cghs/rules.py    cghs/locators.py
+UNCHANGED  cghs/dom.py       cghs/tabs.py     cghs/orchestrator.py
+```
+
+All six protected modules **byte-identical** this round. `NETWORK_DELAY`:
+**0 added/removed lines** (it appears in the diff only as a context line).
+Parser output on `39538.pdf` **bit-identical** — sha256
+`dcdad30a7e0e5a65…`, **57 items / 371 occurrences**. Files changed: only
+`START_CGHS_CHROME.cmd`, `app.py`, `cghs/session.py`.
+
+**Performance A/B** (12 iterations, interleaved ×2):
+
+| | min | median | items | occurrences |
+|---|---|---|---|---|
+| `e85ff8b` | 184.70 ms | 190.95 ms | 57 | 371 |
+| this patch | 183.95 ms | 195.90 ms | 57 | 371 |
+
+No regression; the parser modules are byte-identical, so the difference is
+measurement noise, not a code effect.
+
+## WINDOWS VERIFICATION — NOT PERFORMED
+
+All ten Windows items requested remain **NOT VERIFIED**. There is no Windows
+host, no `cmd.exe` and no PowerShell in this Linux container, so the
+launcher **has never been executed**:
+
+1. launcher creates the configuration file — **NOT VERIFIED**
+2. file encoding has no BOM — **NOT VERIFIED on Windows** (the launcher asserts it at runtime; the Python side *is* tested against a real BOM fixture here)
+3. Python reads the same configuration — **VERIFIED on Linux** via `CGHS_CHROME_CONFIG`
+4. port 9222 — **VERIFIED (Python side only)**
+5. port 9333 — **VERIFIED (Python side only)**
+6. existing Chrome on a custom port — **NOT VERIFIED**
+7. wrong service → non-zero exit — **static structure only**
+8. configuration write failure stops the launcher — **static structure only**
+9. application logs the actual custom port — **VERIFIED (Python side only)**
+10. repeated launches retain the port — **NOT VERIFIED**
+
+**`LIVE_PORTAL` = NOT_VERIFIED. Windows EXE build = BLOCKED. GUI never
+rendered (PyQt5 unavailable); scaling NOT VERIFIED.**

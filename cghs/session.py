@@ -74,6 +74,11 @@ _CONFIG_FILE_NAME = "chrome_config.json"
 #: host would mean driving someone else's browser over the network.
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
+#: Hard cap on how much the endpoint probe will read.  A /json/version
+#: reply is a few hundred bytes; this only bounds a hostile or broken
+#: service that streams without end.
+_MAX_PROBE_RESPONSE_BYTES = 262144
+
 #: How long the pre-flight endpoint probe may take.  This is a LOCAL socket on
 #: the operator's own machine, so a healthy endpoint answers in low single-digit
 #: milliseconds; the budget only bounds the failure case.
@@ -136,9 +141,19 @@ def load_chrome_config(path: Optional[Path] = None) -> Dict[str, Any]:
 
     if target.exists():
         try:
-            raw = target.read_text(encoding="utf-8")
+            # utf-8-sig, NOT utf-8: Windows PowerShell 5.1 writes a UTF-8 BOM
+            # for "-Encoding UTF8", and a leading BOM makes json.loads fail
+            # with an opaque "Expecting value" error.  utf-8-sig strips a BOM
+            # when present and is identical to utf-8 when it is not, so both
+            # the launcher's output and a hand-edited file are accepted.
+            raw = target.read_text(encoding="utf-8-sig")
         except OSError as exc:
             raise ValueError(f"could not read {target}: {exc}")
+        if not raw.strip():
+            raise ValueError(
+                f"{target} is empty. Delete it and run START_CGHS_CHROME.cmd "
+                f"again to recreate it, or write "
+                f'{{"host": "127.0.0.1", "port": 9222}} into it.')
         try:
             data = json.loads(raw)
         except ValueError as exc:
@@ -278,7 +293,7 @@ def probe_debugger_endpoint(address: Optional[str] = None,
                     break
                 chunks.append(chunk)
                 total += len(chunk)
-                if total > 262144:          # a /json/version reply is tiny
+                if total > _MAX_PROBE_RESPONSE_BYTES:
                     break
     except OSError:
         return False, (

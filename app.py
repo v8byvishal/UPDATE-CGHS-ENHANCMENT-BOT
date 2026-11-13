@@ -57,7 +57,8 @@ from cghs.parsing import (
     CGHSParsingEngine, extract_room_rent_section, extract_service_rows,
 )
 from cghs.telemetry import EnterpriseLogger
-from cghs.session import PortalSession, probe_debugger_endpoint
+from cghs.session import (PortalSession, probe_debugger_endpoint,
+                          resolve_debugger_address)
 from cghs.orchestrator import BatchRunner
 from cghs.tabs import AmbiguousPatientTab, NoPatientTab
 from cghs.txstate import TransactionJournal
@@ -147,10 +148,21 @@ class BatchAutomationThread(QThread):
     def run(self):
         profile = NETWORK_DELAY.get(self.delay_mode, {"step": 1.0, "timeout": 20})
         self.logger.info(f"BatchThread: starting [{self.delay_mode}]")
-        self.logger.info("BatchThread: attaching to Chrome debug 127.0.0.1:9222 (ONE attach per batch)")
+        # Resolve the shared endpoint ONCE per batch: the address that is
+        # logged is the exact address handed to attach(), so the log can
+        # never disagree with the port actually used.  This reads the
+        # shared config file - no Selenium call, and not per item.
+        try:
+            debugger_address = resolve_debugger_address()
+        except ValueError as exc:
+            self.logger.error(f"Chrome endpoint configuration problem: {exc}")
+            self.finished_signal.emit(False, str(exc))
+            return
+        self.logger.info(f"BatchThread: attaching to Chrome debug {debugger_address} (ONE attach per batch)")
         try:
             self.session = PortalSession.attach(
                 self.logger,
+                debugger_address=debugger_address,
                 journal=TransactionJournal(),
                 cancel_check=lambda: self._is_cancelled,
                 trace=self.trace,

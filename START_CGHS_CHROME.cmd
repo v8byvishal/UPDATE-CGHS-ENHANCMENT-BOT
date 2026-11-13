@@ -81,24 +81,94 @@ REM  This must happen before the already-running check, otherwise that
 REM  branch can exit while the application is still pointed at the old
 REM  port.  setx is deliberately NOT relied upon: it does not update a
 REM  Command Prompt that is already open, so the file is the real source.
+REM
+REM  The write is verified, not assumed.  Previously PowerShell errors were
+REM  sent to nul and the launcher only checked that SOME file existed, so a
+REM  stale configuration produced a false [OK] and the application quietly
+REM  kept using the old port.
+REM
+REM  Sequence: write a temporary file with a BOM-FREE UTF-8 encoder, parse
+REM  it back, check host and port, confirm there is no BOM, atomically
+REM  replace the live file, then re-read the live file and compare the port
+REM  with DEBUG_PORT.  Any failure stops the launcher before Chrome starts.
 
 if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%" 2>nul
 
-powershell -NoProfile -Command ^
-  "$cfg = [ordered]@{ host = '%DEBUG_HOST%'; port = [int]'%DEBUG_PORT%' };" ^
-  "$cfg | ConvertTo-Json | Set-Content -Encoding UTF8 '%CONFIG_FILE%'" >nul 2>&1
+set "TMP_CONFIG=%CONFIG_FILE%.tmp"
 
-if exist "%CONFIG_FILE%" (
-    echo  [OK]    Shared configuration written - the application will use
-    echo          %DEBUG_HOST%:%DEBUG_PORT%
-) else (
-    echo  [WARN]  Could not write %CONFIG_FILE%
-    echo          The application may fall back to its default port.
+call :WRITE_CONFIG
+if not "%CONFIG_WRITE_OK%"=="1" (
+    echo.
+    echo  ================================================================
+    echo   CONFIGURATION WRITE FAILED
+    echo  ================================================================
+    echo.
+    echo   Could not save the Chrome endpoint configuration to:
+    echo       %CONFIG_FILE%
+    echo.
+    echo   The application would keep using its previous port, so Chrome is
+    echo   NOT being started - that would leave the launcher and the
+    echo   application pointed at different ports.
+    echo.
+    echo   Common causes:
+    echo     - the folder is read-only or controlled by security software
+    echo     - the file is open in another program
+    echo     - the disk is full
+    echo.
+    echo   Fix the cause and run this launcher again.
+    echo.
+    pause
+    exit /b 5
 )
+
+echo  [OK]    Shared configuration verified - the application will use
+echo          %DEBUG_HOST%:%DEBUG_PORT%
 echo.
 
 REM ---- 4. is a usable Chrome ALREADY on this port? --------------------
-call :PORT_IN_USE
+call :WRITE_CONFIG
+REM  Writes, validates and atomically installs chrome_config.json.
+REM  Sets CONFIG_WRITE_OK=1 only when the LIVE file has been re-read and its
+REM  port matches DEBUG_PORT.
+REM
+REM  UTF8Encoding($false) is required: Set-Content -Encoding UTF8 emits a
+REM  UTF-8 BOM on Windows PowerShell 5.1.  [System.IO.File]::WriteAllText
+REM  honours the encoder on both 5.1 and 7.
+set "CONFIG_WRITE_OK="
+
+powershell -NoProfile -Command ^
+  "$ErrorActionPreference = 'Stop';" ^
+  "try {" ^
+  "  $tmp  = '%TMP_CONFIG%';" ^
+  "  $live = '%CONFIG_FILE%';" ^
+  "  $port = [int]'%DEBUG_PORT%';" ^
+  "  if ($port -lt 1 -or $port -gt 65535) { exit 11 };" ^
+  "  $cfg  = [ordered]@{ host = '%DEBUG_HOST%'; port = $port };" ^
+  "  $json = $cfg | ConvertTo-Json -Compress;" ^
+  "  $enc  = New-Object System.Text.UTF8Encoding($false);" ^
+  "  [System.IO.File]::WriteAllText($tmp, $json, $enc);" ^
+  "  $bytes = [System.IO.File]::ReadAllBytes($tmp);" ^
+  "  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) { exit 12 };" ^
+  "  $check = [System.IO.File]::ReadAllText($tmp) | ConvertFrom-Json;" ^
+  "  if ($check.host -ne '%DEBUG_HOST%') { exit 13 };" ^
+  "  if ([int]$check.port -ne $port) { exit 14 };" ^
+  "  Move-Item -LiteralPath $tmp -Destination $live -Force;" ^
+  "  $final = [System.IO.File]::ReadAllText($live) | ConvertFrom-Json;" ^
+  "  if ([int]$final.port -ne $port) { exit 15 };" ^
+  "  if ($final.host -ne '%DEBUG_HOST%') { exit 16 };" ^
+  "  exit 0" ^
+  "} catch { exit 10 }"
+
+if %ERRORLEVEL%==0 (
+    set "CONFIG_WRITE_OK=1"
+) else (
+    echo  [ERROR] Configuration write check failed with code %ERRORLEVEL%.
+    if exist "%TMP_CONFIG%" del "%TMP_CONFIG%" 2>nul
+)
+goto :eof
+
+
+:PORT_IN_USE
 if "!PORT_BUSY!"=="1" (
     echo  [INFO]  Something is ALREADY listening on %DEBUG_HOST%:%DEBUG_PORT%.
     echo  [..]    Verifying whether it is really Chrome...
